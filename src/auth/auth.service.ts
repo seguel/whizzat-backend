@@ -12,12 +12,21 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  async existsUserCreate(email: string): Promise<boolean> {
+    const user = await this.prisma.usuario.findFirst({
+      where: { email },
+    });
+
+    if (user) return true;
+    else return false;
+  }
+
   async validateUser(
     email: string,
     password: string,
   ): Promise<LoginDto | null> {
     const user = await this.prisma.usuario.findFirst({
-      where: { email, ativo: true },
+      where: { email },
     });
 
     if (!user) return null;
