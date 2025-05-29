@@ -63,9 +63,17 @@ export class AuthController {
     res.cookie('token', loginResult.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-      maxAge: 30 * 60 * 1000, // 30 minutos
+      sameSite: 'none', // <- isso é crucial quando os domínios são diferentes
+      path: '/',
+      maxAge: 30 * 60 * 1000,
     });
+
+    /* res.cookie('token', loginResult.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'None', //process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 30 * 60 * 1000, // 30 minutos
+    }); */
 
     return loginResult;
   }
