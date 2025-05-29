@@ -1,4 +1,10 @@
-import { IsString, IsEmail, IsBoolean, IsDate } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsBoolean,
+  IsDate,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RegisterDto {
@@ -12,6 +18,7 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
+  @MinLength(6, { message: 'A senha deve ter no mínimo 6 caracteres.' })
   senha!: string;
 
   @IsBoolean()
