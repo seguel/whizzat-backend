@@ -1,7 +1,7 @@
 import {
   Controller,
   Get,
-  //Post,
+  Post,
   Body,
   Param,
   Put,
@@ -17,10 +17,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  /* @Post()
+  @Post()
   createUser(@Body() data: usuario): Promise<usuario> {
     return this.userService.createUser(data);
-  } */
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get()

@@ -5,18 +5,29 @@ import {
   BadRequestException,
   ConflictException,
   UnauthorizedException,
+  UseGuards,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UserService } from '../user/user.service';
 import { PrismaService } from '../prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
+//import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResendActivationDto } from './dto/resend-activation.dto';
+import { RequestPasswordResetDto } from './dto/RequestPasswordResetDto';
+import { ResetPasswordDto } from './dto/ResetPasswordDto';
+import { MailService } from '../mail/mail.service';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
+    private readonly userService: UserService,
     private prisma: PrismaService,
+    private readonly mailService: MailService,
   ) {}
 
   @Post('register')
@@ -27,39 +38,83 @@ export class AuthController {
       throw new BadRequestException('Todos os campos são obrigatórios');
     }
 
-    const user = await this.authService.validateUser(email, senha);
-    if (user) throw new ConflictException('Email já cadastrado.');
+    const existUser = await this.authService.existsUserCreate(email);
+    if (existUser) throw new ConflictException('Email já cadastrado.');
 
-    const hashedPassword = await bcrypt.hash(senha, 10);
-    const newUser = await this.prisma.usuario.create({
-      data: {
-        email,
-        senha: hashedPassword,
-        primeiro_nome,
-        ultimo_nome,
-        ativo: false,
-      },
-    });
-
-    return {
-      id: newUser.id,
-      email: newUser.email,
-      primeiro_nome: newUser.primeiro_nome,
-      ultimo_nome: newUser.ultimo_nome,
-    };
+    const user = await this.authService.register(body);
+    return user;
   }
 
   @Post('login')
-  async login(@Body() body: LoginDto) {
+  async login(
+    @Body() body: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const { email, senha } = body;
 
     if (!email || !senha) {
       throw new BadRequestException('Email e senha são obrigatórios');
     }
 
-    const user = await this.authService.validateUser(email, senha);
-    if (!user) throw new UnauthorizedException('Credenciais inválidas');
+    const userValidate = await this.authService.validateUser(email, senha);
+    if (!userValidate) throw new UnauthorizedException('Credenciais inválidas');
 
-    return this.authService.login(user);
+    const loginResult = await this.authService.login(userValidate);
+    res.cookie('token', loginResult.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      maxAge: 30 * 60 * 1000, // 30 minutos
+    });
+
+    return loginResult;
+  }
+
+  @Post('activate')
+  async activateAccount(@Body('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token inválido');
+    }
+    const user = await this.authService.activateUserByToken(token);
+    return { message: 'Conta ativada com sucesso!', user };
+  }
+
+  @Post('resend-activation')
+  async resendActivation(@Body() body: ResendActivationDto) {
+    const { email } = body;
+    const message = await this.authService.resendActivationLink(email);
+    return { message };
+  }
+
+  @Post('request-password-reset')
+  async requestReset(@Body() body: RequestPasswordResetDto) {
+    const { email } = body;
+    const msg = await this.authService.requestPasswordReset(email);
+    return { message: msg };
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body() body: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.resetPassword(body);
+
+    // Limpa o cookie token após resetar a senha
+    res.clearCookie('token');
+
+    return result;
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('token');
+    return { message: 'Logout realizado com sucesso' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('protected')
+  test(@Res() res: Response) {
+    return res.send('Rota protegida com sucesso');
   }
 }
