@@ -22,3 +22,10 @@ model usuario {
   ativo Boolean @default(false)
   createdAt DateTime @default(now())
 }
+
+model perfil{
+  id            Int    @id @default(autoincrement())
+  perfil        String
+  descricao     String
+  ativo Boolean @default(true)
+}
