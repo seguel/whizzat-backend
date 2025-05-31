@@ -110,7 +110,12 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('token');
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // se estiver em prod
+      sameSite: 'none', // ou 'strict', dependendo do seu setup
+      path: '/', // importante para garantir que o cookie seja limpo
+    });
     return { message: 'Logout realizado com sucesso' };
   }
 
