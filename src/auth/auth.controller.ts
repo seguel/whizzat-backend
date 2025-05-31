@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Body,
+  Get,
   BadRequestException,
   ConflictException,
   UnauthorizedException,
@@ -114,8 +115,8 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('protected')
-  test(@Res() res: Response) {
-    return res.send('Rota protegida com sucesso');
+  @Get('check')
+  check() {
+    return { authenticated: true };
   }
 }
