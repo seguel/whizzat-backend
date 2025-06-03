@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { I18nValidationPipe } from 'nestjs-i18n';
 import cookieParser from 'cookie-parser';
 
 import * as dotenv from 'dotenv';
@@ -16,6 +17,10 @@ async function bootstrap() {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
+    }),
+    new I18nValidationPipe({
+      transform: true,
+      whitelist: true,
     }),
   );
 

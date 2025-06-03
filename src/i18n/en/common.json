@@ -1,0 +1,27 @@
+{
+  "mail": {
+    "assunto_bem_vindo": "Confirm your registration",
+    "primeira_linha_bem_vindo": "Hello, {{name}}",
+    "segunda_linha_bem_vindo": "Thank you for signing up! Please confirm your email by clicking the button below:",
+    "btn_ativa_conta": "Activate Account",
+    "link_valido_24h": "This link is valid for 24 hours.",
+
+    "assunto_reset_senha": "Reset your password",
+    "primeira_linha_reset_senha": "Hello, {{name}}",
+    "segunda_linha_reset_senha": "Reset your password by clicking the button below:",
+    "btn_reset_Senha": "Reset Password",
+    "link_valido_15m": "This link is valid for 15 minutes."
+  },
+  "auth": {
+    "campo_obrigatorio": "All fields are required",
+    "credencial_invalida": "Invalid credentials",
+    "email_cadastrado": "Email already registered",
+    "token_invalido": "Invalid token",
+    "token_expirado": "Invalid or expired token",
+    "conta_ativada_sucesso": "Account successfully activated!",
+    "usuario_nao_encotrado": "User not found",
+    "conta_ja_ativa": "Account is already activated",
+    "se_existir_email": "If the email exists, a link will be sent to the provided address",
+    "senha_redefinida": "Password successfully reset"
+  }
+}
