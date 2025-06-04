@@ -18,7 +18,7 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(6, { message: 'A senha deve ter no mínimo 6 caracteres.' })
+  @MinLength(6, { message: 'validation.senha_tamanho' })
   senha!: string;
 
   @IsBoolean()

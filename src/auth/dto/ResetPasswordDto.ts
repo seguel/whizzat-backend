@@ -5,6 +5,6 @@ export class ResetPasswordDto {
   token!: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(6, { message: 'validation.senha_tamanho' })
   novaSenha!: string;
 }

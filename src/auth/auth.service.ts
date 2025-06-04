@@ -12,6 +12,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import * as jwt from 'jsonwebtoken';
 import { generateActivationToken, generateResetTokenCurto } from '../lib/util';
+import { I18nService } from 'nestjs-i18n';
 
 interface JwtPayload {
   userId: number;
@@ -23,9 +24,10 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly i18n: I18nService,
   ) {}
 
-  async register(data: RegisterDto) {
+  async register(data: RegisterDto, language: string) {
     const { primeiro_nome, ultimo_nome, email, senha } = data;
 
     const hashedPassword = await bcrypt.hash(senha, 10);
@@ -41,12 +43,13 @@ export class AuthService {
 
     const token = generateActivationToken(newUser.id);
 
-    const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-email?token=${token}&email=${email}`; //`https://meusite.com/confirmar-email?token=${token}`;
+    const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-email?token=${token}&email=${email}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
 
     await this.mailService.sendWelcomeEmail(
       newUser.email,
       `${newUser.primeiro_nome} ${newUser.ultimo_nome}`,
       activationLink,
+      language,
     );
 
     return {
@@ -57,7 +60,7 @@ export class AuthService {
     };
   }
 
-  async login(data: LoginDto) {
+  async login(data: LoginDto, language: string) {
     const { email, senha } = data;
 
     const user = await this.prisma.usuario.findFirst({
@@ -68,7 +71,14 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(senha, user.senha))) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      const messageRetorno = this.i18n.translate(
+        'common.auth.credencial_invalida',
+        {
+          lang: language,
+        },
+      );
+
+      throw new UnauthorizedException(messageRetorno);
     }
 
     const payload = { sub: user.id, email: user.email };
@@ -84,25 +94,29 @@ export class AuthService {
     };
   }
 
-  async requestPasswordReset(email: string): Promise<string> {
+  async requestPasswordReset(email: string, language: string): Promise<string> {
     const user = await this.prisma.usuario.findUnique({ where: { email } });
-    if (!user)
-      return 'Se o e-mail existir, um link será enviado ao email informado.'; // evita user enumeration
+    const messageRetorno = this.i18n.translate('common.auth.se_existir_email', {
+      lang: language,
+    });
+
+    if (!user) return messageRetorno;
 
     const token = generateResetTokenCurto(user.id);
 
-    const Link = `${process.env.SITE_URL}/cadastro/redefinir-senha?token=${token}&email=${email}`; //`https://meusite.com/confirmar-email?token=${token}`;
+    const Link = `${process.env.SITE_URL}/cadastro/redefinir-senha?token=${token}&email=${email}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
 
     await this.mailService.sendPasswordResetEmail(
       email,
       `${user.primeiro_nome} ${user.ultimo_nome}`,
       Link,
+      language,
     );
 
-    return 'Se o e-mail existir, um link será enviado ao email informado.';
+    return messageRetorno;
   }
 
-  async resetPassword(dto: ResetPasswordDto) {
+  async resetPassword(dto: ResetPasswordDto, language: string) {
     const { token, novaSenha } = dto;
 
     try {
@@ -116,9 +130,19 @@ export class AuthService {
         data: { senha: hashed },
       });
 
-      return { message: 'Senha redefinida com sucesso.' };
+      const messageRetorno = this.i18n.translate(
+        'common.auth.senha_redefinida',
+        {
+          lang: language,
+        },
+      );
+
+      return { message: messageRetorno };
     } catch {
-      throw new BadRequestException('Token inválido ou expirado.');
+      const messageRetorno = this.i18n.translate('common.auth.token_expirado', {
+        lang: language,
+      });
+      throw new BadRequestException(messageRetorno);
     }
   }
 
@@ -134,6 +158,7 @@ export class AuthService {
   async validateUser(
     email: string,
     password: string,
+    language: string,
   ): Promise<LoginDto | null> {
     const user = await this.prisma.usuario.findFirst({
       where: { email },
@@ -142,14 +167,22 @@ export class AuthService {
     if (!user) return null;
 
     const isMatch = await bcrypt.compare(password, user.senha);
-    if (!isMatch) throw new UnauthorizedException('Credenciais inválidas');
+    if (!isMatch) {
+      const messageRetorno = this.i18n.translate(
+        'common.auth.credencial_invalida',
+        {
+          lang: language,
+        },
+      );
+      throw new UnauthorizedException(messageRetorno);
+    }
 
     //const {email, senha: _, ...userData } = user;
     const userData: LoginDto = { email, senha: password };
     return userData;
   }
 
-  async activateUserByToken(token: string) {
+  async activateUserByToken(token: string, language: string) {
     try {
       const payload = jwt.verify(
         token,
@@ -160,7 +193,14 @@ export class AuthService {
         where: { id: payload.userId },
       });
 
-      if (!user) throw new Error('Usuário não encontrado');
+      if (!user) {
+        const messageRetorno = this.i18n.translate(
+          'common.auth.usuario_nao_encotrado',
+          { lang: language },
+        );
+        throw new Error(messageRetorno);
+      }
+
       if (user.ativo) return user;
 
       return await this.prisma.usuario.update({
@@ -168,29 +208,52 @@ export class AuthService {
         data: { ativo: true },
       });
     } catch (err) {
+      let messageRetorno = '';
+
       if (err instanceof jwt.TokenExpiredError) {
-        throw new BadRequestException('Token expirado. Solicite novo link.');
+        messageRetorno = this.i18n.translate('common.auth.token_expirado', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
       } else {
-        throw new BadRequestException('Token inválido.');
+        messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
       }
     }
   }
-  async resendActivationLink(email: string): Promise<string> {
+  async resendActivationLink(email: string, language: string): Promise<string> {
     const user = await this.prisma.usuario.findUnique({
       where: { email },
     });
 
-    if (!user) throw new BadRequestException('Usuário não encontrado.');
-    if (user.ativo) throw new BadRequestException('Conta já está ativada.');
+    if (!user) {
+      const messageRetorno = this.i18n.translate(
+        'common.auth.usuario_nao_encotrado',
+        {
+          lang: language,
+        },
+      );
+      throw new BadRequestException(messageRetorno);
+    }
+
+    if (user.ativo) {
+      const messageRetorno = this.i18n.translate('common.auth.conta_ja_ativa', {
+        lang: language,
+      });
+      throw new BadRequestException(messageRetorno);
+    }
 
     const token = generateActivationToken(user.id);
 
-    const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-email?token=${token}&email=${email}`; //`https://meusite.com/confirmar-email?token=${token}`;
+    const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-email?token=${token}&email=${email}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
 
     await this.mailService.sendWelcomeEmail(
       user.email,
       `${user.primeiro_nome} ${user.ultimo_nome}`,
       activationLink,
+      language,
     );
 
     return 'Link de ativação reenviado com sucesso.';
