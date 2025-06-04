@@ -71,9 +71,12 @@ export class AuthService {
     });
 
     if (!user || !(await bcrypt.compare(senha, user.senha))) {
-      const messageRetorno = this.i18n.translate('auth.credencial_invalida', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.credencial_invalida',
+        {
+          lang: language,
+        },
+      );
 
       throw new UnauthorizedException(messageRetorno);
     }
@@ -93,7 +96,7 @@ export class AuthService {
 
   async requestPasswordReset(email: string, language: string): Promise<string> {
     const user = await this.prisma.usuario.findUnique({ where: { email } });
-    const messageRetorno = this.i18n.translate('auth.se_existir_email', {
+    const messageRetorno = this.i18n.translate('common.auth.se_existir_email', {
       lang: language,
     });
 
@@ -127,13 +130,16 @@ export class AuthService {
         data: { senha: hashed },
       });
 
-      const messageRetorno = this.i18n.translate('auth.senha_redefinida', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.senha_redefinida',
+        {
+          lang: language,
+        },
+      );
 
       return { message: messageRetorno };
     } catch {
-      const messageRetorno = this.i18n.translate('auth.token_expirado', {
+      const messageRetorno = this.i18n.translate('common.auth.token_expirado', {
         lang: language,
       });
       throw new BadRequestException(messageRetorno);
@@ -162,9 +168,12 @@ export class AuthService {
 
     const isMatch = await bcrypt.compare(password, user.senha);
     if (!isMatch) {
-      const messageRetorno = this.i18n.translate('auth.credencial_invalida', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.credencial_invalida',
+        {
+          lang: language,
+        },
+      );
       throw new UnauthorizedException(messageRetorno);
     }
 
@@ -186,7 +195,7 @@ export class AuthService {
 
       if (!user) {
         const messageRetorno = this.i18n.translate(
-          'auth.usuario_nao_encotrado',
+          'common.auth.usuario_nao_encotrado',
           { lang: language },
         );
         throw new Error(messageRetorno);
@@ -202,12 +211,12 @@ export class AuthService {
       let messageRetorno = '';
 
       if (err instanceof jwt.TokenExpiredError) {
-        messageRetorno = this.i18n.translate('auth.token_expirado', {
+        messageRetorno = this.i18n.translate('common.auth.token_expirado', {
           lang: language,
         });
         throw new BadRequestException(messageRetorno);
       } else {
-        messageRetorno = this.i18n.translate('auth.token_invalido', {
+        messageRetorno = this.i18n.translate('common.auth.token_invalido', {
           lang: language,
         });
         throw new BadRequestException(messageRetorno);
@@ -220,14 +229,17 @@ export class AuthService {
     });
 
     if (!user) {
-      const messageRetorno = this.i18n.translate('auth.usuario_nao_encotrado', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.usuario_nao_encotrado',
+        {
+          lang: language,
+        },
+      );
       throw new BadRequestException(messageRetorno);
     }
 
     if (user.ativo) {
-      const messageRetorno = this.i18n.translate('auth.conta_ja_ativa', {
+      const messageRetorno = this.i18n.translate('common.auth.conta_ja_ativa', {
         lang: language,
       });
       throw new BadRequestException(messageRetorno);

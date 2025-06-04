@@ -1,13 +1,13 @@
 {
   "mail": {
     "assunto_bem_vindo": "Confirm your registration",
-    "primeira_linha_bem_vindo": "Hello, {{name}}",
+    "primeira_linha_bem_vindo": "Hello ",
     "segunda_linha_bem_vindo": "Thank you for signing up! Please confirm your email by clicking the button below:",
     "btn_ativa_conta": "Activate Account",
     "link_valido_24h": "This link is valid for 24 hours.",
 
     "assunto_reset_senha": "Reset your password",
-    "primeira_linha_reset_senha": "Hello, {{name}}",
+    "primeira_linha_reset_senha": "Hello ",
     "segunda_linha_reset_senha": "Reset your password by clicking the button below:",
     "btn_reset_Senha": "Reset Password",
     "link_valido_15m": "This link is valid for 15 minutes."

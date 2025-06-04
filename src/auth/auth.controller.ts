@@ -22,7 +22,7 @@ import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { MailService } from '../mail/mail.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Response } from 'express';
-import { I18nService } from 'nestjs-i18n';
+import { I18nService } from 'nestjs-i18n'; /* , I18nLang */
 
 @Controller('auth')
 export class AuthController {
@@ -42,17 +42,23 @@ export class AuthController {
     const { primeiro_nome, ultimo_nome, email, senha } = body;
 
     if (!primeiro_nome || !ultimo_nome || !email || !senha) {
-      const messageRetorno = this.i18n.translate('auth.campo_obrigatorio', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.campo_obrigatorio',
+        {
+          lang: language,
+        },
+      );
       throw new BadRequestException(messageRetorno);
     }
 
     const existUser = await this.authService.existsUserCreate(email);
     if (existUser) {
-      const messageRetorno = this.i18n.translate('auth.email_cadastrado', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.email_cadastrado',
+        {
+          lang: language,
+        },
+      );
       throw new ConflictException(messageRetorno);
     }
     const user = await this.authService.register(body, language);
@@ -68,9 +74,12 @@ export class AuthController {
     const { email, senha } = body;
 
     if (!email || !senha) {
-      const messageRetorno = this.i18n.translate('auth.campo_obrigatorio', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.campo_obrigatorio',
+        {
+          lang: language,
+        },
+      );
 
       throw new BadRequestException(messageRetorno);
     }
@@ -81,9 +90,12 @@ export class AuthController {
       language,
     );
     if (!userValidate) {
-      const messageRetorno = this.i18n.translate('auth.credencial_invalida', {
-        lang: language,
-      });
+      const messageRetorno = this.i18n.translate(
+        'common.auth.credencial_invalida',
+        {
+          lang: language,
+        },
+      );
       throw new UnauthorizedException(messageRetorno);
     }
 
@@ -91,7 +103,7 @@ export class AuthController {
     res.cookie('token', loginResult.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // <- isso é crucial quando os domínios são diferentes
+      sameSite: 'none', // <- isso é crucial quando os domínios são diferentes
       path: '/',
       maxAge: 60 * 60 * 1000, //1h
     });
@@ -105,15 +117,18 @@ export class AuthController {
     @Headers('accept-language') language: string,
   ) {
     if (!token) {
-      const messageRetorno = this.i18n.translate('auth.token_invalido', {
+      const messageRetorno = this.i18n.translate('common.auth.token_invalido', {
         lang: language,
       });
       throw new BadRequestException(messageRetorno);
     }
     const user = await this.authService.activateUserByToken(token, language);
-    const messageRetorno = this.i18n.translate('auth.conta_ativada_sucesso', {
-      lang: language,
-    });
+    const messageRetorno = this.i18n.translate(
+      'common.auth.conta_ativada_sucesso',
+      {
+        lang: language,
+      },
+    );
     return { message: messageRetorno, user };
   }
 
@@ -152,7 +167,7 @@ export class AuthController {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // se estiver em prod
-      sameSite: 'lax', // ou 'strict', dependendo do seu setup
+      sameSite: 'none', // ou 'strict', dependendo do seu setup
       path: '/', // importante para garantir que o cookie seja limpo
     });
 
@@ -164,7 +179,7 @@ export class AuthController {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // se estiver em prod
-      sameSite: 'lax', // ou 'strict', dependendo do seu setup
+      sameSite: 'none', // ou 'strict', dependendo do seu setup
       path: '/', // importante para garantir que o cookie seja limpo
     });
     return { message: 'Logout realizado com sucesso' };
@@ -175,4 +190,9 @@ export class AuthController {
   check() {
     return { authenticated: true };
   }
+
+  /* @Get('test-msg')
+  getTestMsg(@I18nLang() lang: string) {
+    return this.i18n.translate('validation.senha_tamanho', { lang });
+  } */
 }

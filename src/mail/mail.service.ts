@@ -14,23 +14,25 @@ export class MailService {
     activationLink: string,
     language: string,
   ) {
-    const subject = this.i18n.translate('mail.assunto_bem_vindo', {
+    const subject = this.i18n.translate('common.mail.assunto_bem_vindo', {
       lang: language,
     });
     const primeira_linha = this.i18n.translate(
-      'mail.primeira_linha_bem_vindo',
+      'common.mail.primeira_linha_bem_vindo',
       {
         lang: language,
-        args: { name },
       },
     );
-    const segunda_linha = this.i18n.translate('mail.segunda_linha_bem_vindo', {
+    const segunda_linha = this.i18n.translate(
+      'common.mail.segunda_linha_bem_vindo',
+      {
+        lang: language,
+      },
+    );
+    const btn_ativa_conta = this.i18n.translate('common.mail.btn_ativa_conta', {
       lang: language,
     });
-    const btn_ativa_conta = this.i18n.translate('mail.btn_ativa_conta', {
-      lang: language,
-    });
-    const link_valido_24h = this.i18n.translate('mail.link_valido_24h', {
+    const link_valido_24h = this.i18n.translate('common.mail.link_valido_24h', {
       lang: language,
     });
 
@@ -39,7 +41,7 @@ export class MailService {
       to: email,
       subject: subject,
       html: `
-      <p>${primeira_linha},</p>
+      <p>${primeira_linha} ${name},</p>
       <p>${segunda_linha}</p>
       <a href="${activationLink}" style="background-color: #22c55e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">${btn_ativa_conta}</a>
       <p>${link_valido_24h}</p>
@@ -57,26 +59,25 @@ export class MailService {
     Link: string,
     language: string,
   ) {
-    const subject = this.i18n.translate('mail.assunto_reset_senha', {
+    const subject = this.i18n.translate('common.mail.assunto_reset_senha', {
       lang: language,
     });
     const primeira_linha_reset_senha = this.i18n.translate(
-      'mail.primeira_linha_reset_senha',
+      'common.mail.primeira_linha_reset_senha',
       {
         lang: language,
-        args: { name },
       },
     );
     const segunda_linha_reset_senha = this.i18n.translate(
-      'mail.segunda_linha_reset_senha',
+      'common.mail.segunda_linha_reset_senha',
       {
         lang: language,
       },
     );
-    const btn_reset_Senha = this.i18n.translate('mail.btn_reset_Senha', {
+    const btn_reset_Senha = this.i18n.translate('common.mail.btn_reset_Senha', {
       lang: language,
     });
-    const link_valido_15m = this.i18n.translate('mail.link_valido_15m', {
+    const link_valido_15m = this.i18n.translate('common.mail.link_valido_15m', {
       lang: language,
     });
 
@@ -85,7 +86,7 @@ export class MailService {
       to: email,
       subject: subject,
       html: `
-      <p>${primeira_linha_reset_senha},</p>
+      <p>${primeira_linha_reset_senha} ${name},</p>
       <p>${segunda_linha_reset_senha}</p>
       <a href="${Link}" style="background-color: #22c55e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">${btn_reset_Senha}</a>
       <p>${link_valido_15m}</p>
@@ -99,7 +100,7 @@ export class MailService {
     /* const { error } = await this.resend.emails.send({
       from: '"Whizzat" <no-reply@whizzat.com.br>',
       to: email,
-      subject: await this.i18n.translate('mail.PASSWORD_RESET_SENT', {
+      subject: await this.i18n.translate('common.mail.PASSWORD_RESET_SENT', {
         language,
       }), //'Redefina sua senha',
       html: `
