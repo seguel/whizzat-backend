@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   UseGuards,
   Res,
+  Headers,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
@@ -21,6 +22,7 @@ import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { MailService } from '../mail/mail.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Response } from 'express';
+import { I18nService } from 'nestjs-i18n'; /* , I18nLang */
 
 @Controller('auth')
 export class AuthController {
@@ -29,20 +31,37 @@ export class AuthController {
     private readonly userService: UserService,
     private prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly i18n: I18nService,
   ) {}
 
   @Post('register')
-  async register(@Body() body: RegisterDto) {
+  async register(
+    @Body() body: RegisterDto,
+    @Headers('accept-language') language: string,
+  ) {
     const { primeiro_nome, ultimo_nome, email, senha } = body;
 
     if (!primeiro_nome || !ultimo_nome || !email || !senha) {
-      throw new BadRequestException('Todos os campos são obrigatórios');
+      const messageRetorno = this.i18n.translate(
+        'common.auth.campo_obrigatorio',
+        {
+          lang: language,
+        },
+      );
+      throw new BadRequestException(messageRetorno);
     }
 
     const existUser = await this.authService.existsUserCreate(email);
-    if (existUser) throw new ConflictException('Email já cadastrado.');
-
-    const user = await this.authService.register(body);
+    if (existUser) {
+      const messageRetorno = this.i18n.translate(
+        'common.auth.email_cadastrado',
+        {
+          lang: language,
+        },
+      );
+      throw new ConflictException(messageRetorno);
+    }
+    const user = await this.authService.register(body, language);
     return user;
   }
 
@@ -50,17 +69,37 @@ export class AuthController {
   async login(
     @Body() body: LoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Headers('accept-language') language: string,
   ) {
     const { email, senha } = body;
 
     if (!email || !senha) {
-      throw new BadRequestException('Email e senha são obrigatórios');
+      const messageRetorno = this.i18n.translate(
+        'common.auth.campo_obrigatorio',
+        {
+          lang: language,
+        },
+      );
+
+      throw new BadRequestException(messageRetorno);
     }
 
-    const userValidate = await this.authService.validateUser(email, senha);
-    if (!userValidate) throw new UnauthorizedException('Credenciais inválidas');
+    const userValidate = await this.authService.validateUser(
+      email,
+      senha,
+      language,
+    );
+    if (!userValidate) {
+      const messageRetorno = this.i18n.translate(
+        'common.auth.credencial_invalida',
+        {
+          lang: language,
+        },
+      );
+      throw new UnauthorizedException(messageRetorno);
+    }
 
-    const loginResult = await this.authService.login(userValidate);
+    const loginResult = await this.authService.login(userValidate, language);
     res.cookie('token', loginResult.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -73,25 +112,46 @@ export class AuthController {
   }
 
   @Post('activate')
-  async activateAccount(@Body('token') token: string) {
+  async activateAccount(
+    @Body('token') token: string,
+    @Headers('accept-language') language: string,
+  ) {
     if (!token) {
-      throw new BadRequestException('Token inválido');
+      const messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+        lang: language,
+      });
+      throw new BadRequestException(messageRetorno);
     }
-    const user = await this.authService.activateUserByToken(token);
-    return { message: 'Conta ativada com sucesso!', user };
+    const user = await this.authService.activateUserByToken(token, language);
+    const messageRetorno = this.i18n.translate(
+      'common.auth.conta_ativada_sucesso',
+      {
+        lang: language,
+      },
+    );
+    return { message: messageRetorno, user };
   }
 
   @Post('resend-activation')
-  async resendActivation(@Body() body: ResendActivationDto) {
+  async resendActivation(
+    @Body() body: ResendActivationDto,
+    @Headers('accept-language') language: string,
+  ) {
     const { email } = body;
-    const message = await this.authService.resendActivationLink(email);
+    const message = await this.authService.resendActivationLink(
+      email,
+      language,
+    );
     return { message };
   }
 
   @Post('request-password-reset')
-  async requestReset(@Body() body: RequestPasswordResetDto) {
+  async requestReset(
+    @Body() body: RequestPasswordResetDto,
+    @Headers('accept-language') language: string,
+  ) {
     const { email } = body;
-    const msg = await this.authService.requestPasswordReset(email);
+    const msg = await this.authService.requestPasswordReset(email, language);
     return { message: msg };
   }
 
@@ -99,11 +159,17 @@ export class AuthController {
   async resetPassword(
     @Body() body: ResetPasswordDto,
     @Res({ passthrough: true }) res: Response,
+    @Headers('accept-language') language: string,
   ) {
-    const result = await this.authService.resetPassword(body);
+    const result = await this.authService.resetPassword(body, language);
 
     // Limpa o cookie token após resetar a senha
-    res.clearCookie('token');
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // se estiver em prod
+      sameSite: 'none', // ou 'strict', dependendo do seu setup
+      path: '/', // importante para garantir que o cookie seja limpo
+    });
 
     return result;
   }
@@ -124,4 +190,9 @@ export class AuthController {
   check() {
     return { authenticated: true };
   }
+
+  /* @Get('test-msg')
+  getTestMsg(@I18nLang() lang: string) {
+    return this.i18n.translate('validation.senha_tamanho', { lang });
+  } */
 }
