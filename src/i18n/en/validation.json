@@ -1,3 +1,5 @@
 {
-  "senha_tamanho": "Password must be at least 6 characters long."
+  "senha_tamanho_min": "Password must be at least 8 characters long.",
+  "senha_tamanho_max": "Password must be no more than 16 characters long.",
+  "senha_tamanho": "Password must be between 8 and 16 characters long, including an uppercase letter, lowercase letter, number, and special character."
 }
