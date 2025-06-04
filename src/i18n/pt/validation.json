@@ -1,3 +1,5 @@
 {
-  "senha_tamanho": "A senha deve ter no mínimo 6 caracteres."
+  "senha_tamanho_min": "A senha deve ter no mínimo 8 caracteres.",
+  "senha_tamanho_max": "A senha deve ter no máximo 16 caracteres.",
+  "senha_tamanho": "A senha deve conter entre 8 e 16 caracteres, incluindo letra maiúscula, minúscula, número e caractere especial."
 }
