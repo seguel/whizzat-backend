@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { EmpresaModule } from './empresa/empresa.module';
 import { MailService } from './mail/mail.service';
 import { ConfigModule } from '@nestjs/config';
 import {
@@ -41,6 +42,7 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     PrismaModule,
     UserModule,
     AuthModule,
+    EmpresaModule,
   ],
   providers: [MailService],
 })

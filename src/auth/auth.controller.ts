@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   UseGuards,
   Res,
+  Req,
   Headers,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -21,6 +22,7 @@ import { RequestPasswordResetDto } from './dto/RequestPasswordResetDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
 import { MailService } from '../mail/mail.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Response } from 'express';
 import { I18nService } from 'nestjs-i18n'; /* , I18nLang */
 
@@ -103,9 +105,9 @@ export class AuthController {
     res.cookie('token', loginResult.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none', // <- isso é crucial quando os domínios são diferentes
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // <- isso é crucial quando os domínios são diferentes
       path: '/',
-      maxAge: 60 * 60 * 1000, //1h
+      maxAge: 60 * 60 * 2000, //1h
     });
 
     return loginResult;
@@ -167,7 +169,7 @@ export class AuthController {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // se estiver em prod
-      sameSite: 'none', // ou 'strict', dependendo do seu setup
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // ou 'strict', dependendo do seu setup
       path: '/', // importante para garantir que o cookie seja limpo
     });
 
@@ -179,7 +181,7 @@ export class AuthController {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // se estiver em prod
-      sameSite: 'none', // ou 'strict', dependendo do seu setup
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // ou 'strict', dependendo do seu setup
       path: '/', // importante para garantir que o cookie seja limpo
     });
     return { message: 'Logout realizado com sucesso' };
@@ -189,6 +191,24 @@ export class AuthController {
   @Get('check')
   check() {
     return { authenticated: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('check-perfil')
+  checkPerfil(@Req() req: Request & { user: JwtPayload }) {
+    //const usuarioId = req.user?.sub;
+    const perfilId = req.user?.perfil;
+
+    const url =
+      perfilId === 2
+        ? '/dashboard?perfil=recrutador'
+        : perfilId === 3
+          ? '/dashboard?perfil=avaliador'
+          : perfilId === 1
+            ? '/dashboard?perfil=candidato'
+            : '';
+
+    return { redirect_to: url };
   }
 
   /* @Get('test-msg')

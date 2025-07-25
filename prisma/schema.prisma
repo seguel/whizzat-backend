@@ -6,26 +6,50 @@
 
 generator client {
   provider = "prisma-client-js"
- 
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model usuario {
-  id            Int    @id @default(autoincrement())
-  primeiro_nome String
-  ultimo_nome   String
-  email         String @unique
-  senha         String
-  ativo Boolean @default(false)
-  createdAt DateTime @default(now())
+  id                     Int                      @id @default(autoincrement())
+  primeiro_nome          String
+  ultimo_nome            String
+  email                  String                   @unique
+  senha                  String
+  id_perfil              Int?
+  ativo                  Boolean                  @default(false)
+  createdAt              DateTime                 @default(now())
+  usuario_perfil_empresa usuario_perfil_empresa[]
 }
 
-model perfil{
-  id            Int    @id @default(autoincrement())
-  perfil        String
-  descricao     String
-  ativo Boolean @default(true)
+model perfil {
+  id                     Int                      @id @default(autoincrement())
+  perfil                 String
+  descricao              String
+  ativo                  Boolean                  @default(true)
+  usuario_perfil_empresa usuario_perfil_empresa[]
+}
+
+model usuario_perfil_empresa {
+  empresa_id   Int    @id @default(autoincrement())
+  usuario_id   Int
+  perfil_id    Int
+  nome_empresa String
+  website      String
+  email        String
+  telefone     String
+  localizacao  String
+  apresentacao String
+  logo         String
+  imagem_fundo String
+  ativo        Boolean @default(true)
+
+  // relações
+  usuario usuario @relation(fields: [usuario_id], references: [id])
+  perfil  perfil  @relation(fields: [perfil_id], references: [id])
+
+  //@@id([usuario_id, perfil_id])
 }
