@@ -2,6 +2,11 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { EmpresaModule } from './empresa/empresa.module';
+import { ModalidadeModule } from './modalidade/modalidade.module';
+import { PeriodoModule } from './periodo/periodo.module';
+import { UploadModule } from './upload/upload.module';
+import { SkillModule } from './skill/skill.module';
 import { MailService } from './mail/mail.service';
 import { ConfigModule } from '@nestjs/config';
 import {
@@ -41,6 +46,11 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     PrismaModule,
     UserModule,
     AuthModule,
+    EmpresaModule,
+    ModalidadeModule,
+    PeriodoModule,
+    SkillModule,
+    UploadModule,
   ],
   providers: [MailService],
 })

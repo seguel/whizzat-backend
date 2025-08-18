@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailModule } from '../mail/mail.module'; // Importe o MailModule
+import { MailModule } from '../mail/mail.module';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -14,9 +14,10 @@ import { UserModule } from '../user/user.module';
       signOptions: { expiresIn: '1d' },
     }),
     MailModule,
-    UserModule,
+    forwardRef(() => UserModule), // 👈 aqui também
   ],
   providers: [AuthService, JwtStrategy, PrismaService],
   controllers: [AuthController],
+  exports: [JwtModule, AuthService], // 👈 exporta JwtModule para outros módulos usarem
 })
 export class AuthModule {}

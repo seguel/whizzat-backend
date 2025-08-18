@@ -81,8 +81,22 @@ export class AuthService {
       throw new UnauthorizedException(messageRetorno);
     }
 
-    const payload = { sub: user.id, email: user.email };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      nome: user.primeiro_nome,
+      perfil: user.id_perfil,
+    };
     const token = this.jwtService.sign(payload);
+
+    const rotaPerfil =
+      user.id_perfil === 1
+        ? 'candidato'
+        : user.id_perfil === 2
+          ? 'recrutador'
+          : user.id_perfil === 3
+            ? 'avaliador'
+            : '';
 
     return {
       access_token: token,
@@ -91,6 +105,9 @@ export class AuthService {
         email: user.email,
         nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
       },
+      redirectTo: rotaPerfil
+        ? `/dashboard?perfil=${rotaPerfil}`
+        : '/cadastro/perfil', // fallback
     };
   }
 

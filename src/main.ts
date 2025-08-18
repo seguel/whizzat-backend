@@ -3,6 +3,8 @@ import { AppModule } from './app.module';
 //import { ValidationPipe } from '@nestjs/common';
 import { I18nValidationExceptionFilter, I18nValidationPipe } from 'nestjs-i18n';
 import cookieParser from 'cookie-parser';
+import { join } from 'path';
+import * as express from 'express';
 
 import * as dotenv from 'dotenv';
 dotenv.config();
@@ -29,6 +31,9 @@ async function bootstrap() {
     origin: process.env.FRONTEND_URL, // seu frontend Next.js
     credentials: true, // se for usar cookies
   });
+
+  // Servir arquivos da pasta uploads
+  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
 
   await app.listen(process.env.PORT ?? 3000);
 }
