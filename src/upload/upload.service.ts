@@ -1,19 +1,22 @@
 import { Injectable } from '@nestjs/common';
+import { Express } from 'express'; // <- importante para tipagem
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import * as fs from 'fs';
 
 @Injectable()
 export class UploadService {
-  private uploadPath = join(__dirname, '..', '..', 'uploads');
-
   saveFile(file: Express.Multer.File): string {
-    // garante que a pasta existe
-    if (!fs.existsSync(this.uploadPath)) {
-      fs.mkdirSync(this.uploadPath);
+    const uploadDir = './uploads';
+
+    // cria a pasta se não existir
+    if (!existsSync(uploadDir)) {
+      mkdirSync(uploadDir, { recursive: true });
     }
 
-    const filePath = join(this.uploadPath, file.originalname);
-    fs.writeFileSync(filePath, file.buffer);
-    return file.originalname; // retorna o nome do arquivo
+    // salva o arquivo no diretório
+    const filePath = join(uploadDir, file.originalname);
+    writeFileSync(filePath, file.buffer);
+
+    return `Arquivo salvo em: ${filePath}`;
   }
 }

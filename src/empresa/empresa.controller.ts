@@ -23,7 +23,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { Express } from 'express';
+import { Request, Express } from 'express'; // importante: tipar Request e Express
 import { usuario_perfil_empresa, empresa_vaga } from '@prisma/client';
 
 const uploadDir = './uploads';
@@ -44,7 +44,11 @@ export class EmpresaController {
     FilesInterceptor('files', 2, {
       storage: diskStorage({
         destination: uploadDir,
-        filename: (req, file, cb) => {
+        filename: (
+          req: Request,
+          file: Express.Multer.File,
+          cb: (error: Error | null, filename: string) => void,
+        ) => {
           const uniqueSuffix =
             Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
@@ -52,15 +56,19 @@ export class EmpresaController {
         },
       }),
       limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-      fileFilter: (req, file, cb) => {
+      fileFilter: (
+        req: Request,
+        file: Express.Multer.File,
+        cb: (error: Error | null, acceptFile: boolean) => void,
+      ) => {
         const allowedTypes = /jpeg|jpg|png|webp/;
         const isValid = allowedTypes.test(file.mimetype);
-        cb(
-          isValid
-            ? null
-            : new Error('Apenas arquivos de imagem são permitidos.'),
-          isValid,
-        );
+
+        if (isValid) {
+          cb(null, true);
+        } else {
+          cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
+        }
       },
     }),
   )
@@ -71,11 +79,9 @@ export class EmpresaController {
   ) {
     const usuario_id = req.user?.sub;
 
-    // Extrair arquivos pelo campo original
     const logoFile = files.find((f) => f.originalname.includes('logo'));
     const capaFile = files.find((f) => f.originalname.includes('capa'));
 
-    // Montar objeto com dados e nomes dos arquivos
     const data = {
       usuario_id,
       perfil_id: body.perfilId,
@@ -85,8 +91,8 @@ export class EmpresaController {
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
-      logo: logoFile?.filename || '', // só o nome
-      imagem_fundo: capaFile?.filename || '', // só o nome
+      logo: logoFile?.filename || '',
+      imagem_fundo: capaFile?.filename || '',
     };
 
     return this.empresaService.createEmpresa(data);
