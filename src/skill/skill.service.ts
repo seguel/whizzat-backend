@@ -40,4 +40,15 @@ export class SkillService {
       },
     });
   }
+
+  async createOrGetSkill(nome: string): Promise<skill> {
+    return this.prisma.skill.upsert({
+      where: { skill: nome.trim() },
+      update: {}, // não atualiza nada se já existir
+      create: {
+        skill: nome.trim(),
+        ativo: true,
+      },
+    });
+  }
 }
