@@ -173,14 +173,7 @@ export class EmpresaController {
     // 2. Skills novas digitadas pelo usuário
     const skillsNovas = await Promise.all(
       (body.novas_skills ?? []).map(async (novaSkill: CreateNovaSkillDto) => {
-        // Verifica se já existe uma skill com esse nome (ignorar acento/letras maiúsculas se quiser)
-        let skill = await this.skillService.getSkillByName(novaSkill.nome);
-
-        if (!skill) {
-          skill = await this.skillService.createSkill({
-            nome: novaSkill.nome,
-          });
-        }
+        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
 
         return {
           vaga_id: vaga.vaga_id,
@@ -191,10 +184,7 @@ export class EmpresaController {
       }),
     );
 
-    const todasSkillsPreProcessadas = [...skillsExistentes, ...skillsNovas];
-
-    // Filtrar qualquer entrada sem skill_id definido
-    const todasSkills = todasSkillsPreProcessadas.filter(
+    const todasSkills = [...skillsExistentes, ...skillsNovas].filter(
       (
         skill,
       ): skill is {
