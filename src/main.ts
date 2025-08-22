@@ -5,6 +5,7 @@ import { I18nValidationExceptionFilter, I18nValidationPipe } from 'nestjs-i18n';
 import cookieParser from 'cookie-parser';
 import { join } from 'path';
 import * as express from 'express';
+import fs from 'fs';
 
 import * as dotenv from 'dotenv';
 dotenv.config();
@@ -32,8 +33,18 @@ async function bootstrap() {
     credentials: true, // se for usar cookies
   });
 
-  // Servir arquivos da pasta uploads
-  app.use('/uploads', express.static(join(__dirname, '..', 'uploads')));
+  // Pega a raiz do projeto (process.cwd() funciona tanto local quanto no Render)
+  const uploadsPath =
+    process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
+
+  // Garante que a pasta exista
+
+  if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+  }
+
+  // Servir arquivos estáticos
+  app.use('/uploads', express.static(uploadsPath));
 
   await app.listen(process.env.PORT ?? 3000);
 }
