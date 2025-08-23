@@ -21,14 +21,14 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { Request, Express } from 'express'; // importante: tipar Request e Express
 import { usuario_perfil_empresa, empresa_vaga } from '@prisma/client';
 
-const uploadDir = './uploads';
+const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
-  mkdirSync(uploadDir);
+  mkdirSync(uploadDir, { recursive: true });
 }
 
 @Controller('empresas')
