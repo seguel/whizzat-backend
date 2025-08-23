@@ -82,6 +82,9 @@ export class EmpresaController {
     const logoFile = files.find((f) => f.originalname.includes('logo'));
     const capaFile = files.find((f) => f.originalname.includes('capa'));
 
+    // Base URL para frontend
+    const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
+
     const data = {
       usuario_id,
       perfil_id: body.perfilId,
@@ -91,8 +94,8 @@ export class EmpresaController {
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
-      logo: logoFile?.filename || '',
-      imagem_fundo: capaFile?.filename || '',
+      logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
+      imagem_fundo: capaFile ? `${BASE_URL}/uploads/${capaFile.filename}` : '',
     };
 
     return this.empresaService.createEmpresa(data);
