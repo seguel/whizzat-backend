@@ -79,8 +79,10 @@ export class EmpresaController {
   ) {
     const usuario_id = req.user?.sub;
 
-    const logoFile = files.find((f) => f.originalname.includes('logo'));
-    const capaFile = files.find((f) => f.originalname.includes('capa'));
+    /* const logoFile = files.find((f) => f.originalname.includes('logo'));
+    const capaFile = files.find((f) => f.originalname.includes('capa')); */
+    const logoFile = files[0];
+    const capaFile = files[1];
 
     // Base URL para frontend
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
