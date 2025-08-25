@@ -35,17 +35,46 @@ export class MailService {
     const link_valido_24h = this.i18n.translate('common.mail.link_valido_24h', {
       lang: language,
     });
+    const equipe_whizzat = this.i18n.translate('common.mail.equipe_whizzat', {
+      lang: language,
+    });
 
     const { error } = await this.resend.emails.send({
       from: '"Whizzat" <no-reply@whizzat.com.br>',
       to: email,
       subject: subject,
       html: `
-      <p>${primeira_linha} ${name},</p>
-      <p>${segunda_linha}</p>
-      <a href="${activationLink}" style="background-color: #22c55e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">${btn_ativa_conta}</a>
-      <p>${link_valido_24h}</p>
-    `,
+        <div style="width: 60%; margin: 40px auto; font-family: Arial, sans-serif; line-height: 1.6; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff;">
+          
+          <img src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png" alt="Logo Whizzat"
+            style="display: block; margin: 0 auto 20px; width: 180px; height: auto;" />
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${primeira_linha} ${name},
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${segunda_linha}
+          </p>
+
+          <div style="margin: 30px 0;">
+            <a href="${activationLink}"
+              style="background-color: #22c55e; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              ${btn_ativa_conta}
+            </a>
+          </div>
+
+          <p style="font-size: 14px; margin-bottom: 20px;">
+            <strong>${link_valido_24h}</strong>
+          </p>
+
+          <p style="font-size: 14px; color: #555;">
+           ${equipe_whizzat}
+            
+          </p>
+
+        </div>
+  `,
     });
 
     if (error) {
@@ -80,39 +109,50 @@ export class MailService {
     const link_valido_15m = this.i18n.translate('common.mail.link_valido_15m', {
       lang: language,
     });
+    const equipe_whizzat = this.i18n.translate('common.mail.equipe_whizzat', {
+      lang: language,
+    });
 
     const { error } = await this.resend.emails.send({
       from: '"Whizzat" <no-reply@whizzat.com.br>',
       to: email,
       subject: subject,
       html: `
-      <p>${primeira_linha_reset_senha} ${name},</p>
-      <p>${segunda_linha_reset_senha}</p>
-      <a href="${Link}" style="background-color: #22c55e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">${btn_reset_Senha}</a>
-      <p>${link_valido_15m}</p>
-    `,
+        <div style="width: 60%; margin: 40px auto; font-family: Arial, sans-serif; line-height: 1.6; text-align: center; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff;">
+          
+          <img src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png" alt="Logo Whizzat"
+            style="display: block; margin: 0 auto 20px; width: 180px; height: auto;" />
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${primeira_linha_reset_senha} ${name}
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${segunda_linha_reset_senha}
+          </p>
+
+          <div style="margin: 30px 0;">
+            <a href="${Link}"
+              style="background-color: #22c55e; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              ${btn_reset_Senha}
+            </a>
+          </div>
+
+          <p style="font-size: 14px; margin-bottom: 20px;">
+            <strong>${link_valido_15m}</strong>
+          </p>
+
+          <p style="font-size: 14px; color: #555;">
+           ${equipe_whizzat}
+            
+          </p>
+
+        </div>
+  `,
     });
 
     if (error) {
       throw new Error(`Failed to send password reset email: ${error.message}`);
     }
-
-    /* const { error } = await this.resend.emails.send({
-      from: '"Whizzat" <no-reply@whizzat.com.br>',
-      to: email,
-      subject: await this.i18n.translate('common.mail.PASSWORD_RESET_SENT', {
-        language,
-      }), //'Redefina sua senha',
-      html: `
-      <p>Olá ${name},</p>
-      <p>Redefina sua senha clicando no botão abaixo:</p>
-      <a href="${Link}" style="background-color: #22c55e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Redefinir Senha</a>
-      <p>Este link é válido por 15 minutos.</p>
-    `,
-    });
-
-    if (error) {
-      return Response.json({ error }, { status: 500 });
-    } */
   }
 }
