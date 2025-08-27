@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, usuario_perfil_empresa, empresa_vaga } from '@prisma/client';
+import { Prisma, usuario_perfil_empresa } from '@prisma/client';
 
 @Injectable()
 export class EmpresaService {
@@ -25,14 +25,20 @@ export class EmpresaService {
 
   async getEmpresas(
     usuarioId: number,
-    perfiIid: number,
-  ): Promise<usuario_perfil_empresa[]> {
-    return this.prisma.usuario_perfil_empresa.findMany({
-      where: { usuario_id: usuarioId, perfil_id: perfiIid },
+    perfilId: number,
+  ): Promise<{ usuario_id: number; perfil_id: number; empresas: any[] }> {
+    const empresas = await this.prisma.usuario_perfil_empresa.findMany({
+      where: { usuario_id: usuarioId, perfil_id: perfilId },
       orderBy: {
-        nome_empresa: 'asc', // ou 'desc'
+        nome_empresa: 'asc',
       },
     });
+
+    return {
+      usuario_id: usuarioId,
+      perfil_id: perfilId,
+      empresas, // se não houver nada, retorna []
+    };
   }
 
   async getEmpresa(id: number): Promise<usuario_perfil_empresa | null> {
@@ -79,10 +85,17 @@ export class EmpresaService {
     });
   }
 
-  async getVagas(empresaId: number): Promise<empresa_vaga[]> {
-    return this.prisma.empresa_vaga.findMany({
+  async getVagas(
+    empresaId: number,
+  ): Promise<{ empresa_id: number; vagas: any[] }> {
+    const vagas = await this.prisma.empresa_vaga.findMany({
       where: { empresa_id: empresaId },
     });
+
+    return {
+      empresa_id: empresaId,
+      vagas, // se não houver nada, retorna []
+    };
   }
 
   async getVaga(id: number) {
