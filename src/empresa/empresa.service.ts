@@ -126,14 +126,42 @@ export class EmpresaService {
     });
   }
 
-  async getVagasSugeridas(userId: number, perfilId: number) {
+  async getVagasSugeridas(
+    userId: number,
+    perfilId: number,
+    empresaId?: string,
+    skill?: string,
+  ) {
+    // Tipagem segura do where
+    const whereEmpresa: Prisma.usuario_perfil_empresaWhereInput = {
+      usuario_id: userId,
+      perfil_id: perfilId,
+    };
+
+    if (empresaId && empresaId !== 'todos') {
+      whereEmpresa.empresa_id = Number(empresaId);
+    }
+
+    // Consulta
     const empresas = await this.prisma.usuario_perfil_empresa.findMany({
-      where: { usuario_id: userId, perfil_id: perfilId },
+      where: whereEmpresa,
       select: {
         empresa_id: true,
         logo: true,
         nome_empresa: true,
         vagas: {
+          where:
+            skill && skill !== 'todos'
+              ? {
+                  skills: {
+                    some: {
+                      skill: {
+                        skill: skill, // usa o campo da tabela skill
+                      },
+                    },
+                  },
+                }
+              : {},
           select: {
             vaga_id: true,
             nome_vaga: true,
@@ -141,6 +169,15 @@ export class EmpresaService {
             pcd: true,
             qtde_dias_aberta: true,
             data_cadastro: true,
+            skills: {
+              select: {
+                skill: {
+                  select: {
+                    skill: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -166,6 +203,7 @@ export class EmpresaService {
             month: '2-digit',
           }),
           pcd: vaga.pcd,
+          skills: vaga.skills.map((s) => s.skill.skill),
         };
       }),
     );

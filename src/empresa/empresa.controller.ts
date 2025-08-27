@@ -6,6 +6,7 @@ import {
   Get,
   Post,
   Req,
+  Query,
   ParseIntPipe,
   UseGuards,
   UseInterceptors,
@@ -254,9 +255,20 @@ export class EmpresaController {
   async getVagasSugeridas(
     @Req() req: Request & { user: JwtPayload },
     @Param('perfilId', ParseIntPipe) perfilId: number,
+    @Query('empresaId') empresaId?: string,
+    @Query('skill') skill?: string,
   ) {
     const usuarioId = req.user?.sub;
 
-    return await this.empresaService.getVagasSugeridas(usuarioId, perfilId);
+    // Se não foi enviado, considerar "todos"
+    const empresaFiltro = empresaId || 'todos';
+    const skillFiltro = skill || 'todos';
+
+    return await this.empresaService.getVagasSugeridas(
+      usuarioId,
+      perfilId,
+      empresaFiltro,
+      skillFiltro,
+    );
   }
 }
