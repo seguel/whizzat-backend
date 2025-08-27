@@ -16,6 +16,12 @@ export class SkillController {
   constructor(private readonly skillService: SkillService) {}
 
   @UseGuards(JwtAuthGuard)
+  @Get('filtro')
+  getSkillsFiltro(): Promise<skill[]> {
+    return this.skillService.getSkillsFiltro();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   getSkill(@Param('id', ParseIntPipe) id: number): Promise<skill | null> {
     return this.skillService.getSkill(id);
