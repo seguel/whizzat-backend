@@ -15,6 +15,20 @@ export class SkillService {
     });
   }
 
+  async getSkillsFiltro(): Promise<skill[]> {
+    return this.prisma.skill.findMany({
+      where: {
+        ativo: true,
+        vagas: {
+          some: {}, // Filtra apenas skills que possuem ao menos uma vaga associada
+        },
+      },
+      orderBy: {
+        skill: 'asc',
+      },
+    });
+  }
+
   async getSkill(id: number): Promise<skill | null> {
     return this.prisma.skill.findUnique({
       where: { skill_id: id },
