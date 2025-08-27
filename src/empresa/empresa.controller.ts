@@ -24,7 +24,7 @@ import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { Request, Express } from 'express'; // importante: tipar Request e Express
-import { usuario_perfil_empresa, empresa_vaga } from '@prisma/client';
+import { usuario_perfil_empresa } from '@prisma/client';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
@@ -108,7 +108,11 @@ export class EmpresaController {
   getEmpresas(
     @Param('perfilId', ParseIntPipe) perfilId: number,
     @Req() req: Request & { user: JwtPayload },
-  ): Promise<usuario_perfil_empresa[]> {
+  ): Promise<{
+    usuario_id: number;
+    perfil_id: number;
+    empresas: usuario_perfil_empresa[];
+  }> {
     const usuarioId = req.user?.sub;
     return this.empresaService.getEmpresas(usuarioId, perfilId);
   }
@@ -220,9 +224,10 @@ export class EmpresaController {
 
   @UseGuards(JwtAuthGuard)
   @Get('vagas/:empresaId')
-  getVagas(
-    @Param('empresaId', ParseIntPipe) empresaId: number,
-  ): Promise<empresa_vaga[]> {
+  getVagas(@Param('empresaId', ParseIntPipe) empresaId: number): Promise<{
+    empresa_id: number;
+    vagas: usuario_perfil_empresa[];
+  }> {
     return this.empresaService.getVagas(empresaId);
   }
 
