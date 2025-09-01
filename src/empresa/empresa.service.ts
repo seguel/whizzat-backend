@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, usuario_perfil_empresa } from '@prisma/client';
 
@@ -18,6 +18,48 @@ export class EmpresaService {
     logo: string;
     imagem_fundo: string;
   }) {
+    // --- Regra 1: verificar domínio do email ---
+    const emailDomain = data.email.split('@')[1]; // pega depois do "@"
+    const emailConflict = await this.prisma.usuario_perfil_empresa.findFirst({
+      where: {
+        email: {
+          endsWith: `@${emailDomain}`,
+        },
+      },
+    });
+
+    if (emailConflict) {
+      throw new BadRequestException(
+        `Já existe uma empresa cadastrada com o domínio de email "${emailDomain}".`,
+      );
+    }
+
+    // --- Regra 2: verificar domínio do website ---
+    // normaliza -> tira http(s):// e tudo depois da primeira "/"
+    const normalizeWebsite = (url: string) =>
+      url
+        .replace(/^https?:\/\//, '')
+        .replace(/\/.*$/, '')
+        .toLowerCase();
+
+    const websiteBase = normalizeWebsite(data.website);
+
+    const websiteConflict = await this.prisma.usuario_perfil_empresa.findFirst({
+      where: {
+        website: {
+          contains: websiteBase, // garante que pega base
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (websiteConflict) {
+      throw new BadRequestException(
+        `Já existe uma empresa cadastrada com o domínio de website "${websiteBase}".`,
+      );
+    }
+
+    // --- Criação ---
     return this.prisma.usuario_perfil_empresa.create({
       data,
     });
