@@ -156,7 +156,7 @@ export class EmpresaController {
   @UseGuards(JwtAuthGuard)
   async createVaga(
     @Req() req: Request & { user: JwtPayload },
-    @Body() body: CreateVagaDto,
+    @Body() body: CreateVagaDto & { perfil_id: number }, // <-- adicionar perfil_id no body
   ) {
     const vaga = await this.empresaService.createVaga({
       empresa_id: body.empresa_id,
@@ -171,7 +171,7 @@ export class EmpresaController {
       data_cadastro: new Date(),
     });
 
-    // 1. Skills já existentes com skill_id
+    // Skills já existentes
     const skillsExistentes =
       body.skills?.map((skill) => ({
         vaga_id: vaga.vaga_id,
@@ -180,7 +180,7 @@ export class EmpresaController {
         avaliador_proprio: skill.avaliador_proprio,
       })) ?? [];
 
-    // 2. Skills novas digitadas pelo usuário
+    // Skills novas
     const skillsNovas = await Promise.all(
       (body.novas_skills ?? []).map(async (novaSkill: CreateNovaSkillDto) => {
         const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
@@ -209,7 +209,13 @@ export class EmpresaController {
       await this.empresaService.createVagaSkills(todasSkills);
     }
 
-    const vagaCompleta = await this.empresaService.getVaga(vaga.vaga_id);
+    // ✅ Usar perfil_id vindo do body
+    const vagaCompleta = await this.empresaService.getVaga({
+      vaga_id: vaga.vaga_id,
+      empresa_id: body.empresa_id,
+      perfil_id: body.perfil_id,
+    });
+
     const vagaComSkillsMapeadas = {
       ...vagaCompleta,
       skills: vagaCompleta?.skills.map((s) => ({
@@ -233,13 +239,27 @@ export class EmpresaController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('vaga/:id')
-  async getVaga(@Param('id', ParseIntPipe) id: number) {
-    //return this.empresaService.getVaga(id);
-    const vagaCompleta = await this.empresaService.getVaga(id);
+  @Get('vaga/:vaga_id/empresa/:empresa_id/perfil/:perfil_id')
+  async getVaga(
+    @Param('vaga_id', ParseIntPipe) vaga_id: number,
+    @Param('empresa_id', ParseIntPipe) empresa_id: number,
+    @Param('perfil_id', ParseIntPipe) perfil_id: number,
+  ) {
+    const vagaCompleta = await this.empresaService.getVaga({
+      vaga_id,
+      empresa_id,
+      perfil_id,
+    });
+
+    if (!vagaCompleta) {
+      throw new NotFoundException(
+        'Vaga não encontrada ou acesso não autorizado.',
+      );
+    }
+
     const vagaComSkillsMapeadas = {
       ...vagaCompleta,
-      skills: vagaCompleta?.skills.map((s) => ({
+      skills: vagaCompleta.skills.map((s) => ({
         skill_id: s.skill_id,
         peso: s.peso,
         avaliador_proprio: s.avaliador_proprio,
