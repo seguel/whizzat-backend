@@ -18,24 +18,40 @@ export class EmpresaService {
     logo: string;
     imagem_fundo: string;
   }) {
-    // --- Regra 1: verificar domínio do email ---
-    const emailDomain = data.email.split('@')[1]; // pega depois do "@"
-    const emailConflict = await this.prisma.usuario_perfil_empresa.findFirst({
-      where: {
-        email: {
-          endsWith: `@${emailDomain}`,
-        },
-      },
-    });
+    const domíniosPublicos = [
+      'gmail.com',
+      'hotmail.com',
+      'outlook.com',
+      'yahoo.com',
+      'icloud.com',
+      'bol.com.br',
+      'uol.com.br',
+      'live.com',
+      'aol.com',
+      'msn.com',
+      // adicione outros conforme necessário
+    ];
 
-    if (emailConflict) {
-      throw new BadRequestException(
-        `Já existe uma empresa cadastrada com o domínio de email "${emailDomain}".`,
-      );
+    // --- Regra 1: verificar domínio do email ---
+    const emailDomain = data.email.split('@')[1]?.toLowerCase();
+
+    if (emailDomain && !domíniosPublicos.includes(emailDomain)) {
+      const emailConflict = await this.prisma.usuario_perfil_empresa.findFirst({
+        where: {
+          email: {
+            endsWith: `@${emailDomain}`,
+          },
+        },
+      });
+
+      if (emailConflict) {
+        throw new BadRequestException(
+          `Já existe uma empresa cadastrada com o domínio de email "${emailDomain}".`,
+        );
+      }
     }
 
     // --- Regra 2: verificar domínio do website ---
-    // normaliza -> tira http(s):// e tudo depois da primeira "/"
     const normalizeWebsite = (url: string) =>
       url
         .replace(/^https?:\/\//, '')
@@ -44,19 +60,25 @@ export class EmpresaService {
 
     const websiteBase = normalizeWebsite(data.website);
 
-    const websiteConflict = await this.prisma.usuario_perfil_empresa.findFirst({
-      where: {
-        website: {
-          contains: websiteBase, // garante que pega base
-          mode: 'insensitive',
-        },
-      },
-    });
+    if (
+      websiteBase &&
+      !domíniosPublicos.some((dom) => websiteBase.endsWith(dom))
+    ) {
+      const websiteConflict =
+        await this.prisma.usuario_perfil_empresa.findFirst({
+          where: {
+            website: {
+              contains: websiteBase,
+              mode: 'insensitive',
+            },
+          },
+        });
 
-    if (websiteConflict) {
-      throw new BadRequestException(
-        `Já existe uma empresa cadastrada com o domínio de website "${websiteBase}".`,
-      );
+      if (websiteConflict) {
+        throw new BadRequestException(
+          `Já existe uma empresa cadastrada com o domínio de website "${websiteBase}".`,
+        );
+      }
     }
 
     // --- Criação ---
@@ -140,9 +162,23 @@ export class EmpresaService {
     };
   }
 
-  async getVaga(id: number) {
-    return this.prisma.empresa_vaga.findUnique({
-      where: { vaga_id: id },
+  async getVaga({
+    vaga_id,
+    empresa_id,
+    perfil_id,
+  }: {
+    vaga_id: number;
+    empresa_id: number;
+    perfil_id: number;
+  }) {
+    return this.prisma.empresa_vaga.findFirst({
+      where: {
+        vaga_id: vaga_id,
+        empresa_id: empresa_id,
+        empresa: {
+          perfil_id: perfil_id,
+        },
+      },
       include: {
         modalidade_trabalho: true,
         periodo_trabalho: true,
@@ -153,7 +189,7 @@ export class EmpresaService {
             avaliador_proprio: true,
             skill: {
               select: {
-                skill: true, // nome da skill
+                skill: true,
               },
             },
           },
