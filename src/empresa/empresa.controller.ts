@@ -16,6 +16,7 @@ import {
 import { EmpresaService } from './empresa.service';
 import { SkillService } from '../skill/skill.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
+import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { CreateVagaDto } from './dto/create-vaga.dto';
 import { CreateNovaSkillDto } from './dto/create-nova-skill.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -105,6 +106,59 @@ export class EmpresaController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('update-empresa')
+  @UseInterceptors(
+    FilesInterceptor('files', 2, {
+      storage: diskStorage({
+        destination: uploadDir,
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|webp/;
+        const isValid = allowedTypes.test(file.mimetype);
+        if (isValid) cb(null, true);
+        else cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
+      },
+    }),
+  )
+  async updateEmpresa(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: Request & { user: JwtPayload },
+    @Body() body: UpdateEmpresaDto,
+  ) {
+    const usuario_id = req.user?.sub;
+
+    const logoFile = files[0];
+    const capaFile = files[1];
+
+    const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
+
+    const data = {
+      usuario_id,
+      perfil_id: body.perfilId,
+      empresa_id: body.empresa_id, // 👈 vem do novo DTO
+      nome_empresa: body.nome,
+      website: body.site,
+      email: body.email,
+      telefone: body.telefone,
+      localizacao: body.localizacao,
+      apresentacao: body.apresentacao,
+      logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : undefined,
+      imagem_fundo: capaFile
+        ? `${BASE_URL}/uploads/${capaFile.filename}`
+        : undefined,
+    };
+    console.log(data);
+    return this.empresaService.updateEmpresa(data);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('vinculo/:perfilId')
   getEmpresas(
     @Param('perfilId', ParseIntPipe) perfilId: number,
@@ -119,11 +173,14 @@ export class EmpresaController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
+  @Get(':id/perfil/:perfilId')
   getEmpresa(
     @Param('id', ParseIntPipe) id: number,
+    @Param('perfilId', ParseIntPipe) perfilId: number,
+    @Req() req: Request & { user: JwtPayload },
   ): Promise<usuario_perfil_empresa | null> {
-    return this.empresaService.getEmpresa(id);
+    const usuarioId = req.user?.sub;
+    return this.empresaService.getEmpresa(usuarioId, perfilId, id);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -222,7 +279,7 @@ export class EmpresaController {
         skill_id: s.skill_id,
         peso: s.peso,
         avaliador_proprio: s.avaliador_proprio,
-        nome: s.skill.skill,
+        nome: s.skill,
       })),
     };
 
@@ -236,6 +293,12 @@ export class EmpresaController {
     vagas: usuario_perfil_empresa[];
   }> {
     return this.empresaService.getVagas(empresaId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('lista-vagas-empresa/:empresaId')
+  getListaVagasAtivas(@Param('empresaId', ParseIntPipe) empresaId: number) {
+    return this.empresaService.getListaVagasAtivasEmpresa(empresaId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -263,7 +326,7 @@ export class EmpresaController {
         skill_id: s.skill_id,
         peso: s.peso,
         avaliador_proprio: s.avaliador_proprio,
-        nome: s.skill.skill,
+        nome: s.skill,
       })),
     };
 
