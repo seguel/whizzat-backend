@@ -65,6 +65,7 @@ model empresa_vaga {
   qtde_dias_aberta         Int
   qtde_posicao             Int
   data_cadastro            DateTime  @default(now())
+  ativo                    Boolean   @default(true)
 
   // Relações
   modalidade_trabalho      modalidade_trabalho     @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
