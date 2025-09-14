@@ -18,6 +18,7 @@ import { SkillService } from '../skill/skill.service';
 import { CreateEmpresaDto } from './dto/create-empresa.dto';
 import { UpdateEmpresaDto } from './dto/update-empresa.dto';
 import { CreateVagaDto } from './dto/create-vaga.dto';
+import { UpdateVagaDto } from './dto/update-vaga.dto';
 import { CreateNovaSkillDto } from './dto/create-nova-skill.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -154,7 +155,6 @@ export class EmpresaController {
         ? `${BASE_URL}/uploads/${capaFile.filename}`
         : undefined,
     };
-    console.log(data);
     return this.empresaService.updateEmpresa(data);
   }
 
@@ -267,6 +267,84 @@ export class EmpresaController {
     }
 
     // ✅ Usar perfil_id vindo do body
+    const vagaCompleta = await this.empresaService.getVaga({
+      vaga_id: vaga.vaga_id,
+      empresa_id: body.empresa_id,
+      perfil_id: body.perfil_id,
+    });
+
+    const vagaComSkillsMapeadas = {
+      ...vagaCompleta,
+      skills: vagaCompleta?.skills.map((s) => ({
+        skill_id: s.skill_id,
+        peso: s.peso,
+        avaliador_proprio: s.avaliador_proprio,
+        nome: s.skill,
+      })),
+    };
+
+    return vagaComSkillsMapeadas;
+  }
+
+  @Post('update-vaga')
+  @UseGuards(JwtAuthGuard)
+  async updateVaga(
+    @Req() req: Request & { user: JwtPayload },
+    @Body() body: UpdateVagaDto & { perfil_id: number },
+  ) {
+    const vaga = await this.empresaService.updateVaga({
+      vaga_id: body.vaga_id,
+      empresa_id: body.empresa_id,
+      nome_vaga: body.nome_vaga,
+      descricao: body.descricao,
+      local_vaga: body.local_vaga,
+      modalidade_trabalho_id: body.modalidade_trabalho_id,
+      periodo_trabalho_id: body.periodo_trabalho_id,
+      pcd: body.pcd,
+      qtde_dias_aberta: body.qtde_dias_aberta,
+      qtde_posicao: body.qtde_posicao,
+      ativo: body.ativo,
+    });
+
+    // skills existentes
+    const skillsExistentes =
+      body.skills?.map((skill) => ({
+        vaga_id: vaga.vaga_id,
+        skill_id: skill.skill_id,
+        peso: skill.peso,
+        avaliador_proprio: skill.avaliador_proprio,
+      })) ?? [];
+
+    // novas skills
+    const skillsNovas = await Promise.all(
+      (body.novas_skills ?? []).map(async (novaSkill) => {
+        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
+
+        return {
+          vaga_id: vaga.vaga_id,
+          skill_id: skill.skill_id,
+          peso: novaSkill.peso,
+          avaliador_proprio: novaSkill.avaliador_proprio,
+        };
+      }),
+    );
+
+    const todasSkills = [...skillsExistentes, ...skillsNovas].filter(
+      (
+        skill,
+      ): skill is {
+        vaga_id: number;
+        skill_id: number;
+        peso: number;
+        avaliador_proprio: boolean;
+      } => typeof skill.skill_id === 'number',
+    );
+
+    if (todasSkills.length > 0) {
+      await this.empresaService.updateVagaSkills(body.vaga_id, todasSkills);
+    }
+
+    // ✅ usar perfil_id
     const vagaCompleta = await this.empresaService.getVaga({
       vaga_id: vaga.vaga_id,
       empresa_id: body.empresa_id,
