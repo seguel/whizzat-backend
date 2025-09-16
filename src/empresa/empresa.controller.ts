@@ -22,7 +22,6 @@ import { UpdateVagaDto } from './dto/update-vaga.dto';
 import { CreateNovaSkillDto } from './dto/create-nova-skill.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { FilesInterceptor } from '@nestjs/platform-express';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
@@ -124,35 +123,46 @@ export class EmpresaController {
   @UseGuards(JwtAuthGuard)
   @Post('update-empresa')
   @UseInterceptors(
-    FilesInterceptor('files', 2, {
-      storage: diskStorage({
-        destination: uploadDir,
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+    FileFieldsInterceptor(
+      [
+        { name: 'logo', maxCount: 1 },
+        { name: 'imagem_fundo', maxCount: 1 },
+      ],
+      {
+        storage: diskStorage({
+          destination: uploadDir,
+          filename: (req, file, cb) => {
+            const uniqueSuffix =
+              Date.now() + '-' + Math.round(Math.random() * 1e9);
+            const ext = extname(file.originalname);
+            cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+          },
+        }),
+        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+        fileFilter: (req, file, cb) => {
+          const allowedTypes = /jpeg|jpg|png|webp/;
+          const isValid = allowedTypes.test(file.mimetype);
+          if (isValid) cb(null, true);
+          else
+            cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
         },
-      }),
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|webp/;
-        const isValid = allowedTypes.test(file.mimetype);
-        if (isValid) cb(null, true);
-        else cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
       },
-    }),
+    ),
   )
   async updateEmpresa(
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles()
+    files: {
+      logo?: Express.Multer.File[];
+      imagem_fundo?: Express.Multer.File[];
+    },
     @Req() req: Request & { user: JwtPayload },
     @Body() body: UpdateEmpresaDto,
   ) {
     const usuario_id = req.user?.sub;
 
-    const logoFile = files[0];
+    /* const logoFile = files[0];
     const capaFile = files[1];
-
+ */
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
     const data = {
@@ -165,9 +175,11 @@ export class EmpresaController {
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
-      logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : undefined,
-      imagem_fundo: capaFile
-        ? `${BASE_URL}/uploads/${capaFile.filename}`
+      logo: files.logo?.[0]
+        ? `${BASE_URL}/uploads/${files.logo[0].filename}`
+        : undefined,
+      imagem_fundo: files.imagem_fundo?.[0]
+        ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
         : undefined,
     };
     return this.empresaService.updateEmpresa(data);
