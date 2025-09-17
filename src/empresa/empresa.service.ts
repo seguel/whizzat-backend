@@ -99,6 +99,7 @@ export class EmpresaService {
     apresentacao: string;
     logo?: string;
     imagem_fundo?: string;
+    ativo: boolean;
   }) {
     const domíniosPublicos = [
       'gmail.com',
@@ -162,6 +163,7 @@ export class EmpresaService {
       telefone: data.telefone,
       localizacao: data.localizacao,
       apresentacao: data.apresentacao,
+      ativo: data.ativo,
     };
 
     // adiciona só se existir
@@ -184,6 +186,24 @@ export class EmpresaService {
   ): Promise<{ usuario_id: number; perfil_id: number; empresas: any[] }> {
     const empresas = await this.prisma.usuario_perfil_empresa.findMany({
       where: { usuario_id: usuarioId, perfil_id: perfilId },
+      orderBy: {
+        nome_empresa: 'asc',
+      },
+    });
+
+    return {
+      usuario_id: usuarioId,
+      perfil_id: perfilId,
+      empresas, // se não houver nada, retorna []
+    };
+  }
+
+  async getEmpresasAtivas(
+    usuarioId: number,
+    perfilId: number,
+  ): Promise<{ usuario_id: number; perfil_id: number; empresas: any[] }> {
+    const empresas = await this.prisma.usuario_perfil_empresa.findMany({
+      where: { usuario_id: usuarioId, perfil_id: perfilId, ativo: true },
       orderBy: {
         nome_empresa: 'asc',
       },
@@ -304,6 +324,10 @@ export class EmpresaService {
     const vagas = await this.prisma.empresa_vaga.findMany({
       where: {
         empresa_id: empresaId,
+        ativo: true,
+        empresa: {
+          ativo: true,
+        },
       },
       include: {
         modalidade_trabalho: true,
@@ -400,7 +424,7 @@ export class EmpresaService {
     };
   }
 
-  async getVagasSugeridas(
+  async getVagasAbertasSugeridas(
     userId: number,
     perfilId: number,
     empresaId?: string,
@@ -410,6 +434,7 @@ export class EmpresaService {
     const whereEmpresa: Prisma.usuario_perfil_empresaWhereInput = {
       usuario_id: userId,
       perfil_id: perfilId,
+      ativo: true,
     };
 
     if (empresaId && empresaId !== 'todos') {
@@ -545,6 +570,7 @@ export class EmpresaService {
         pcd: vaga.pcd,
         modalidade_trabalho: vaga.modalidade_trabalho,
         periodo_trabalho: vaga.periodo_trabalho,
+        ativo: vaga.ativo,
       };
     });
   }
