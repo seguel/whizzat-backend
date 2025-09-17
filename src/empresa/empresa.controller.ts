@@ -181,6 +181,7 @@ export class EmpresaController {
       imagem_fundo: files.imagem_fundo?.[0]
         ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
         : undefined,
+      ativo: body.ativo,
     };
     return this.empresaService.updateEmpresa(data);
   }
@@ -197,6 +198,22 @@ export class EmpresaController {
   }> {
     const usuarioId = req.user?.sub;
     return this.empresaService.getEmpresas(usuarioId, perfilId);
+  }
+
+  //Utilizado para listas empresas ativas, por exemplo usar em um combo de filtro em vagas abertas
+  //no perfil passado, geralmente no recrutador
+  @UseGuards(JwtAuthGuard)
+  @Get('vinculo-ativas/:perfilId')
+  getEmpresasAtivas(
+    @Param('perfilId', ParseIntPipe) perfilId: number,
+    @Req() req: Request & { user: JwtPayload },
+  ): Promise<{
+    usuario_id: number;
+    perfil_id: number;
+    empresas: usuario_perfil_empresa[];
+  }> {
+    const usuarioId = req.user?.sub;
+    return this.empresaService.getEmpresasAtivas(usuarioId, perfilId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -439,7 +456,7 @@ export class EmpresaController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('vagas-sugeridos/:perfilId')
+  @Get('vagas-abertas-sugeridos/:perfilId')
   async getVagasSugeridas(
     @Req() req: Request & { user: JwtPayload },
     @Param('perfilId', ParseIntPipe) perfilId: number,
@@ -452,7 +469,7 @@ export class EmpresaController {
     const empresaFiltro = empresaId || 'todos';
     const skillFiltro = skill || 'todos';
 
-    return await this.empresaService.getVagasSugeridas(
+    return await this.empresaService.getVagasAbertasSugeridas(
       usuarioId,
       perfilId,
       empresaFiltro,
