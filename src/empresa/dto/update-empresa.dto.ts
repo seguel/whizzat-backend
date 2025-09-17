@@ -1,13 +1,19 @@
-// src/empresa/dto/update-empresa.dto.ts
-import { Type } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsString, IsUrl, IsInt } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  IsUrl,
+  IsInt,
+  IsBoolean,
+} from 'class-validator';
 
 export class UpdateEmpresaDto {
   @Type(() => Number)
   @IsInt()
   empresa_id!: number;
 
-  @Type(() => Number) // transforma string em number
+  @Type(() => Number)
   @IsInt()
   perfilId!: number;
 
@@ -34,4 +40,8 @@ export class UpdateEmpresaDto {
   @IsNotEmpty()
   @IsString()
   apresentacao!: string;
+
+  @Transform(({ value }) => value === 'true' || value === '1')
+  @IsBoolean()
+  ativo: boolean = true;
 }
