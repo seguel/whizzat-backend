@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, usuario_perfil_empresa } from '@prisma/client';
+import { Prisma, empresa } from '@prisma/client';
 
 @Injectable()
 export class EmpresaService {
@@ -9,6 +9,7 @@ export class EmpresaService {
   async createEmpresa(data: {
     usuario_id: number;
     perfil_id: number;
+    recrutador_id: number;
     nome_empresa: string;
     website: string;
     email: string;
@@ -36,7 +37,7 @@ export class EmpresaService {
     const emailDomain = data.email.split('@')[1]?.toLowerCase();
 
     if (emailDomain && !domíniosPublicos.includes(emailDomain)) {
-      const emailConflict = await this.prisma.usuario_perfil_empresa.findFirst({
+      const emailConflict = await this.prisma.empresa.findFirst({
         where: {
           email: {
             endsWith: `@${emailDomain}`,
@@ -64,15 +65,14 @@ export class EmpresaService {
       websiteBase &&
       !domíniosPublicos.some((dom) => websiteBase.endsWith(dom))
     ) {
-      const websiteConflict =
-        await this.prisma.usuario_perfil_empresa.findFirst({
-          where: {
-            website: {
-              contains: websiteBase,
-              mode: 'insensitive',
-            },
+      const websiteConflict = await this.prisma.empresa.findFirst({
+        where: {
+          website: {
+            contains: websiteBase,
+            mode: 'insensitive',
           },
-        });
+        },
+      });
 
       if (websiteConflict) {
         throw new BadRequestException(
@@ -81,16 +81,48 @@ export class EmpresaService {
       }
     }
 
+    //Valida se o recrutador_id corresponde ao usuario/perfil
+    const validaRecrutador =
+      await this.prisma.usuario_perfil_recrutador.findFirst({
+        where: {
+          usuario_id: data.usuario_id,
+          perfil_id: data.perfil_id,
+          id: data.recrutador_id,
+        },
+      });
+
+    if (!validaRecrutador) {
+      throw new BadRequestException(`Dados do recrutador inválidos.`);
+    }
+
+    const createData: Prisma.empresaCreateInput = {
+      recrutador: {
+        connect: { id: data.recrutador_id },
+      },
+      nome_empresa: data.nome_empresa,
+      website: data.website,
+      email: data.email,
+      telefone: data.telefone,
+      localizacao: data.localizacao,
+      apresentacao: data.apresentacao,
+      logo: data.logo ?? '',
+      imagem_fundo: data.imagem_fundo ?? '',
+    };
+    /* 
+    // adiciona só se existir
+    if (data.logo) createData.logo = data.logo;
+    if (data.imagem_fundo) createData.imagem_fundo = data.imagem_fundo; */
+
     // --- Criação ---
-    return this.prisma.usuario_perfil_empresa.create({
-      data,
+    return this.prisma.empresa.create({
+      data: createData,
     });
   }
 
   async updateEmpresa(data: {
-    usuario_id: number;
-    perfil_id: number;
+    recrutador_id: number;
     empresa_id: number;
+    perfil_id: number;
     nome_empresa: string;
     website: string;
     email: string;
@@ -117,10 +149,10 @@ export class EmpresaService {
     // --- Regra 1: verificar domínio do email ---
     const emailDomain = data.email.split('@')[1]?.toLowerCase();
     if (emailDomain && !domíniosPublicos.includes(emailDomain)) {
-      const emailConflict = await this.prisma.usuario_perfil_empresa.findFirst({
+      const emailConflict = await this.prisma.empresa.findFirst({
         where: {
           email: { endsWith: `@${emailDomain}` },
-          NOT: { empresa_id: data.empresa_id },
+          NOT: { id: data.empresa_id },
         },
       });
       if (emailConflict) {
@@ -142,13 +174,12 @@ export class EmpresaService {
       websiteBase &&
       !domíniosPublicos.some((dom) => websiteBase.endsWith(dom))
     ) {
-      const websiteConflict =
-        await this.prisma.usuario_perfil_empresa.findFirst({
-          where: {
-            website: { contains: websiteBase, mode: 'insensitive' },
-            NOT: { empresa_id: data.empresa_id },
-          },
-        });
+      const websiteConflict = await this.prisma.empresa.findFirst({
+        where: {
+          website: { contains: websiteBase, mode: 'insensitive' },
+          NOT: { id: data.empresa_id },
+        },
+      });
       if (websiteConflict) {
         throw new BadRequestException(
           `Já existe uma empresa cadastrada com o domínio de website "${websiteBase}".`,
@@ -156,7 +187,7 @@ export class EmpresaService {
       }
     }
 
-    const updateData: Prisma.usuario_perfil_empresaUpdateInput = {
+    const updateData: Prisma.empresaUpdateInput = {
       nome_empresa: data.nome_empresa,
       website: data.website,
       email: data.email,
@@ -170,22 +201,27 @@ export class EmpresaService {
     if (data.logo) updateData.logo = data.logo;
     if (data.imagem_fundo) updateData.imagem_fundo = data.imagem_fundo;
 
-    return this.prisma.usuario_perfil_empresa.update({
+    return this.prisma.empresa.update({
       where: {
-        usuario_id: data.usuario_id,
-        perfil_id: data.perfil_id,
-        empresa_id: data.empresa_id,
+        recrutador_id: data.recrutador_id,
+        id: data.empresa_id,
       },
       data: updateData,
     });
   }
 
   async getEmpresas(
+    recrutadorId: number,
     usuarioId: number,
-    perfilId: number,
-  ): Promise<{ usuario_id: number; perfil_id: number; empresas: any[] }> {
-    const empresas = await this.prisma.usuario_perfil_empresa.findMany({
-      where: { usuario_id: usuarioId, perfil_id: perfilId },
+  ): Promise<{ usuario_id: number; empresas: any[] }> {
+    const empresas = await this.prisma.empresa.findMany({
+      where: {
+        recrutador_id: recrutadorId,
+        /* recrutador: {
+          usuario_id: usuarioId,
+          perfil_id: perfilId,
+        }, */
+      },
       orderBy: {
         nome_empresa: 'asc',
       },
@@ -193,17 +229,19 @@ export class EmpresaService {
 
     return {
       usuario_id: usuarioId,
-      perfil_id: perfilId,
       empresas, // se não houver nada, retorna []
     };
   }
 
   async getEmpresasAtivas(
+    recrutadorId: number,
     usuarioId: number,
-    perfilId: number,
-  ): Promise<{ usuario_id: number; perfil_id: number; empresas: any[] }> {
-    const empresas = await this.prisma.usuario_perfil_empresa.findMany({
-      where: { usuario_id: usuarioId, perfil_id: perfilId, ativo: true },
+  ): Promise<{ usuario_id: number; empresas: any[] }> {
+    const empresas = await this.prisma.empresa.findMany({
+      where: {
+        recrutador_id: recrutadorId,
+        ativo: true,
+      },
       orderBy: {
         nome_empresa: 'asc',
       },
@@ -211,305 +249,26 @@ export class EmpresaService {
 
     return {
       usuario_id: usuarioId,
-      perfil_id: perfilId,
       empresas, // se não houver nada, retorna []
     };
   }
 
   async getEmpresa(
-    usuarioId: number,
-    perfilId: number,
+    recrutadorId: number,
+    /* usuarioId: number,
+    perfilId: number, */
     id: number,
-  ): Promise<usuario_perfil_empresa | null> {
-    return this.prisma.usuario_perfil_empresa.findUnique({
-      where: { usuario_id: usuarioId, perfil_id: perfilId, empresa_id: id },
-    });
-  }
-
-  async hasPerfilInEmpresa(
-    usuarioId: number,
-    perfil: number,
-  ): Promise<boolean> {
-    const vinculo: usuario_perfil_empresa | null =
-      await this.prisma.usuario_perfil_empresa.findFirst({
-        where: {
+  ): Promise<empresa | null> {
+    return this.prisma.empresa.findUnique({
+      where: {
+        id: id,
+        recrutador_id: recrutadorId,
+        /* recrutador: {
           usuario_id: usuarioId,
-          perfil_id: perfil,
-        },
-      });
-
-    return !!vinculo;
-  }
-
-  async createVaga(data: {
-    empresa_id: number;
-    nome_vaga: string;
-    descricao: string;
-    local_vaga: string;
-    modalidade_trabalho_id: number;
-    periodo_trabalho_id: number;
-    pcd: boolean;
-    qtde_dias_aberta: number;
-    qtde_posicao: number;
-    data_cadastro: Date;
-  }) {
-    return this.prisma.empresa_vaga.create({
-      data,
-    });
-  }
-
-  async updateVaga(data: {
-    vaga_id: number;
-    empresa_id: number;
-    nome_vaga: string;
-    descricao: string;
-    local_vaga: string;
-    modalidade_trabalho_id: number;
-    periodo_trabalho_id: number;
-    pcd: boolean;
-    qtde_dias_aberta: number;
-    qtde_posicao: number;
-    ativo: boolean;
-  }) {
-    return this.prisma.empresa_vaga.update({
-      where: {
-        vaga_id: data.vaga_id,
-        empresa_id: data.empresa_id,
-      },
-      data: {
-        nome_vaga: data.nome_vaga,
-        descricao: data.descricao,
-        local_vaga: data.local_vaga,
-        modalidade_trabalho_id: data.modalidade_trabalho_id,
-        periodo_trabalho_id: data.periodo_trabalho_id,
-        pcd: data.pcd,
-        qtde_dias_aberta: data.qtde_dias_aberta,
-        qtde_posicao: data.qtde_posicao,
-        ativo: data.ativo,
+          perfil_id: perfilId,
+        }, */
       },
     });
-  }
-
-  async createVagaSkills(skills: Prisma.empresa_vaga_skillCreateManyInput[]) {
-    return this.prisma.empresa_vaga_skill.createMany({
-      data: skills,
-    });
-  }
-
-  async updateVagaSkills(
-    vaga_id: number,
-    skills: {
-      vaga_id: number;
-      skill_id: number;
-      peso: number;
-      avaliador_proprio: boolean;
-    }[],
-  ) {
-    // Remove todas as skills antigas
-    await this.prisma.empresa_vaga_skill.deleteMany({
-      where: { vaga_id },
-    });
-
-    // Insere as novas
-    if (skills.length > 0) {
-      await this.prisma.empresa_vaga_skill.createMany({
-        data: skills,
-      });
-    }
-  }
-
-  async getVagas(
-    empresaId: number,
-  ): Promise<{ empresa_id: number; vagas: any[] }> {
-    const vagas = await this.prisma.empresa_vaga.findMany({
-      where: {
-        empresa_id: empresaId,
-        ativo: true,
-        empresa: {
-          ativo: true,
-        },
-      },
-      include: {
-        modalidade_trabalho: true,
-        periodo_trabalho: true,
-        skills: {
-          select: {
-            skill_id: true,
-            peso: true,
-            avaliador_proprio: true,
-            skill: {
-              select: {
-                skill: true,
-              },
-            },
-          },
-        },
-        empresa: {
-          select: {
-            nome_empresa: true,
-            logo: true,
-          },
-        },
-      },
-    });
-
-    return {
-      empresa_id: empresaId,
-      vagas, // se não houver nada, retorna []
-    };
-  }
-
-  async getVaga({
-    vaga_id,
-    empresa_id,
-    perfil_id,
-  }: {
-    vaga_id: number;
-    empresa_id: number;
-    perfil_id: number;
-  }) {
-    const vaga = await this.prisma.empresa_vaga.findFirst({
-      where: {
-        vaga_id,
-        empresa_id,
-        empresa: {
-          perfil_id,
-        },
-      },
-      include: {
-        modalidade_trabalho: true,
-        periodo_trabalho: true,
-        skills: {
-          select: {
-            skill_id: true,
-            peso: true,
-            avaliador_proprio: true,
-            skill: {
-              select: {
-                skill: true,
-              },
-            },
-          },
-        },
-        empresa: {
-          select: {
-            nome_empresa: true,
-            logo: true,
-          },
-        },
-      },
-    });
-
-    if (!vaga) return null;
-
-    // 🔹 Calcular prazo
-    const prazoDate = new Date(vaga.data_cadastro);
-    prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
-
-    // 🔹 Achatar as skills
-    const skills = vaga.skills.map((s) => ({
-      skill_id: s.skill_id,
-      peso: s.peso,
-      avaliador_proprio: s.avaliador_proprio,
-      skill: s.skill.skill, // pega direto o texto da skill
-    }));
-
-    return {
-      ...vaga,
-      prazo: prazoDate.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-      }),
-      skills,
-    };
-  }
-
-  async getVagasAbertasSugeridas(
-    userId: number,
-    perfilId: number,
-    empresaId?: string,
-    skill?: string,
-  ) {
-    // Tipagem segura do where
-    const whereEmpresa: Prisma.usuario_perfil_empresaWhereInput = {
-      usuario_id: userId,
-      perfil_id: perfilId,
-      ativo: true,
-    };
-
-    if (empresaId && empresaId !== 'todos') {
-      whereEmpresa.empresa_id = Number(empresaId);
-    }
-
-    // Consulta
-    const empresas = await this.prisma.usuario_perfil_empresa.findMany({
-      where: whereEmpresa,
-      select: {
-        empresa_id: true,
-        logo: true,
-        nome_empresa: true,
-        vagas: {
-          where: {
-            ativo: true,
-            ...(skill && skill !== 'todos'
-              ? {
-                  skills: {
-                    some: {
-                      skill: {
-                        skill: skill, // campo da tabela skill
-                      },
-                    },
-                  },
-                }
-              : {}),
-          },
-          select: {
-            vaga_id: true,
-            nome_vaga: true,
-            local_vaga: true,
-            pcd: true,
-            qtde_dias_aberta: true,
-            data_cadastro: true,
-            skills: {
-              select: {
-                skill: {
-                  select: {
-                    skill: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // transforma em array plano de vagas, adicionando prazo e infos da empresa
-    const vagasPlanas = empresas.flatMap((empresa) =>
-      empresa.vagas.map((vaga) => {
-        const prazoDate = new Date(vaga.data_cadastro);
-        prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
-
-        return {
-          empresa_id: empresa.empresa_id,
-          logo: empresa.logo,
-          nome_empresa: empresa.nome_empresa,
-          vaga_id: vaga.vaga_id,
-          nome_vaga: vaga.nome_vaga,
-          localizacao: vaga.local_vaga,
-          data_cadastro: vaga.data_cadastro,
-          qtde_dias_aberta: vaga.qtde_dias_aberta,
-          prazo: prazoDate.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-          }),
-          pcd: vaga.pcd,
-          skills: vaga.skills.map((s) => s.skill.skill),
-        };
-      }),
-    );
-
-    return vagasPlanas;
   }
 
   async getListaVagasAtivasEmpresa(empresaId: number) {
@@ -522,7 +281,7 @@ export class EmpresaService {
         periodo_trabalho: true,
         empresa: {
           select: {
-            empresa_id: true,
+            id: true,
             nome_empresa: true,
             logo: true,
           },
@@ -554,7 +313,7 @@ export class EmpresaService {
       prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
 
       return {
-        empresa_id: vaga.empresa.empresa_id,
+        empresa_id: vaga.empresa.id,
         logo: vaga.empresa.logo,
         nome_empresa: vaga.empresa.nome_empresa,
         vaga_id: vaga.vaga_id,

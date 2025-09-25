@@ -15,7 +15,7 @@ export class UpdateEmpresaDto {
 
   @Type(() => Number)
   @IsInt()
-  perfilId!: number;
+  recrutadorId!: number;
 
   @IsNotEmpty()
   @IsString()
@@ -40,6 +40,10 @@ export class UpdateEmpresaDto {
   @IsNotEmpty()
   @IsString()
   apresentacao!: string;
+
+  @Type(() => Number) // transforma string em number
+  @IsInt()
+  perfilId!: number;
 
   @Transform(({ value }) => value === 'true' || value === '1')
   @IsBoolean()

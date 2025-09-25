@@ -1,4 +1,4 @@
-// src/empresa/dto/create-empresa.dto.ts
+// src/vaga/dto/create-empresa.dto.ts
 import {
   IsNotEmpty,
   IsString,
