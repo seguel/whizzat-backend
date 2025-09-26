@@ -88,7 +88,7 @@ model avaliador_skill {
   skill_id       Int
   peso           Int
   favorito       Boolean
-  tempo_favorito Int
+  tempo_favorito String
 
   // Relações
   avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
