@@ -1,4 +1,4 @@
-// src/empresa/empresa.controller.ts
+import { RecrutadorService } from './recrutador.service';
 import {
   Body,
   Param,
@@ -10,32 +10,74 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  NotFoundException,
 } from '@nestjs/common';
-import { EmpresaService } from './empresa.service';
-
-import { CreateEmpresaDto } from './dto/create-empresa.dto';
-import { UpdateEmpresaDto } from './dto/update-empresa.dto';
-
+import { CreateRecrutadorDto } from './dto/create-recrutador.dto';
+import { UpdateRecrutadorDto } from './dto/update-recrutador.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { Request } from 'express';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { Request, Express } from 'express'; // importante: tipar Request e Express
-import { empresa } from '@prisma/client';
+import { usuario_perfil_recrutador } from '@prisma/client';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
   mkdirSync(uploadDir, { recursive: true });
 }
 
-@Controller('empresas')
-export class EmpresaController {
-  constructor(private readonly empresaService: EmpresaService) {}
+@Controller('recrutador')
+export class RecrutadorController {
+  constructor(private readonly recrutadorService: RecrutadorService) {}
 
   @UseGuards(JwtAuthGuard)
-  @Post('create-empresa')
+  @Get('check-hasperfil/:perfilId')
+  checkPerfil(
+    @Param('perfilId', ParseIntPipe) perfilId: number,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.recrutadorService.getCheckHasPerfil(usuarioId, perfilId);
+  }
+
+  //Ese é usado somente no perfil, para ver se existe mesmo que esteja inativo, e poder ativar
+  @UseGuards(JwtAuthGuard)
+  @Get('check-hasperfil-cadastro/:perfilId')
+  checkPerfilCadastro(
+    @Param('perfilId', ParseIntPipe) perfilId: number,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.recrutadorService.getCheckHasPerfilCadastro(
+      usuarioId,
+      perfilId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('vinculo-empresa/:recrutadorId')
+  async verificarVinculoEmpresa(
+    @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
+  ) {
+    const existe =
+      await this.recrutadorService.hasPerfilInEmpresa(recrutadorId);
+
+    if (!existe) {
+      throw new NotFoundException('Perfil não possuí vinculo com empresas.');
+    }
+
+    return {
+      success: true,
+      message: 'Vínculo encontrado.',
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('create-recrutador')
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -74,43 +116,38 @@ export class EmpresaController {
       },
     ),
   )
-  async createEmpresa(
+  async createRecrutador(
     @UploadedFiles()
     files: {
       logo?: Express.Multer.File[];
       imagem_fundo?: Express.Multer.File[];
     },
     @Req() req: Request & { user: JwtPayload },
-    @Body() body: CreateEmpresaDto,
+    @Body() body: CreateRecrutadorDto,
   ) {
     const usuario_id = req.user?.sub;
 
     // Base URL para frontend
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
-
+    /* console.log('files recebido:', files);
+    console.log('body recebido:', body); */
     const data = {
-      usuario_id,
-      perfil_id: body.perfilId,
-      recrutador_id: body.recrutadorId,
-      nome_empresa: body.nome,
-      website: body.site,
-      email: body.email,
+      usuario_id: usuario_id,
+      perfil_id: Number(body.perfilId),
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
+      meio_notificacao: body.meio_notificacao,
       logo: files.logo?.[0]
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
         : '',
-      imagem_fundo: files.imagem_fundo?.[0]
-        ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
-        : '',
     };
 
-    return this.empresaService.createEmpresa(data);
+    return this.recrutadorService.createRecrutador(data);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('update-empresa')
+  @Post('update-recrutador')
   @UseInterceptors(
     FileFieldsInterceptor(
       [
@@ -138,85 +175,41 @@ export class EmpresaController {
       },
     ),
   )
-  async updateEmpresa(
+  async updateRerutador(
     @UploadedFiles()
     files: {
       logo?: Express.Multer.File[];
       imagem_fundo?: Express.Multer.File[];
     },
     @Req() req: Request & { user: JwtPayload },
-    @Body() body: UpdateEmpresaDto,
+    @Body() body: UpdateRecrutadorDto,
   ) {
     //const usuario_id = req.user?.sub;
 
-    /* const logoFile = files[0];
-    const capaFile = files[1];
- */
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
     const data = {
-      recrutador_id: body.recrutadorId,
-      empresa_id: body.empresa_id, // 👈 vem do novo DTO
-      perfil_id: body.perfilId,
-      nome_empresa: body.nome,
-      website: body.site,
-      email: body.email,
+      id: body.recrutadorId,
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
+      meio_notificacao: body.meio_notificacao,
       logo: files.logo?.[0]
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
-        : undefined,
-      imagem_fundo: files.imagem_fundo?.[0]
-        ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
-        : undefined,
+        : '',
       ativo: body.ativo,
     };
-    return this.empresaService.updateEmpresa(data);
+    return this.recrutadorService.updateRecrutador(data);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('recrutador/:recrutadorId')
-  getEmpresas(
-    @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
-    @Req() req: Request & { user: JwtPayload },
-  ): Promise<{
-    usuario_id: number;
-    empresas: empresa[];
-  }> {
-    const usuarioId = req.user?.sub;
-    return this.empresaService.getEmpresas(recrutadorId, usuarioId);
-  }
-
-  //Utilizado para listar empresas ativas, por exemplo usar em um combo de filtro em vagas abertas
-  //no perfil passado, geralmente no recrutador
-  @UseGuards(JwtAuthGuard)
-  @Get('filtro-ativas/:recrutadorId')
-  getEmpresasAtivas(
-    @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
-    @Req() req: Request & { user: JwtPayload },
-  ): Promise<{
-    usuario_id: number;
-    empresas: empresa[];
-  }> {
-    const usuarioId = req.user?.sub;
-    return this.empresaService.getEmpresasAtivas(recrutadorId, usuarioId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get(':id/recrutador/:recrutadorId')
-  getEmpresa(
+  @Get(':id/perfil/:perfilId')
+  getRecrutador(
     @Param('id', ParseIntPipe) id: number,
-    @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
-    // @Req() req: Request & { user: JwtPayload },
-  ): Promise<empresa | null> {
-    //const usuarioId = req.user?.sub;
-    return this.empresaService.getEmpresa(recrutadorId, id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('lista-vagas-empresa/:empresaId')
-  getListaVagasAtivas(@Param('empresaId', ParseIntPipe) empresaId: number) {
-    return this.empresaService.getListaVagasAtivasEmpresa(empresaId);
+    @Param('perfilId', ParseIntPipe) perfilId: number,
+    @Req() req: Request & { user: JwtPayload },
+  ): Promise<usuario_perfil_recrutador | null> {
+    const usuarioId = req.user?.sub;
+    return this.recrutadorService.getRecrutador(id, usuarioId, perfilId);
   }
 }
