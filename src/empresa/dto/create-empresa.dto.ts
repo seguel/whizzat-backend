@@ -38,4 +38,8 @@ export class CreateEmpresaDto {
   @Type(() => Number) // transforma string em number
   @IsInt()
   perfilId!: number;
+
+  @Type(() => Number) // transforma string em number
+  @IsInt()
+  recrutadorId!: number;
 }
