@@ -11,7 +11,16 @@
     "primeira_linha_reset_senha": "Olá ",
     "segunda_linha_reset_senha": "Redefina sua senha clicando no botão abaixo:",
     "btn_reset_Senha": "Redefinir Senha",
-    "link_valido_15m": "Este link é válido por 15 minutos."
+    "link_valido_15m": "Este link é válido por 15 minutos.",
+
+    "avaliador_assunto_bem_vindo": "Confirmação de cadastro de avaliador",
+    "avaliador_primeira_linha_bem_vindo": "Olá ",
+    "avaliador_segunda_linha_bem_vindo": "O avaliador ",
+    "avaliador_segunda_linha_complemento": "está se cadastrando junto a empresa, para realizar avaliações dos candidatos a vagas disponibilizadas.",
+    "avaliador_terceira_linha_bem_vindo": "Por favor, confirme o cadastro clicando no botão abaixo:",
+    "avaliador_btn_ativa_conta": "Ativar Conta Avaliador",
+    "avaliador_link_valido_24h": "Este link é válido por 24 horas.",
+    "avaliador_equipe_whizzat": "Obrigado,<br/>Equipe Whizzat"
   },
   "auth": {
     "campo_obrigatorio": "Todos os campos são obrigatórios",

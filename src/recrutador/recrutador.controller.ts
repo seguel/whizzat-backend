@@ -21,7 +21,6 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { usuario_perfil_recrutador } from '@prisma/client';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
@@ -51,10 +50,12 @@ export class RecrutadorController {
     @Req() req: Request & { user: JwtPayload },
   ) {
     const usuarioId = req.user?.sub;
+    const nomeUser = req.user?.nome;
 
     return this.recrutadorService.getCheckHasPerfilCadastro(
       usuarioId,
       perfilId,
+      nomeUser,
     );
   }
 
@@ -208,8 +209,14 @@ export class RecrutadorController {
     @Param('id', ParseIntPipe) id: number,
     @Param('perfilId', ParseIntPipe) perfilId: number,
     @Req() req: Request & { user: JwtPayload },
-  ): Promise<usuario_perfil_recrutador | null> {
+  ) {
     const usuarioId = req.user?.sub;
-    return this.recrutadorService.getRecrutador(id, usuarioId, perfilId);
+    const nomeUser = req.user?.nome;
+    return this.recrutadorService.getRecrutador(
+      id,
+      usuarioId,
+      perfilId,
+      nomeUser,
+    );
   }
 }

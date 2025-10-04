@@ -31,7 +31,8 @@ export class RecrutadorService {
   async getCheckHasPerfilCadastro(
     usuarioId: number,
     perfilId: number,
-  ): Promise<{ id: number | null; usuario_id: number }> {
+    nomeUser: string,
+  ): Promise<{ id: number | null; usuario_id: number; nome_user: string }> {
     const registro = await this.prisma.usuario_perfil_recrutador.findUnique({
       where: {
         usuario_id_perfil_id: {
@@ -46,6 +47,7 @@ export class RecrutadorService {
     return {
       id: registro?.id ?? null,
       usuario_id: usuarioId, // adiciona manualmente
+      nome_user: nomeUser,
     };
   }
 
@@ -120,13 +122,22 @@ export class RecrutadorService {
     id: number,
     usuarioId: number,
     perfilId: number,
-  ): Promise<usuario_perfil_recrutador | null> {
-    return this.prisma.usuario_perfil_recrutador.findUnique({
+    nomeUser: string,
+  ): Promise<{
+    nomeUser: string;
+    recrutador: usuario_perfil_recrutador | null;
+  }> {
+    const recrutador = await this.prisma.usuario_perfil_recrutador.findFirst({
       where: {
         id: id,
         usuario_id: usuarioId,
         perfil_id: perfilId,
       },
     });
+
+    return {
+      nomeUser,
+      recrutador,
+    };
   }
 }

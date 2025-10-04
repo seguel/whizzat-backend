@@ -17,10 +17,9 @@ export class UpdateAvaliadorDto {
   @IsInt()
   avaliadorId!: number;
 
-  @Type(() => Number)
-  @IsInt()
   @IsOptional()
-  empresaId?: number | null;
+  @IsString()
+  empresaId?: string;
 
   @IsNotEmpty()
   @IsString()
