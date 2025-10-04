@@ -59,18 +59,19 @@ model usuario_perfil_recrutador {
 }
 
 model usuario_perfil_avaliador {
-  id               Int       @id @default(autoincrement())
-  usuario_id       Int
-  perfil_id        Int
-  empresa_id       Int?
-  telefone         String
-  localizacao      String
-  apresentacao     String
-  logo             String
-  avaliar_todos    Boolean   @default(false)
-  meio_notificacao String
-  data_cadastro    DateTime  @default(now())
-  ativo            Boolean   @default(true)
+  id                Int       @id @default(autoincrement())
+  usuario_id        Int
+  perfil_id         Int
+  empresa_id        Int?
+  telefone          String
+  localizacao       String
+  apresentacao      String
+  logo              String
+  avaliar_todos     Boolean   @default(false)
+  meio_notificacao  String
+  data_cadastro     DateTime  @default(now())
+  ativo             Boolean   @default(true)
+  cadastro_liberado Boolean   @default(false)
 
   // Relações
   usuario          usuario               @relation(fields: [usuario_id], references: [id])

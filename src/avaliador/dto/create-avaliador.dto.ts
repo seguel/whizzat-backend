@@ -13,10 +13,9 @@ import { Transform, Type } from 'class-transformer';
 // import { CreateNovaSkillAvaliadorDto } from './create-nova-skill.dto'; // ← novo import
 
 export class CreateAvaliadorDto {
-  @Type(() => Number)
-  @IsInt()
   @IsOptional()
-  empresaId?: number | null;
+  @IsString()
+  empresaId?: string;
 
   @IsNotEmpty()
   @IsString()
