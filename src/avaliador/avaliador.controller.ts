@@ -10,6 +10,8 @@ import {
   Body,
   UseInterceptors,
   UploadedFiles,
+  Headers,
+  BadRequestException,
 } from '@nestjs/common';
 import { AvaliadorService } from './avaliador.service';
 import { SkillService } from '../skill/skill.service';
@@ -24,6 +26,7 @@ import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import { I18nService } from 'nestjs-i18n';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
@@ -35,6 +38,7 @@ export class AvaliadorController {
   constructor(
     private readonly avaliadorService: AvaliadorService,
     private readonly skillService: SkillService,
+    private readonly i18n: I18nService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -56,8 +60,13 @@ export class AvaliadorController {
     @Req() req: Request & { user: JwtPayload },
   ) {
     const usuarioId = req.user?.sub;
+    const nomeUser = req.user?.nome;
 
-    return this.avaliadorService.getCheckHasPerfilCadastro(usuarioId, perfilId);
+    return this.avaliadorService.getCheckHasPerfilCadastro(
+      usuarioId,
+      perfilId,
+      nomeUser,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -110,6 +119,7 @@ export class AvaliadorController {
     @Body() body: CreateAvaliadorDto, // <-- adicionar perfil_id no body
   ) {
     const usuarioId = req.user?.sub;
+    const nomeUser = req.user?.nome;
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
@@ -124,7 +134,7 @@ export class AvaliadorController {
     const avaliador = await this.avaliadorService.createAvaliador({
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
-      empresa_id: body.empresaId ?? null,
+      empresa_id: body.empresaId ? Number(body.empresaId) : null,
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
@@ -133,6 +143,8 @@ export class AvaliadorController {
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
         : '',
       meio_notificacao: body.meio_notificacao,
+      cadastro_liberado: body.empresaId ? false : true,
+      language: 'pt',
     });
 
     // Skills já existentes
@@ -173,6 +185,7 @@ export class AvaliadorController {
         peso: number;
         favorito: boolean;
         tempo_favorito: string;
+        nome: string;
       } => typeof skill.skill_id === 'number',
     );
 
@@ -185,17 +198,18 @@ export class AvaliadorController {
       avaliador.id,
       usuarioId,
       body.perfilId,
+      nomeUser,
     );
 
     const avaliadorComSkillsMapeadas = {
       ...avaliadorCompleto,
-      skills: avaliadorCompleto?.skills.map((s) => ({
+      skills: avaliadorCompleto?.skills?.map((s) => ({
         avaliador_id: s.avaliador_id,
         skill_id: s.skill_id,
         peso: s.peso,
         favorito: s.favorito,
         tempo_favorito: s.tempo_favorito,
-        nome: s.skill,
+        nome: s.nome,
       })),
     };
 
@@ -252,6 +266,7 @@ export class AvaliadorController {
     @Body() body: UpdateAvaliadorDto, // <-- adicionar perfil_id no body
   ) {
     const usuarioId = req.user?.sub;
+    const nomeUser = req.user?.nome;
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
@@ -267,13 +282,14 @@ export class AvaliadorController {
       body.avaliadorId,
       usuarioId,
       body.perfilId,
+      nomeUser,
     );
 
     const avaliador = await this.avaliadorService.updateAvaliador({
       avaliador_id: body.avaliadorId,
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
-      empresa_id: body.empresaId ?? null,
+      empresa_id: body.empresaId ? Number(body.empresaId) : null,
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
@@ -334,16 +350,17 @@ export class AvaliadorController {
       avaliador.id,
       usuarioId,
       body.perfilId,
+      nomeUser,
     );
 
     const avaliadorComSkillsMapeadas = {
       ...avaliadorCompleto,
-      skills: avaliadorCompleto?.skills.map((s) => ({
+      skills: avaliadorCompleto?.skills?.map((s) => ({
         skill_id: s.skill_id,
         peso: s.peso,
         favorito: s.favorito,
         tempo_favorito: s.tempo_favorito,
-        nome: s.skill,
+        nome: s.nome,
       })),
     };
 
@@ -358,12 +375,45 @@ export class AvaliadorController {
     @Req() req: Request & { user: JwtPayload },
   ) {
     const usuarioId = req.user?.sub;
-    return this.avaliadorService.getAvaliador(id, usuarioId, perfilId);
+    const nomeUser = req.user?.nome;
+
+    return this.avaliadorService.getAvaliador(
+      id,
+      usuarioId,
+      perfilId,
+      nomeUser,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('empresas-cadastro')
   getEmpresasCadastro() {
     return this.avaliadorService.getEmpresasCadastro();
+  }
+
+  @Post('activate')
+  async activateAccount(
+    @Body('token') token: string,
+    @Headers('accept-language') language: string,
+  ) {
+    if (!token) {
+      const messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+        lang: language,
+      });
+      throw new BadRequestException(messageRetorno);
+    }
+
+    const user = await this.avaliadorService.activateUserByToken(
+      token,
+      language,
+      3,
+    );
+    const messageRetorno = this.i18n.translate(
+      'common.auth.conta_ativada_sucesso',
+      {
+        lang: language,
+      },
+    );
+    return { message: messageRetorno, user };
   }
 }
