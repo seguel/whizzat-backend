@@ -6,6 +6,15 @@ export const generateActivationToken = (userId: number): string => {
   });
 };
 
+export const generateActivationToken72 = (
+  userId: number,
+  empresaId: number,
+): string => {
+  return jwt.sign({ userId, empresaId }, process.env.JWT_ACTIVATE_SECRET!, {
+    expiresIn: '72h',
+  });
+};
+
 export const generateResetTokenCurto = (userId: number): string => {
   return jwt.sign({ userId }, process.env.JWT_RESET_SECRET!, {
     expiresIn: '15m',

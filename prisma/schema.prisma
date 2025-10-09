@@ -71,7 +71,8 @@ model usuario_perfil_avaliador {
   meio_notificacao  String
   data_cadastro     DateTime  @default(now())
   ativo             Boolean   @default(true)
-  cadastro_liberado Boolean   @default(false)
+  status_cadastro   Int   @default(-1)
+  data_envio_link   DateTime  @default(now())
 
   // Relações
   usuario          usuario               @relation(fields: [usuario_id], references: [id])

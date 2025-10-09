@@ -156,11 +156,12 @@ export class MailService {
     }
   }
 
-  async sendWelcomeEmailAvaliador(
+  async sendRequestRegisterAvaliador(
     email: string,
     name: string,
     name_empresa: string,
     activationLink: string,
+    rejectLink: string,
     language: string,
   ) {
     const subject = this.i18n.translate(
@@ -199,8 +200,20 @@ export class MailService {
         lang: language,
       },
     );
-    const link_valido_24h = this.i18n.translate(
-      'common.mail.avaliador_link_valido_24h',
+    const quarta_linha = this.i18n.translate(
+      'common.mail.avaliador_quarta_linha_bem_vindo',
+      {
+        lang: language,
+      },
+    );
+    const btn_rejeita_conta = this.i18n.translate(
+      'common.mail.avaliador_btn_rejeita_conta',
+      {
+        lang: language,
+      },
+    );
+    const link_valido_72h = this.i18n.translate(
+      'common.mail.avaliador_link_valido_72h',
       {
         lang: language,
       },
@@ -241,8 +254,19 @@ export class MailService {
             </a>
           </div>
 
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${quarta_linha}
+          </p>
+
+          <div style="margin: 30px 0;">
+            <a href="${rejectLink}"
+              style="background-color: #c52222ff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              ${btn_rejeita_conta}
+            </a>
+          </div>
+
           <p style="font-size: 14px; margin-bottom: 20px;">
-            <strong>${link_valido_24h}</strong>
+            <strong>${link_valido_72h}</strong>
           </p>
 
           <p style="font-size: 14px; color: #555;">
@@ -256,6 +280,178 @@ export class MailService {
 
     if (error) {
       throw new Error(`Failed to send avaliador email: ${error.message}`);
+    }
+  }
+
+  async sendWelcomeAvaliador(
+    email: string,
+    name: string,
+    empresa: string,
+    language: string,
+  ) {
+    const subject = this.i18n.translate(
+      'common.mail.avaliador_welcome_assunto',
+      {
+        lang: language,
+      },
+    );
+    const primeira_linha = this.i18n.translate(
+      'common.mail.avaliador_welcome_primeira_linha',
+      {
+        lang: language,
+      },
+    );
+    const segunda_linha = this.i18n.translate(
+      'common.mail.avaliador_welcome_segunda_linha',
+      {
+        lang: language,
+      },
+    );
+    const segunda_linha_complemento = this.i18n.translate(
+      'common.mail.avaliador_welcome_segunda_linha_complemento',
+      {
+        lang: language,
+      },
+    );
+    const terceira_linha = this.i18n.translate(
+      'common.mail.avaliador_welcome_terceira_linha',
+      {
+        lang: language,
+      },
+    );
+    const quarta_linha = this.i18n.translate(
+      'common.mail.avaliador_welcome_quarta_linha',
+      {
+        lang: language,
+      },
+    );
+    const equipe_whizzat = this.i18n.translate(
+      'common.mail.avaliador_welcome_equipe_whizzat',
+      {
+        lang: language,
+      },
+    );
+
+    const { error } = await this.resend.emails.send({
+      from: '"Whizzat" <no-reply@whizzat.com.br>',
+      to: email,
+      subject: subject,
+      html: `
+        <div style="width: 60%; margin: 40px auto; font-family: Arial, sans-serif; line-height: 1.6; text-align: left; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff;">
+          
+          <img src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png" alt="Logo Whizzat"
+            style="display: block; margin: 0 auto 20px; width: 180px; height: auto;" />
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${primeira_linha} ${name},
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${segunda_linha} <strong>${empresa}</strong> ${segunda_linha_complemento}
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${terceira_linha}
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${quarta_linha}
+          </p>
+
+          <p style="font-size: 14px; color: #555;">
+           ${equipe_whizzat}
+            
+          </p>
+
+        </div>
+  `,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
+
+  async sendRejectAvaliador(
+    email: string,
+    name: string,
+    empresa: string,
+    language: string,
+  ) {
+    const subject = this.i18n.translate(
+      'common.mail.avaliador_reject_assunto',
+      {
+        lang: language,
+      },
+    );
+    const primeira_linha = this.i18n.translate(
+      'common.mail.avaliador_reject_primeira_linha',
+      {
+        lang: language,
+      },
+    );
+    const segunda_linha = this.i18n.translate(
+      'common.mail.avaliador_reject_segunda_linha',
+      {
+        lang: language,
+      },
+    );
+    const terceira_linha = this.i18n.translate(
+      'common.mail.avaliador_reject_terceira_linha',
+      {
+        lang: language,
+      },
+    );
+    const quarta_linha = this.i18n.translate(
+      'common.mail.avaliador_reject_quarta_linha',
+      {
+        lang: language,
+      },
+    );
+    const equipe_whizzat = this.i18n.translate(
+      'common.mail.avaliador_welcome_equipe_whizzat',
+      {
+        lang: language,
+      },
+    );
+
+    const { error } = await this.resend.emails.send({
+      from: '"Whizzat" <no-reply@whizzat.com.br>',
+      to: email,
+      subject: subject,
+      html: `
+        <div style="width: 60%; margin: 40px auto; font-family: Arial, sans-serif; line-height: 1.6; text-align: left; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff;">
+          
+          <img src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png" alt="Logo Whizzat"
+            style="display: block; margin: 0 auto 20px; width: 180px; height: auto;" />
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${primeira_linha} ${name},
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${segunda_linha} <strong>${empresa}</strong>
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${terceira_linha}
+          </p>
+
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            ${quarta_linha}
+          </p>
+
+          <p style="font-size: 14px; color: #555;">
+           ${equipe_whizzat}
+            
+          </p>
+
+        </div>
+  `,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
     }
   }
 }

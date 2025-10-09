@@ -143,7 +143,7 @@ export class AvaliadorController {
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
         : '',
       meio_notificacao: body.meio_notificacao,
-      cadastro_liberado: body.empresaId ? false : true,
+      status_cadastro: body.empresaId ? -1 : 1, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
       language: 'pt',
     });
 
@@ -299,6 +299,7 @@ export class AvaliadorController {
         : avaliadorAtual?.logo,
       meio_notificacao: body.meio_notificacao,
       ativo: body.ativo,
+      language: 'pt',
     });
 
     // skills existentes
@@ -391,6 +392,17 @@ export class AvaliadorController {
     return this.avaliadorService.getEmpresasCadastro();
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Post('reenviar-solicitacao/:id')
+  resendLink(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.avaliadorService.resendLink(id, usuarioId);
+  }
+
   @Post('activate')
   async activateAccount(
     @Body('token') token: string,
@@ -410,6 +422,32 @@ export class AvaliadorController {
     );
     const messageRetorno = this.i18n.translate(
       'common.auth.conta_ativada_sucesso',
+      {
+        lang: language,
+      },
+    );
+    return { message: messageRetorno, user };
+  }
+
+  @Post('reject')
+  async rejectAccount(
+    @Body('token') token: string,
+    @Headers('accept-language') language: string,
+  ) {
+    if (!token) {
+      const messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+        lang: language,
+      });
+      throw new BadRequestException(messageRetorno);
+    }
+
+    const user = await this.avaliadorService.rejectUserByToken(
+      token,
+      language,
+      3,
+    );
+    const messageRetorno = this.i18n.translate(
+      'common.auth.conta_reject_sucesso',
       {
         lang: language,
       },
