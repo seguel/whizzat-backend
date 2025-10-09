@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { generateActivationToken } from '../lib/util';
+import { generateActivationToken72 } from '../lib/util';
 import { I18nService } from 'nestjs-i18n';
 import { MailService } from '../mail/mail.service';
 // import * as bcrypt from 'bcrypt';
@@ -10,6 +10,7 @@ import * as jwt from 'jsonwebtoken';
 
 interface JwtPayload {
   userId: number;
+  empresaId: number;
 }
 
 @Injectable()
@@ -28,7 +29,7 @@ export class AvaliadorService {
     const registro = await this.prisma.usuario_perfil_avaliador.findUnique({
       where: {
         ativo: true,
-        cadastro_liberado: true,
+        status_cadastro: 1, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
         usuario_id_perfil_id: {
           // <-- chave composta
           usuario_id: usuarioId,
@@ -115,7 +116,7 @@ export class AvaliadorService {
     avaliar_todos: boolean;
     logo?: string;
     meio_notificacao: string;
-    cadastro_liberado: boolean;
+    status_cadastro: number;
     language: string;
   }) {
     const createData: Prisma.usuario_perfil_avaliadorCreateInput = {
@@ -134,7 +135,7 @@ export class AvaliadorService {
       avaliar_todos: data.avaliar_todos,
       logo: data.logo ?? '',
       meio_notificacao: data.meio_notificacao,
-      cadastro_liberado: data.cadastro_liberado,
+      status_cadastro: data.status_cadastro, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
     };
 
     const avaliador = await this.prisma.usuario_perfil_avaliador.create({
@@ -142,9 +143,10 @@ export class AvaliadorService {
     });
 
     if (data.empresa_id) {
-      const token = generateActivationToken(avaliador.id);
+      const token = generateActivationToken72(avaliador.id, data.empresa_id);
 
       const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-avaliador?token=${token}&pf=${data.perfil_id}&lng=${data.language}`; //`https://meusite.com/confirmar-email?token=${token}`;
+      const rejectLink = `${process.env.SITE_URL}/cadastro/rejeitar-avaliador?token=${token}&pf=${data.perfil_id}&lng=${data.language}`;
 
       //busco o email da empresa
       const empresa = await this.prisma.empresa.findFirst({
@@ -178,11 +180,12 @@ export class AvaliadorService {
         throw new Error('Usuário não encontrado');
       }
 
-      await this.mailService.sendWelcomeEmailAvaliador(
+      await this.mailService.sendRequestRegisterAvaliador(
         empresa.email,
         `${user.primeiro_nome} ${user.ultimo_nome}`,
         empresa?.nome_empresa,
         activationLink,
+        rejectLink,
         data.language,
       );
     }
@@ -204,23 +207,101 @@ export class AvaliadorService {
     logo?: string;
     meio_notificacao: string;
     ativo: boolean;
+    language: string;
   }) {
+    let statusCadastro = 1;
+    let atualizarDataEnvioLink = false;
+
+    if (data.empresa_id) {
+      //busca e valida a empresa atual no cadastro
+      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+        where: {
+          id: data.avaliador_id,
+        },
+        select: {
+          empresa_id: true,
+          status_cadastro: true,
+        },
+      });
+
+      if (avaliador?.empresa_id !== data.empresa_id) {
+        statusCadastro = -1;
+        atualizarDataEnvioLink = true;
+
+        const token = generateActivationToken72(
+          data.avaliador_id,
+          data.empresa_id,
+        );
+
+        const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-avaliador?token=${token}&pf=${data.perfil_id}&lng=${data.language}`; //`https://meusite.com/confirmar-email?token=${token}`;
+        const rejectLink = `${process.env.SITE_URL}/cadastro/rejeitar-avaliador?token=${token}&pf=${data.perfil_id}&lng=${data.language}`;
+
+        //busco o email da empresa
+        const empresa = await this.prisma.empresa.findFirst({
+          where: {
+            id: data.empresa_id,
+          },
+          select: {
+            id: true,
+            nome_empresa: true,
+            email: true,
+          },
+        });
+
+        //busco o nome do usuario
+        const user = await this.prisma.usuario.findFirst({
+          where: {
+            id: data.usuario_id,
+          },
+          select: {
+            id: true,
+            primeiro_nome: true,
+            ultimo_nome: true,
+          },
+        });
+
+        if (!empresa) {
+          throw new Error('Empresa não encontrada');
+        }
+
+        if (!user) {
+          throw new Error('Usuário não encontrado');
+        }
+
+        await this.mailService.sendRequestRegisterAvaliador(
+          empresa.email,
+          `${user.primeiro_nome} ${user.ultimo_nome}`,
+          empresa?.nome_empresa,
+          activationLink,
+          rejectLink,
+          data.language,
+        );
+      } else {
+        statusCadastro = avaliador.status_cadastro;
+      }
+    }
+
+    const updateData: Prisma.usuario_perfil_avaliadorUpdateInput = {
+      empresa: data.empresa_id
+        ? { connect: { id: data.empresa_id } }
+        : { disconnect: true },
+      telefone: data.telefone,
+      localizacao: data.localizacao,
+      apresentacao: data.apresentacao,
+      avaliar_todos: data.avaliar_todos,
+      logo: data.logo ?? '',
+      meio_notificacao: data.meio_notificacao,
+      ativo: data.ativo,
+      status_cadastro: statusCadastro,
+    };
+
+    if (atualizarDataEnvioLink) {
+      updateData.data_envio_link = new Date();
+    }
+
     return this.prisma.usuario_perfil_avaliador.update({
-      where: {
-        id: data.avaliador_id,
-        usuario_id: data.usuario_id,
-        perfil_id: data.perfil_id,
-      },
-      data: {
-        empresa_id: data.empresa_id,
-        telefone: data.telefone,
-        localizacao: data.localizacao,
-        apresentacao: data.apresentacao,
-        avaliar_todos: data.avaliar_todos,
-        logo: data.logo ?? '',
-        meio_notificacao: data.meio_notificacao,
-        ativo: data.ativo,
-      },
+      where: { id: data.avaliador_id },
+      data: updateData,
     });
   }
 
@@ -269,7 +350,137 @@ export class AvaliadorService {
     }
   }
 
+  async resendLink(id: number, usuarioId: number) {
+    const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+      where: {
+        id: id,
+        usuario_id: usuarioId,
+      },
+      select: {
+        empresa_id: true, // 👈 só esse campo do avaliador
+        perfil_id: true,
+        empresa: {
+          select: {
+            nome_empresa: true,
+            email: true, // 👈 e aqui só o email da empresa
+          },
+        },
+      },
+    });
+
+    const token = generateActivationToken72(id, avaliador?.empresa_id ?? 0);
+    const language = 'pt';
+
+    const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-avaliador?token=${token}&pf=${avaliador?.perfil_id}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
+    const rejectLink = `${process.env.SITE_URL}/cadastro/rejeitar-avaliador?token=${token}&pf=${avaliador?.perfil_id}&lng=${language}`;
+
+    //busco o nome do usuario
+    const user = await this.prisma.usuario.findFirst({
+      where: {
+        id: usuarioId,
+      },
+      select: {
+        primeiro_nome: true,
+        ultimo_nome: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    await this.mailService.sendRequestRegisterAvaliador(
+      avaliador?.empresa?.email ?? '',
+      `${user.primeiro_nome} ${user.ultimo_nome}`,
+      avaliador?.empresa?.nome_empresa ?? '',
+      activationLink,
+      rejectLink,
+      language,
+    );
+
+    await this.prisma.usuario_perfil_avaliador.update({
+      where: {
+        id: id,
+      },
+      data: {
+        data_envio_link: new Date(),
+      },
+    });
+  }
+
   async activateUserByToken(token: string, language: string, perfilId: number) {
+    try {
+      const payload = jwt.verify(
+        token,
+        process.env.JWT_ACTIVATE_SECRET!,
+      ) as JwtPayload;
+
+      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+        where: {
+          id: payload.userId,
+          perfil_id: perfilId,
+          empresa_id: payload.empresaId,
+        },
+        select: {
+          id: true, // 👈 só esse campo do avaliador
+          status_cadastro: true,
+          usuario_id: true,
+          empresa: {
+            select: {
+              nome_empresa: true,
+            },
+          },
+          usuario: {
+            select: {
+              email: true,
+              primeiro_nome: true,
+              ultimo_nome: true,
+            },
+          },
+        },
+      });
+
+      if (!avaliador) {
+        const messageRetorno = this.i18n.translate(
+          'common.auth.usuario_nao_encotrado',
+          { lang: language },
+        );
+        throw new Error(messageRetorno);
+      }
+
+      if (avaliador.status_cadastro === 1) return avaliador;
+
+      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+        where: { id: avaliador.id },
+        data: { status_cadastro: 1 },
+      });
+
+      await this.mailService.sendWelcomeAvaliador(
+        avaliador?.usuario.email ?? '',
+        `${avaliador?.usuario.primeiro_nome} ${avaliador?.usuario.ultimo_nome}`,
+        avaliador?.empresa?.nome_empresa ?? '',
+        language,
+      );
+
+      return avalaidorRet;
+    } catch (err) {
+      let messageRetorno = '';
+
+      if (err instanceof jwt.TokenExpiredError) {
+        messageRetorno = this.i18n.translate('common.auth.token_expirado', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
+      } else {
+        messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
+      }
+    }
+  }
+
+  async rejectUserByToken(token: string, language: string, perfilId: number) {
     try {
       const payload = jwt.verify(
         token,
@@ -278,14 +489,35 @@ export class AvaliadorService {
 
       // console.log(payload);
 
-      const user = await this.prisma.usuario_perfil_avaliador.findFirst({
+      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
         where: {
           id: payload.userId,
           perfil_id: perfilId,
+          empresa_id: payload.empresaId,
+          status_cadastro: {
+            not: 1,
+          },
+        },
+        select: {
+          id: true, // 👈 só esse campo do avaliador
+          status_cadastro: true,
+          usuario_id: true,
+          empresa: {
+            select: {
+              nome_empresa: true,
+            },
+          },
+          usuario: {
+            select: {
+              email: true,
+              primeiro_nome: true,
+              ultimo_nome: true,
+            },
+          },
         },
       });
 
-      if (!user) {
+      if (!avaliador) {
         const messageRetorno = this.i18n.translate(
           'common.auth.usuario_nao_encotrado',
           { lang: language },
@@ -293,12 +525,21 @@ export class AvaliadorService {
         throw new Error(messageRetorno);
       }
 
-      if (user.cadastro_liberado) return user;
+      if (avaliador.status_cadastro === 0) return avaliador;
 
-      return await this.prisma.usuario_perfil_avaliador.update({
-        where: { id: user.id },
-        data: { cadastro_liberado: true },
+      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+        where: { id: avaliador.id },
+        data: { status_cadastro: 0 },
       });
+
+      await this.mailService.sendRejectAvaliador(
+        avaliador?.usuario.email ?? '',
+        `${avaliador?.usuario.primeiro_nome} ${avaliador?.usuario.ultimo_nome}`,
+        avaliador?.empresa?.nome_empresa ?? '',
+        language,
+      );
+
+      return avalaidorRet;
     } catch (err) {
       let messageRetorno = '';
 

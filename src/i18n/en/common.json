@@ -11,7 +11,33 @@
     "primeira_linha_reset_senha": "Hello ",
     "segunda_linha_reset_senha": "Reset your password by clicking the button below:",
     "btn_reset_Senha": "Reset Password",
-    "link_valido_15m": "This link is valid for 15 minutes."
+    "link_valido_15m": "This link is valid for 15 minutes.",
+
+    "avaliador_assunto_bem_vindo": "Evaluator registration request",
+    "avaliador_primeira_linha_bem_vindo": "Hello ",
+    "avaliador_segunda_linha_bem_vindo": "The evaluator ",
+    "avaliador_segunda_linha_complemento": "is registering with the company to conduct candidate evaluations for available job positions.",
+    "avaliador_terceira_linha_bem_vindo": "Please confirm the registration by clicking the button below:",
+    "avaliador_btn_ativa_conta": "Activate Evaluator Account",
+    "avaliador_quarta_linha_bem_vindo": "If you do not recognize or agree with this request, click the button below to reject it:",
+    "avaliador_btn_rejeita_conta": "Reject Evaluator Account",
+    "avaliador_link_valido_72h": "This link is valid for 72 hours.",
+    "avaliador_equipe_whizzat": "Thank you,<br/>Whizzat Team",
+
+    "avaliador_welcome_assunto": "Request approved",
+    "avaliador_welcome_primeira_linha": "Hello ",
+    "avaliador_welcome_segunda_linha": "We have great news: the company ",
+    "avaliador_welcome_segunda_linha_complemento": " has confirmed your registration as an <strong>evaluator</strong>.",
+    "avaliador_welcome_terceira_linha": "From now on, all the features in your profile menu are available, allowing you to access the platform, conduct evaluations, and follow processes with more autonomy.",
+    "avaliador_welcome_quarta_linha": "Welcome to our network of evaluators!",
+    "avaliador_welcome_equipe_whizzat": "Sincerely,<br/>Whizzat Team",
+
+    "avaliador_reject_assunto": "Request not approved",
+    "avaliador_reject_primeira_linha": "Hello ",
+    "avaliador_reject_segunda_linha": "Thank you for your interest in acting as an <strong>evaluator</strong> at the company ",
+    "avaliador_reject_terceira_linha": "After review, unfortunately your registration request <strong>was not approved</strong> by the company at this time.",
+    "avaliador_reject_quarta_linha": "You may apply again in the future if new opportunities arise.",
+    "avaliador_reject_equipe_whizzat": "Sincerely,<br/>Whizzat Team"
   },
   "auth": {
     "campo_obrigatorio": "All fields are required",
@@ -20,6 +46,7 @@
     "token_invalido": "Invalid token",
     "token_expirado": "Invalid or expired token",
     "conta_ativada_sucesso": "Account successfully activated!",
+    "conta_reject_sucesso": "Request canceled!",
     "usuario_nao_encotrado": "User not found",
     "conta_ja_ativa": "Account is already activated",
     "se_existir_email": "If the email exists, a link will be sent to the provided address",
