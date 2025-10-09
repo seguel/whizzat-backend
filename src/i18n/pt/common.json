@@ -13,14 +13,31 @@
     "btn_reset_Senha": "Redefinir Senha",
     "link_valido_15m": "Este link é válido por 15 minutos.",
 
-    "avaliador_assunto_bem_vindo": "Confirmação de cadastro de avaliador",
+    "avaliador_assunto_bem_vindo": "Solicitação de cadastro de avaliador",
     "avaliador_primeira_linha_bem_vindo": "Olá ",
     "avaliador_segunda_linha_bem_vindo": "O avaliador ",
     "avaliador_segunda_linha_complemento": "está se cadastrando junto a empresa, para realizar avaliações dos candidatos a vagas disponibilizadas.",
     "avaliador_terceira_linha_bem_vindo": "Por favor, confirme o cadastro clicando no botão abaixo:",
     "avaliador_btn_ativa_conta": "Ativar Conta Avaliador",
-    "avaliador_link_valido_24h": "Este link é válido por 24 horas.",
-    "avaliador_equipe_whizzat": "Obrigado,<br/>Equipe Whizzat"
+    "avaliador_quarta_linha_bem_vindo": "Caso não reconheça ou concorda com essa solicitação, clique no botão abaixo para rejeitar a solicitação:",
+    "avaliador_btn_rejeita_conta": "Rejeitar Conta Avaliador",
+    "avaliador_link_valido_72h": "Este link é válido por 72 horas.",
+    "avaliador_equipe_whizzat": "Obrigado,<br/>Equipe Whizzat",
+
+    "avaliador_welcome_assunto": "Solicitição confirmada",
+    "avaliador_welcome_primeira_linha": "Olá ",
+    "avaliador_welcome_segunda_linha": "Temos uma ótima notícia: a empresa ",
+    "avaliador_welcome_segunda_linha_complemento": " confirmou o seu cadastro como <strong>avaliador</strong>.",
+    "avaliador_welcome_terceira_linha": "A partir deste momento, todas as funcionalidades do menu do seu perfil estão liberadas, permitindo que você acesse a plataforma, realize avaliações e acompanhe os processos com mais autonomia.",
+    "avaliador_welcome_quarta_linha": "Seja bem-vindo(a) à nossa rede de avaliadores!",
+    "avaliador_welcome_equipe_whizzat": "Atenciosamente,<br/>Equipe Whizzat",
+
+    "avaliador_reject_assunto": "Solicitição não aprovada",
+    "avaliador_reject_primeira_linha": "Olá ",
+    "avaliador_reject_segunda_linha": "Agradecemos pelo seu interesse em atuar como <strong>avaliador</strong> na empresa ",
+    "avaliador_reject_terceira_linha": "Após análise, infelizmente o seu pedido de cadastro <strong>não foi aprovado</strong> pela empresa neste momento.",
+    "avaliador_reject_quarta_linha": "Você poderá se candidatar novamente futuramente, caso haja novas oportunidades.",
+    "avaliador_reject_equipe_whizzat": "Atenciosamente,<br/>Equipe Whizzat"
   },
   "auth": {
     "campo_obrigatorio": "Todos os campos são obrigatórios",
@@ -29,6 +46,7 @@
     "token_invalido": "Token inválido",
     "token_expirado": "Token inválido ou expirado",
     "conta_ativada_sucesso": "Conta ativada com sucesso!",
+    "conta_reject_sucesso": "Solicitação Cancelada!",
     "usuario_nao_encotrado": "Usuário não encontrado",
     "conta_ja_ativa": "Conta já está ativada",
     "se_existir_email": "Se o e-mail existir, um link será enviado ao email informado",
