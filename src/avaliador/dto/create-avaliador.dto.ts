@@ -48,6 +48,18 @@ export class CreateAvaliadorDto {
 
   @IsOptional()
   @IsString()
+  formacoes?: string;
+
+  @IsOptional()
+  @IsString()
+  certificacoes?: string;
+
+  @IsOptional()
+  @IsString()
+  novas_certificacoes?: string;
+
+  @IsOptional()
+  @IsString()
   skills?: string;
 
   @IsOptional()

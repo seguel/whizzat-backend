@@ -52,6 +52,8 @@ CREATE TABLE "usuario_perfil_avaliador" (
     "meio_notificacao" TEXT NOT NULL,
     "data_cadastro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "status_cadastro" INTEGER NOT NULL DEFAULT -1,
+    "data_envio_link" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "usuario_perfil_avaliador_pkey" PRIMARY KEY ("id")
 );
@@ -66,6 +68,26 @@ CREATE TABLE "avaliador_skill" (
     "tempo_favorito" TEXT NOT NULL,
 
     CONSTRAINT "avaliador_skill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "avaliador_formacao_academica" (
+    "id" SERIAL NOT NULL,
+    "avaliador_id" INTEGER NOT NULL,
+    "graduacao_id" INTEGER NOT NULL,
+    "certificado_file" TEXT NOT NULL,
+
+    CONSTRAINT "avaliador_formacao_academica_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "avaliador_certificacoes" (
+    "id" SERIAL NOT NULL,
+    "avaliador_id" INTEGER NOT NULL,
+    "certificacao_id" INTEGER NOT NULL,
+    "certificado_file" TEXT NOT NULL,
+
+    CONSTRAINT "avaliador_certificacoes_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -142,6 +164,24 @@ CREATE TABLE "periodo_trabalho" (
     CONSTRAINT "periodo_trabalho_pkey" PRIMARY KEY ("periodo_trabalho_id")
 );
 
+-- CreateTable
+CREATE TABLE "certificacoes" (
+    "id" SERIAL NOT NULL,
+    "certificado" TEXT NOT NULL,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "certificacoes_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "graduacao" (
+    "id" SERIAL NOT NULL,
+    "graduacao" TEXT NOT NULL,
+    "ativo" BOOLEAN NOT NULL DEFAULT true,
+
+    CONSTRAINT "graduacao_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "usuario_email_key" ON "usuario"("email");
 
@@ -153,6 +193,9 @@ CREATE UNIQUE INDEX "usuario_perfil_avaliador_usuario_id_perfil_id_key" ON "usua
 
 -- CreateIndex
 CREATE UNIQUE INDEX "skill_skill_key" ON "skill"("skill");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "certificacoes_certificado_key" ON "certificacoes"("certificado");
 
 -- AddForeignKey
 ALTER TABLE "usuario_perfil_recrutador" ADD CONSTRAINT "usuario_perfil_recrutador_usuario_id_fkey" FOREIGN KEY ("usuario_id") REFERENCES "usuario"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -174,6 +217,18 @@ ALTER TABLE "avaliador_skill" ADD CONSTRAINT "avaliador_skill_avaliador_id_fkey"
 
 -- AddForeignKey
 ALTER TABLE "avaliador_skill" ADD CONSTRAINT "avaliador_skill_skill_id_fkey" FOREIGN KEY ("skill_id") REFERENCES "skill"("skill_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "avaliador_formacao_academica" ADD CONSTRAINT "avaliador_formacao_academica_avaliador_id_fkey" FOREIGN KEY ("avaliador_id") REFERENCES "usuario_perfil_avaliador"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "avaliador_formacao_academica" ADD CONSTRAINT "avaliador_formacao_academica_graduacao_id_fkey" FOREIGN KEY ("graduacao_id") REFERENCES "graduacao"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "avaliador_certificacoes" ADD CONSTRAINT "avaliador_certificacoes_avaliador_id_fkey" FOREIGN KEY ("avaliador_id") REFERENCES "usuario_perfil_avaliador"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "avaliador_certificacoes" ADD CONSTRAINT "avaliador_certificacoes_certificacao_id_fkey" FOREIGN KEY ("certificacao_id") REFERENCES "certificacoes"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "empresa" ADD CONSTRAINT "empresa_recrutador_id_fkey" FOREIGN KEY ("recrutador_id") REFERENCES "usuario_perfil_recrutador"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

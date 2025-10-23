@@ -19,6 +19,8 @@ import {
   CookieResolver,
 } from 'nestjs-i18n';
 import { VagaModule } from './vaga/vaga.module';
+import { GraduacaoModule } from './graduacao/graduacao.module';
+import { CertificacoesModule } from './certificacoes/certificacoes.module';
 import * as path from 'path';
 
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
@@ -57,6 +59,8 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     AvaliadorModule,
     RecrutadorModule,
     VagaModule,
+    GraduacaoModule,
+    CertificacoesModule,
   ],
   providers: [MailService],
 })
