@@ -71,21 +71,24 @@ model usuario_perfil_avaliador {
   meio_notificacao  String
   data_cadastro     DateTime  @default(now())
   ativo             Boolean   @default(true)
-  status_cadastro   Int   @default(-1)
+  status_cadastro   Int       @default(-1)
   data_envio_link   DateTime  @default(now())
 
   // Relações
-  usuario          usuario               @relation(fields: [usuario_id], references: [id])
-  perfil           perfil                @relation(fields: [perfil_id], references: [id])
-  empresa          empresa? @relation(fields: [empresa_id], references: [id])
+  usuario          usuario     @relation(fields: [usuario_id], references: [id])
+  perfil           perfil      @relation(fields: [perfil_id], references: [id])
+  empresa          empresa?    @relation(fields: [empresa_id], references: [id])
   skills           avaliador_skill[]
+  formacao         avaliador_formacao_academica[]
+  certificacoes    avaliador_certificacoes[]
+
 
   // Garante que um mesmo usuário não tenha duplicidade de perfil
   @@unique([usuario_id, perfil_id])
 }
 
 model avaliador_skill {
-  id             Int                      @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   avaliador_id   Int
   skill_id       Int
   peso           Int
@@ -97,8 +100,30 @@ model avaliador_skill {
   skill          skill                    @relation(fields: [skill_id], references: [skill_id])
 }
 
+model avaliador_formacao_academica {
+  id                Int      @id @default(autoincrement())
+  avaliador_id      Int
+  graduacao_id      Int
+  certificado_file  String
+
+  // Relações
+  avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
+  graduacao      graduacao                @relation(fields: [graduacao_id], references: [id])
+}
+
+model avaliador_certificacoes {
+  id                Int      @id @default(autoincrement())
+  avaliador_id      Int
+  certificacao_id   Int
+  certificado_file  String
+
+  // Relações
+  avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
+  certificaoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
+}
+
 model empresa {
-  id             Int      @id @default(autoincrement())
+  id             Int        @id @default(autoincrement())
   recrutador_id  Int
   nome_empresa   String
   website        String
@@ -108,8 +133,8 @@ model empresa {
   apresentacao   String
   logo           String
   imagem_fundo   String
-  data_cadastro  DateTime  @default(now())
-  ativo          Boolean  @default(true)
+  data_cadastro  DateTime   @default(now())
+  ativo          Boolean    @default(true)
 
   recrutador     usuario_perfil_recrutador @relation(fields: [recrutador_id], references: [id])
   vagas          empresa_vaga[]            @relation("EmpresaVagas") // ✅ lado inverso nomeado
@@ -153,12 +178,12 @@ model empresa_vaga_skill {
 
 
 model skill {
-  skill_id   Int                   @id @default(autoincrement())
-  skill    String  @unique
-  ativo    Boolean @default(true)
+  skill_id    Int                     @id @default(autoincrement())
+  skill       String  @unique
+  ativo       Boolean @default(true)
 
   // Relações
-  vagas      empresa_vaga_skill[]
+  vagas       empresa_vaga_skill[]
   avaliadores avaliador_skill[]
 }
 
@@ -182,23 +207,21 @@ model periodo_trabalho {
   vagas               empresa_vaga[]
 }
 
-//model usuario_perfil_empresa {
-//  empresa_id    Int       @id @default(autoincrement()) // <- empresa_id é @id
-//  usuario_id    Int
-//  perfil_id     Int
-//  nome_empresa  String
-//  website       String
-//  email         String
-//  telefone      String
-//  localizacao   String
-//  apresentacao  String
-//  logo          String
-//  imagem_fundo  String
-//  ativo         Boolean   @default(true)
-//
-//  // Relações
-//  usuario       usuario   @relation(fields: [usuario_id], references: [id])
-//  perfil        perfil    @relation(fields: [perfil_id], references: [id])
-//  vagas         empresa_vaga[] @relation(name: "EmpresaVagas") // <- lado "muitos"
-//  avaliadores    usuario_perfil_avaliador[]   // <- relação inversa
-//}
+model certificacoes {
+  id              Int @id @default(autoincrement())
+  certificado     String  @unique
+  ativo           Boolean @default(true)
+
+  // Relações
+  avaliadores_certificado avaliador_certificacoes[]
+}
+
+model graduacao {
+  id          Int     @id @default(autoincrement())
+  graduacao   String  
+  ativo       Boolean @default(true)
+
+  // Relações
+  avaliadores_formacao avaliador_formacao_academica[]
+}
+
