@@ -350,6 +350,22 @@ export class AvaliadorService {
     }
   }
 
+  async createAvaliadorFormacao(
+    formacoes: Prisma.avaliador_formacao_academicaCreateManyInput[],
+  ) {
+    return this.prisma.avaliador_formacao_academica.createMany({
+      data: formacoes,
+    });
+  }
+
+  async createAvaliadorCertificacoes(
+    certificacoes: Prisma.avaliador_certificacoesCreateManyInput[],
+  ) {
+    return this.prisma.avaliador_certificacoes.createMany({
+      data: certificacoes,
+    });
+  }
+
   async resendLink(id: number, usuarioId: number) {
     const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
       where: {

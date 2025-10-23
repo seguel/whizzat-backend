@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { AvaliadorService } from './avaliador.service';
 import { SkillService } from '../skill/skill.service';
+import { CertificacoesService } from '../certificacoes/certificacoes.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Request } from 'express';
@@ -22,6 +23,9 @@ import { CreateAvaliadorDto } from './dto/create-avaliador.dto';
 import { UpdateAvaliadorDto } from './dto/update-avaliador.dto';
 import { CreateAvaliadorSkillDto } from './dto/create-avaliador-skill.dto';
 import { CreateNovaSkillAvaliadorDto } from './dto/create-nova-skill.dto';
+import { CreateAvaliadorFormacaoDto } from './dto/create-avaliador-formacao.dto';
+import { CreateAvaliadorCertificadosDto } from './dto/create-avaliador-certificados.dto';
+import { CreateNovoCertificadoAvaliadorDto } from './dto/create-novo-certificado.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
@@ -38,6 +42,7 @@ export class AvaliadorController {
   constructor(
     private readonly avaliadorService: AvaliadorService,
     private readonly skillService: SkillService,
+    private readonly certificacoesService: CertificacoesService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -123,6 +128,21 @@ export class AvaliadorController {
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
+    const formacoes: CreateAvaliadorFormacaoDto[] = body.formacoes
+      ? (JSON.parse(body.formacoes) as CreateAvaliadorFormacaoDto[])
+      : [];
+
+    const certificados: CreateAvaliadorCertificadosDto[] = body.certificacoes
+      ? (JSON.parse(body.certificacoes) as CreateAvaliadorCertificadosDto[])
+      : [];
+
+    const novosCertificados: CreateNovoCertificadoAvaliadorDto[] =
+      body.novas_certificacoes
+        ? (JSON.parse(
+            body.novas_certificacoes,
+          ) as CreateNovoCertificadoAvaliadorDto[])
+        : [];
+
     const skills: CreateAvaliadorSkillDto[] = body.skills
       ? (JSON.parse(body.skills) as CreateAvaliadorSkillDto[])
       : [];
@@ -146,6 +166,61 @@ export class AvaliadorController {
       status_cadastro: body.empresaId ? -1 : 1, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
       language: 'pt',
     });
+
+    const montaFormacoes =
+      formacoes?.map((formacao) => ({
+        avaliador_id: avaliador.id,
+        graduacao_id: formacao.graduacao_id,
+        formacao: formacao.formacao,
+        certificado_file: '',
+      })) ?? [];
+
+    if (montaFormacoes.length > 0) {
+      await this.avaliadorService.createAvaliadorFormacao(montaFormacoes);
+    }
+
+    // certificacoes já existentes
+    const certificacoesExistentes =
+      certificados?.map((certificado) => ({
+        avaliador_id: avaliador.id,
+        certificacao_id: certificado.certificacao_id,
+      })) ?? [];
+
+    const certificacoesNovas = await Promise.all(
+      (novosCertificados ?? []).map(
+        async (novoCertificado: CreateNovoCertificadoAvaliadorDto) => {
+          const certificado =
+            await this.certificacoesService.createOrGetCertificado(
+              novoCertificado.certificado,
+            );
+
+          return {
+            avaliador_id: avaliador.id,
+            certificacao_id: certificado.id,
+          };
+        },
+      ),
+    );
+
+    const todasCertificaoes = [
+      ...certificacoesExistentes,
+      ...certificacoesNovas,
+    ].filter(
+      (
+        certificado,
+      ): certificado is {
+        avaliador_id: number;
+        certificacao_id: number;
+        certificado: string;
+        certificado_file: '';
+      } => typeof certificado.certificacao_id === 'number',
+    );
+
+    if (todasCertificaoes.length > 0) {
+      await this.avaliadorService.createAvaliadorCertificacoes(
+        todasCertificaoes,
+      );
+    }
 
     // Skills já existentes
     const skillsExistentes =
@@ -201,7 +276,7 @@ export class AvaliadorController {
       nomeUser,
     );
 
-    const avaliadorComSkillsMapeadas = {
+    const avaliadorComAllMapeadas = {
       ...avaliadorCompleto,
       skills: avaliadorCompleto?.skills?.map((s) => ({
         avaliador_id: s.avaliador_id,
@@ -213,7 +288,7 @@ export class AvaliadorController {
       })),
     };
 
-    return avaliadorComSkillsMapeadas;
+    return avaliadorComAllMapeadas;
   }
 
   @UseGuards(JwtAuthGuard)
