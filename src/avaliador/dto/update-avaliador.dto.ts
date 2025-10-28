@@ -67,4 +67,16 @@ export class UpdateAvaliadorDto {
   })
   @IsBoolean()
   ativo: boolean = true;
+
+  @IsOptional()
+  @IsString()
+  formacoes?: string;
+
+  @IsOptional()
+  @IsString()
+  certificacoes?: string;
+
+  @IsOptional()
+  @IsString()
+  novas_certificacoes?: string;
 }
