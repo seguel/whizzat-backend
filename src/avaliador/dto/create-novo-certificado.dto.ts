@@ -10,4 +10,12 @@ export class CreateNovoCertificadoAvaliadorDto {
   @IsNotEmpty({ message: 'O nome do Certificado é obrigatório' })
   @IsString()
   certificado!: string;
+
+  @IsOptional()
+  @IsString()
+  certificado_file?: string;
+
+  @IsOptional() // ✅ novo campo
+  @IsString()
+  certificado_field?: string; // fieldname enviado do front
 }
