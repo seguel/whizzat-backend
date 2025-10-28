@@ -17,4 +17,8 @@ export class CreateAvaliadorFormacaoDto {
   @IsOptional()
   @IsString()
   certificado_file?: string;
+
+  @IsOptional() // ✅ novo campo
+  @IsString()
+  certificado_field?: string; // fieldname enviado do front
 }

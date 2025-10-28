@@ -1,5 +1,5 @@
 // src/empresa/dto/create-empresa.dto.ts
-import { IsInt, IsOptional } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateAvaliadorCertificadosDto {
@@ -11,4 +11,12 @@ export class CreateAvaliadorCertificadosDto {
   @Type(() => Number)
   @IsInt()
   avaliador_id?: number;
+
+  @IsOptional()
+  @IsString()
+  certificado_file?: string;
+
+  @IsOptional() // ✅ novo campo
+  @IsString()
+  certificado_field?: string; // fieldname enviado do front
 }
