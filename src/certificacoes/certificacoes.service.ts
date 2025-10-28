@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -38,14 +38,26 @@ export class CertificacoesService {
     });
   }
 
-  async createOrGetCertificado(nome: string) {
-    return this.prisma.certificacoes.upsert({
-      where: { certificado: nome.trim() },
-      update: {}, // não atualiza nada se já existir
-      create: {
-        certificado: nome.trim(),
-        ativo: true,
-      },
+  async createOrGetCertificado(nome: string): Promise<{ id: number }> {
+    // 🔒 validação: evita criar com valor vazio/undefined
+    if (!nome || nome.trim() === '') {
+      throw new BadRequestException('Nome do certificado é obrigatório.');
+    }
+
+    const existente = await this.prisma.certificacoes.findFirst({
+      where: { certificado: nome },
+      select: { id: true },
     });
+
+    if (existente) {
+      return { id: existente.id };
+    }
+
+    const novo = await this.prisma.certificacoes.create({
+      data: { certificado: nome },
+      select: { id: true },
+    });
+
+    return { id: novo.id };
   }
 }

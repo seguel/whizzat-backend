@@ -104,6 +104,7 @@ model avaliador_formacao_academica {
   id                Int      @id @default(autoincrement())
   avaliador_id      Int
   graduacao_id      Int
+  formacao          String
   certificado_file  String
 
   // Relações
@@ -119,7 +120,7 @@ model avaliador_certificacoes {
 
   // Relações
   avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
-  certificaoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
+  certificacoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
 }
 
 model empresa {

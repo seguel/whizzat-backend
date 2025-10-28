@@ -26,11 +26,12 @@ import { CreateNovaSkillAvaliadorDto } from './dto/create-nova-skill.dto';
 import { CreateAvaliadorFormacaoDto } from './dto/create-avaliador-formacao.dto';
 import { CreateAvaliadorCertificadosDto } from './dto/create-avaliador-certificados.dto';
 import { CreateNovoCertificadoAvaliadorDto } from './dto/create-novo-certificado.dto';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { I18nService } from 'nestjs-i18n';
+import { safeJsonParse } from '../lib/safe-json-parse';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
@@ -77,80 +78,65 @@ export class AvaliadorController {
   @UseGuards(JwtAuthGuard)
   @Post('create-avaliador')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'logo', maxCount: 1 },
-        { name: 'imagem_fundo', maxCount: 1 },
-      ],
-      {
-        storage: diskStorage({
-          destination: uploadDir,
-          filename: (
-            req: Request,
-            file: Express.Multer.File,
-            cb: (error: Error | null, filename: string) => void,
-          ) => {
-            const uniqueSuffix =
-              Date.now() + '-' + Math.round(Math.random() * 1e9);
-            const ext = extname(file.originalname);
-            cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-          },
-        }),
-        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-        fileFilter: (
+    AnyFilesInterceptor({
+      storage: diskStorage({
+        destination: uploadDir,
+        filename: (
           req: Request,
           file: Express.Multer.File,
-          cb: (error: Error | null, acceptFile: boolean) => void,
+          cb: (error: Error | null, filename: string) => void,
         ) => {
-          const allowedTypes = /jpeg|jpg|png|webp/;
-          const isValid = allowedTypes.test(file.mimetype);
-
-          if (isValid) {
-            cb(null, true);
-          } else {
-            cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
-          }
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
-      },
-    ),
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 }, // até 10MB
+    }),
   )
   async createAvaliador(
-    @UploadedFiles()
-    files: {
-      logo?: Express.Multer.File[];
-      imagem_fundo?: Express.Multer.File[];
-    },
+    @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
-    @Body() body: CreateAvaliadorDto, // <-- adicionar perfil_id no body
+    @Body() body: CreateAvaliadorDto,
   ) {
+    /* console.log(
+      'Arquivos recebidos:',
+      files.map((f) => ({
+        field: f.fieldname,
+        name: f.originalname,
+        mimetype: f.mimetype,
+      })),
+    ); */
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
-
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
-    const formacoes: CreateAvaliadorFormacaoDto[] = body.formacoes
-      ? (JSON.parse(body.formacoes) as CreateAvaliadorFormacaoDto[])
-      : [];
+    // Separar arquivos por prefixo
+    const logoFile = files.find((f) => f.fieldname === 'logo');
+    const formacaoCertificados = files.filter((f) =>
+      f.fieldname.startsWith('formacao_certificado_'),
+    );
+    const certificacaoCertificados = files.filter((f) =>
+      f.fieldname.startsWith('certificado_'),
+    );
 
-    const certificados: CreateAvaliadorCertificadosDto[] = body.certificacoes
-      ? (JSON.parse(body.certificacoes) as CreateAvaliadorCertificadosDto[])
-      : [];
+    // Parse seguro dos dados
+    const formacoes = safeJsonParse<CreateAvaliadorFormacaoDto[]>(
+      body.formacoes,
+    );
+    const certificados = safeJsonParse<CreateAvaliadorCertificadosDto[]>(
+      body.certificacoes,
+    );
+    const novosCertificados = safeJsonParse<
+      CreateNovoCertificadoAvaliadorDto[]
+    >(body.novas_certificacoes);
+    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills);
+    const novasSkills = safeJsonParse<CreateNovaSkillAvaliadorDto[]>(
+      body.novas_skills,
+    );
 
-    const novosCertificados: CreateNovoCertificadoAvaliadorDto[] =
-      body.novas_certificacoes
-        ? (JSON.parse(
-            body.novas_certificacoes,
-          ) as CreateNovoCertificadoAvaliadorDto[])
-        : [];
-
-    const skills: CreateAvaliadorSkillDto[] = body.skills
-      ? (JSON.parse(body.skills) as CreateAvaliadorSkillDto[])
-      : [];
-
-    const novasSkills: CreateNovaSkillAvaliadorDto[] = body.novas_skills
-      ? (JSON.parse(body.novas_skills) as CreateNovaSkillAvaliadorDto[])
-      : [];
-
+    // Cria o avaliador
     const avaliador = await this.avaliadorService.createAvaliador({
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
@@ -159,33 +145,42 @@ export class AvaliadorController {
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
       avaliar_todos: body.avaliar_todos,
-      logo: files.logo?.[0]
-        ? `${BASE_URL}/uploads/${files.logo[0].filename}`
-        : '',
+      logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
       meio_notificacao: body.meio_notificacao,
-      status_cadastro: body.empresaId ? -1 : 1, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
+      status_cadastro: body.empresaId ? -1 : 1,
       language: 'pt',
     });
 
+    // Monta formacoes
     const montaFormacoes =
-      formacoes?.map((formacao) => ({
-        avaliador_id: avaliador.id,
-        graduacao_id: formacao.graduacao_id,
-        formacao: formacao.formacao,
-        certificado_file: '',
-      })) ?? [];
+      formacoes?.map((formacao) => {
+        const file = formacaoCertificados.find(
+          (f) => f.fieldname === formacao.certificado_field,
+        );
+        return {
+          avaliador_id: avaliador.id,
+          graduacao_id: formacao.graduacao_id,
+          formacao: formacao.formacao ?? '',
+          certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
+        };
+      }) ?? [];
 
     if (montaFormacoes.length > 0) {
       await this.avaliadorService.createAvaliadorFormacao(montaFormacoes);
     }
 
-    // certificacoes já existentes
+    // console.log(certificados);
+    // console.log(novosCertificados);
+    // console.log('----');
+
+    // certificações já existentes
     const certificacoesExistentes =
       certificados?.map((certificado) => ({
         avaliador_id: avaliador.id,
-        certificacao_id: certificado.certificacao_id,
+        certificacao_id: Number(certificado.certificacao_id),
       })) ?? [];
 
+    // certificações novas
     const certificacoesNovas = await Promise.all(
       (novosCertificados ?? []).map(
         async (novoCertificado: CreateNovoCertificadoAvaliadorDto) => {
@@ -193,36 +188,43 @@ export class AvaliadorController {
             await this.certificacoesService.createOrGetCertificado(
               novoCertificado.certificado,
             );
-
           return {
             avaliador_id: avaliador.id,
-            certificacao_id: certificado.id,
+            certificacao_id: Number(certificado.id),
           };
         },
       ),
     );
 
-    const todasCertificaoes = [
+    // console.log(certificacoesExistentes);
+    // console.log(certificacoesNovas);
+    // return;
+
+    // Junta todas as certificações e anexa o arquivo (file) correspondente
+    const todasCertificacoes = [
       ...certificacoesExistentes,
       ...certificacoesNovas,
-    ].filter(
-      (
-        certificado,
-      ): certificado is {
-        avaliador_id: number;
-        certificacao_id: number;
-        certificado: string;
-        certificado_file: '';
-      } => typeof certificado.certificacao_id === 'number',
+    ].map((certificado, index) => {
+      const file = certificacaoCertificados[index]; // pega o arquivo pelo index
+      return {
+        avaliador_id: certificado.avaliador_id,
+        certificacao_id: certificado.certificacao_id,
+        certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
+      };
+    });
+
+    // Filtra apenas certificações válidas (ID numérico)
+    const todasCertificacoesValidas = todasCertificacoes.filter(
+      (c) => typeof c.certificacao_id === 'number' && !isNaN(c.certificacao_id),
     );
 
-    if (todasCertificaoes.length > 0) {
+    if (todasCertificacoesValidas.length > 0) {
       await this.avaliadorService.createAvaliadorCertificacoes(
-        todasCertificaoes,
+        todasCertificacoesValidas,
       );
     }
 
-    // Skills já existentes
+    // Skills existentes
     const skillsExistentes =
       skills?.map((skill) => ({
         avaliador_id: avaliador.id,
@@ -234,21 +236,16 @@ export class AvaliadorController {
 
     // Skills novas
     const skillsNovas = await Promise.all(
-      (novasSkills ?? []).map(
-        async (novaSkill: CreateNovaSkillAvaliadorDto) => {
-          const skill = await this.skillService.createOrGetSkill(
-            novaSkill.nome,
-          );
-
-          return {
-            avaliador_id: avaliador.id,
-            skill_id: skill.skill_id,
-            peso: novaSkill.peso,
-            favorito: novaSkill.favorito,
-            tempo_favorito: novaSkill.tempo_favorito,
-          };
-        },
-      ),
+      (novasSkills ?? []).map(async (novaSkill) => {
+        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
+        return {
+          avaliador_id: avaliador.id,
+          skill_id: skill.skill_id,
+          peso: novaSkill.peso,
+          favorito: novaSkill.favorito,
+          tempo_favorito: novaSkill.tempo_favorito,
+        };
+      }),
     );
 
     const todasSkills = [...skillsExistentes, ...skillsNovas].filter(
@@ -268,7 +265,7 @@ export class AvaliadorController {
       await this.avaliadorService.createAvaliadorSkills(todasSkills);
     }
 
-    // ✅ Usar perfil_id vindo do body
+    // Retorna avaliador completo
     const avaliadorCompleto = await this.avaliadorService.getAvaliador(
       avaliador.id,
       usuarioId,
@@ -276,7 +273,7 @@ export class AvaliadorController {
       nomeUser,
     );
 
-    const avaliadorComAllMapeadas = {
+    return {
       ...avaliadorCompleto,
       skills: avaliadorCompleto?.skills?.map((s) => ({
         avaliador_id: s.avaliador_id,
@@ -287,56 +284,30 @@ export class AvaliadorController {
         nome: s.nome,
       })),
     };
-
-    return avaliadorComAllMapeadas;
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('update-avaliador')
   @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'logo', maxCount: 1 },
-        { name: 'imagem_fundo', maxCount: 1 },
-      ],
-      {
-        storage: diskStorage({
-          destination: uploadDir,
-          filename: (
-            req: Request,
-            file: Express.Multer.File,
-            cb: (error: Error | null, filename: string) => void,
-          ) => {
-            const uniqueSuffix =
-              Date.now() + '-' + Math.round(Math.random() * 1e9);
-            const ext = extname(file.originalname);
-            cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-          },
-        }),
-        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-        fileFilter: (
+    AnyFilesInterceptor({
+      storage: diskStorage({
+        destination: uploadDir,
+        filename: (
           req: Request,
           file: Express.Multer.File,
-          cb: (error: Error | null, acceptFile: boolean) => void,
+          cb: (error: Error | null, filename: string) => void,
         ) => {
-          const allowedTypes = /jpeg|jpg|png|webp/;
-          const isValid = allowedTypes.test(file.mimetype);
-
-          if (isValid) {
-            cb(null, true);
-          } else {
-            cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
-          }
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
         },
-      },
-    ),
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 }, // até 10MB
+    }),
   )
   async updateAvaliador(
-    @UploadedFiles()
-    files: {
-      logo?: Express.Multer.File[];
-      imagem_fundo?: Express.Multer.File[];
-    },
+    @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
     @Body() body: UpdateAvaliadorDto, // <-- adicionar perfil_id no body
   ) {
@@ -345,13 +316,30 @@ export class AvaliadorController {
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
-    const skills: CreateAvaliadorSkillDto[] = body.skills
-      ? (JSON.parse(body.skills) as CreateAvaliadorSkillDto[])
-      : [];
+    // Separar arquivos por prefixo
+    const logoFile = files.find((f) => f.fieldname === 'logo');
+    const formacaoCertificados = files.filter((f) =>
+      f.fieldname.startsWith('formacao_certificado_'),
+    );
+    const certificacaoCertificados = files.filter((f) =>
+      f.fieldname.startsWith('certificado_'),
+    );
+    // console.log(certificacaoCertificados);
 
-    const novasSkills: CreateNovaSkillAvaliadorDto[] = body.novas_skills
-      ? (JSON.parse(body.novas_skills) as CreateNovaSkillAvaliadorDto[])
-      : [];
+    // Parse seguro dos dados
+    const formacoes = safeJsonParse<CreateAvaliadorFormacaoDto[]>(
+      body.formacoes,
+    );
+    const certificados = safeJsonParse<CreateAvaliadorCertificadosDto[]>(
+      body.certificacoes,
+    );
+    const novosCertificados = safeJsonParse<
+      CreateNovoCertificadoAvaliadorDto[]
+    >(body.novas_certificacoes);
+    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills);
+    const novasSkills = safeJsonParse<CreateNovaSkillAvaliadorDto[]>(
+      body.novas_skills,
+    );
 
     const avaliadorAtual = await this.avaliadorService.getAvaliador(
       body.avaliadorId,
@@ -369,8 +357,8 @@ export class AvaliadorController {
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
       avaliar_todos: body.avaliar_todos,
-      logo: files.logo?.[0]
-        ? `${BASE_URL}/uploads/${files.logo[0].filename}`
+      logo: logoFile
+        ? `${BASE_URL}/uploads/${logoFile.filename}`
         : avaliadorAtual?.logo,
       meio_notificacao: body.meio_notificacao,
       ativo: body.ativo,
@@ -420,6 +408,92 @@ export class AvaliadorController {
         todasSkills,
       );
     }
+
+    // Monta formacoes
+    const montaFormacoes =
+      formacoes?.map((formacao) => {
+        const file = formacaoCertificados.find(
+          (f) => f.fieldname === formacao.certificado_field,
+        );
+        return {
+          avaliador_id: avaliador.id,
+          graduacao_id: formacao.graduacao_id,
+          formacao: formacao.formacao ?? '',
+          certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
+        };
+      }) ?? [];
+
+    // if (montaFormacoes.length > 0) {
+    await this.avaliadorService.updateAvaliadorFormacao(
+      body.avaliadorId,
+      montaFormacoes,
+    );
+    // }
+
+    // certificações já existentes
+    const certificacoesExistentes =
+      certificados?.map((certificado) => ({
+        avaliador_id: avaliador.id,
+        certificacao_id: Number(certificado.certificacao_id),
+        certificado_field: certificado.certificado_field ?? undefined,
+      })) ?? [];
+
+    // certificações novas
+    const certificacoesNovas = await Promise.all(
+      (novosCertificados ?? [])
+        .filter((c) => Number(c.certificacao_id) < 0)
+        .map(
+          async (
+            novoCertificado: CreateNovoCertificadoAvaliadorDto & {
+              certificado_field?: string;
+            },
+          ) => {
+            const certificado =
+              await this.certificacoesService.createOrGetCertificado(
+                novoCertificado.certificado,
+              );
+
+            return {
+              avaliador_id: avaliador.id,
+              certificacao_id: Number(certificado.id),
+              certificado_field: novoCertificado.certificado_field ?? undefined,
+            };
+          },
+        ),
+    );
+
+    // console.log(certificacoesExistentes);
+
+    // Junta todas as certificações e anexa o arquivo (file) correspondente
+    const todasCertificacoes = [
+      ...certificacoesExistentes,
+      ...certificacoesNovas,
+    ]
+      .filter((c) => Number(c.certificacao_id) > 0)
+      .map((certificado) => {
+        const file = certificacaoCertificados.find(
+          (f) => f.fieldname === certificado.certificado_field,
+        );
+        return {
+          avaliador_id: certificado.avaliador_id,
+          certificacao_id: certificado.certificacao_id,
+          certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
+        };
+      });
+
+    // Filtra apenas certificações válidas (ID numérico)
+    const todasCertificacoesValidas = todasCertificacoes.filter(
+      (c) => typeof c.certificacao_id === 'number' && !isNaN(c.certificacao_id),
+    );
+
+    // console.log(todasCertificacoesValidas);
+
+    // if (todasCertificacoesValidas.length > 0) {
+    await this.avaliadorService.updateAvaliadorCertificacoes(
+      body.avaliadorId,
+      todasCertificacoesValidas,
+    );
+    // }
 
     // ✅ usar perfil_id
     const avaliadorCompleto = await this.avaliadorService.getAvaliador(

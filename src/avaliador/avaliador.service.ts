@@ -74,23 +74,39 @@ export class AvaliadorService {
     perfilId: number,
     nomeUser: string,
   ) {
-    const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
-      where: { id, usuario_id: usuarioId, perfil_id: perfilId },
-      include: {
-        skills: {
-          include: {
-            skill: {
-              select: {
-                skill: true, // <-- ou o nome real da coluna da tabela skill
-              },
+    const avaliador =
+      await this.prisma.usuario_perfil_avaliador.findFirstOrThrow({
+        where: { id, usuario_id: usuarioId, perfil_id: perfilId },
+        include: {
+          formacao: {
+            include: {
+              graduacao: { select: { graduacao: true } },
+            },
+          },
+          certificacoes: {
+            include: {
+              certificacoes: { select: { certificado: true } },
+            },
+          },
+          skills: {
+            include: {
+              skill: { select: { skill: true } },
             },
           },
         },
-      },
-    });
+      });
 
-    // 🔹 Achatar as skills
-    const skills = avaliador?.skills.map((s) => ({
+    // 🔹 Achatar as certificacoes
+    const certificacoes = avaliador.certificacoes.map((s) => ({
+      id: s.id,
+      avaliador_id: s.avaliador_id,
+      certificacao_id: s.certificacao_id,
+      certificado: s.certificacoes.certificado,
+      certificado_file: s.certificado_file,
+    }));
+
+    const skills = avaliador.skills.map((s) => ({
+      id: s.id,
       avaliador_id: s.avaliador_id,
       skill_id: s.skill_id,
       peso: s.peso,
@@ -103,6 +119,7 @@ export class AvaliadorService {
       ...avaliador,
       nomeUser,
       skills,
+      certificacoes,
     };
   }
 
@@ -337,16 +354,46 @@ export class AvaliadorService {
       tempo_favorito: string;
     }[],
   ) {
-    // Remove todas as skills antigas
-    await this.prisma.avaliador_skill.deleteMany({
+    // Busca skills atuais do avaliador
+    const existentes = await this.prisma.avaliador_skill.findMany({
       where: { avaliador_id },
     });
 
-    // Insere as novas
-    if (skills.length > 0) {
-      await this.prisma.avaliador_skill.createMany({
-        data: skills,
+    const idsExistentes = existentes.map((s) => s.skill_id);
+    const idsNovos = skills.map((s) => s.skill_id);
+
+    // 🔹 Remove apenas as skills que não estão mais no novo array
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.avaliador_skill.deleteMany({
+        where: { avaliador_id, skill_id: { in: paraRemover } },
       });
+    }
+
+    // 🔹 Atualiza ou cria
+    for (const s of skills) {
+      const existente = existentes.find((e) => e.skill_id === s.skill_id);
+      if (existente) {
+        // Atualiza apenas se houve mudança real
+        const precisaAtualizar =
+          existente.peso !== s.peso ||
+          existente.favorito !== s.favorito ||
+          existente.tempo_favorito !== s.tempo_favorito;
+
+        if (precisaAtualizar) {
+          await this.prisma.avaliador_skill.updateMany({
+            where: { avaliador_id, skill_id: s.skill_id },
+            data: {
+              peso: s.peso,
+              favorito: s.favorito,
+              tempo_favorito: s.tempo_favorito,
+            },
+          });
+        }
+      } else {
+        // Cria nova
+        await this.prisma.avaliador_skill.create({ data: s });
+      }
     }
   }
 
@@ -358,12 +405,103 @@ export class AvaliadorService {
     });
   }
 
+  async updateAvaliadorFormacao(
+    avaliador_id: number,
+    formacoes: {
+      avaliador_id: number;
+      graduacao_id: number;
+      formacao: string;
+      certificado_file: string;
+    }[],
+  ) {
+    // Busca formacoes atuais no banco
+    const existentes = await this.prisma.avaliador_formacao_academica.findMany({
+      where: { avaliador_id },
+    });
+
+    // IDs atuais e novos
+    const idsExistentes = existentes.map((f) => f.graduacao_id);
+    const idsNovos = formacoes.map((f) => f.graduacao_id);
+
+    // Remove apenas as formações que não estão mais no novo array
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.avaliador_formacao_academica.deleteMany({
+        where: { avaliador_id, graduacao_id: { in: paraRemover } },
+      });
+    }
+
+    // Atualiza ou cria
+    for (const f of formacoes) {
+      const existente = existentes.find(
+        (e) => e.graduacao_id === f.graduacao_id,
+      );
+      if (existente) {
+        await this.prisma.avaliador_formacao_academica.updateMany({
+          where: { avaliador_id, graduacao_id: f.graduacao_id },
+          data: {
+            formacao: f.formacao,
+            certificado_file: f.certificado_file || existente.certificado_file,
+          },
+        });
+      } else {
+        await this.prisma.avaliador_formacao_academica.create({
+          data: f,
+        });
+      }
+    }
+  }
+
   async createAvaliadorCertificacoes(
     certificacoes: Prisma.avaliador_certificacoesCreateManyInput[],
   ) {
     return this.prisma.avaliador_certificacoes.createMany({
       data: certificacoes,
     });
+  }
+
+  async updateAvaliadorCertificacoes(
+    avaliador_id: number,
+    certificacoes: {
+      avaliador_id: number;
+      certificacao_id: number;
+      certificado_file: string;
+    }[],
+  ) {
+    // Busca certificações atuais no banco
+    const existentes = await this.prisma.avaliador_certificacoes.findMany({
+      where: { avaliador_id },
+    });
+
+    const idsExistentes = existentes.map((c) => c.certificacao_id);
+    const idsNovos = certificacoes.map((c) => c.certificacao_id);
+
+    // Remove apenas as que sumiram
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.avaliador_certificacoes.deleteMany({
+        where: { avaliador_id, certificacao_id: { in: paraRemover } },
+      });
+    }
+
+    // Atualiza ou cria
+    for (const c of certificacoes) {
+      const existente = existentes.find(
+        (e) => e.certificacao_id === c.certificacao_id,
+      );
+      if (existente) {
+        await this.prisma.avaliador_certificacoes.updateMany({
+          where: { avaliador_id, certificacao_id: c.certificacao_id },
+          data: {
+            certificado_file: c.certificado_file || existente.certificado_file,
+          },
+        });
+      } else {
+        await this.prisma.avaliador_certificacoes.create({
+          data: c,
+        });
+      }
+    }
   }
 
   async resendLink(id: number, usuarioId: number) {
