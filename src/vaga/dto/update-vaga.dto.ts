@@ -43,6 +43,15 @@ export class UpdateVagaDto {
   @IsBoolean()
   pcd: boolean = false;
 
+  @IsBoolean()
+  lgbtq: boolean = false;
+
+  @IsBoolean()
+  mulheres: boolean = false;
+
+  @IsBoolean()
+  cinquenta_mais: boolean = false;
+
   @Type(() => Number)
   @IsInt()
   qtde_dias_aberta!: number;
