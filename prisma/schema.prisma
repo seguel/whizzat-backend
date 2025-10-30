@@ -151,6 +151,9 @@ model empresa_vaga {
   modalidade_trabalho_id   Int
   periodo_trabalho_id      Int
   pcd                      Boolean
+  lgbtq                    Boolean @default(false)
+  mulheres                 Boolean @default(false)
+  cinquenta_mais           Boolean @default(false)
   qtde_dias_aberta         Int
   qtde_posicao             Int
   data_cadastro            DateTime  @default(now())
