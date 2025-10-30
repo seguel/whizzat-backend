@@ -14,6 +14,9 @@ export class VagaService {
     modalidade_trabalho_id: number;
     periodo_trabalho_id: number;
     pcd: boolean;
+    lgbtq: boolean;
+    mulheres: boolean;
+    cinquenta_mais: boolean;
     qtde_dias_aberta: number;
     qtde_posicao: number;
     data_cadastro: Date;
@@ -32,6 +35,9 @@ export class VagaService {
     modalidade_trabalho_id: number;
     periodo_trabalho_id: number;
     pcd: boolean;
+    lgbtq: boolean;
+    mulheres: boolean;
+    cinquenta_mais: boolean;
     qtde_dias_aberta: number;
     qtde_posicao: number;
     ativo: boolean;
@@ -48,6 +54,9 @@ export class VagaService {
         modalidade_trabalho_id: data.modalidade_trabalho_id,
         periodo_trabalho_id: data.periodo_trabalho_id,
         pcd: data.pcd,
+        lgbtq: data.lgbtq,
+        mulheres: data.mulheres,
+        cinquenta_mais: data.cinquenta_mais,
         qtde_dias_aberta: data.qtde_dias_aberta,
         qtde_posicao: data.qtde_posicao,
         ativo: data.ativo,
@@ -228,6 +237,9 @@ export class VagaService {
             nome_vaga: true,
             local_vaga: true,
             pcd: true,
+            lgbtq: true,
+            mulheres: true,
+            cinquenta_mais: true,
             qtde_dias_aberta: true,
             data_cadastro: true,
             skills: {
@@ -265,6 +277,9 @@ export class VagaService {
             month: '2-digit',
           }),
           pcd: vaga.pcd,
+          lgbtq: vaga.lgbtq,
+          mulheres: vaga.mulheres,
+          cinquenta_mais: vaga.cinquenta_mais,
           skills: vaga.skills.map((s) => s.skill.skill),
         };
       }),
