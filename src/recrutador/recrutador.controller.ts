@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { CreateRecrutadorDto } from './dto/create-recrutador.dto';
 import { UpdateRecrutadorDto } from './dto/update-recrutador.dto';
@@ -105,13 +106,21 @@ export class RecrutadorController {
           file: Express.Multer.File,
           cb: (error: Error | null, acceptFile: boolean) => void,
         ) => {
-          const allowedTypes = /jpeg|jpg|png|webp/;
-          const isValid = allowedTypes.test(file.mimetype);
+          const allowedExt = /(\.jpg|\.jpeg|\.png|\.webp|\.svg)$/i;
+          const allowedMime = /image\/(jpeg|png|webp|svg)/;
 
-          if (isValid) {
+          const extValid = allowedExt.test(file.originalname);
+          const mimeValid = allowedMime.test(file.mimetype);
+
+          if (extValid && mimeValid) {
             cb(null, true);
           } else {
-            cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
+            cb(
+              new BadRequestException(
+                'Apenas arquivos de imagem (JPG, PNG, WEBP, SVG) são permitidos.',
+              ),
+              false,
+            );
           }
         },
       },
@@ -167,11 +176,22 @@ export class RecrutadorController {
         }),
         limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
         fileFilter: (req, file, cb) => {
-          const allowedTypes = /jpeg|jpg|png|webp/;
-          const isValid = allowedTypes.test(file.mimetype);
-          if (isValid) cb(null, true);
-          else
-            cb(new Error('Apenas arquivos de imagem são permitidos.'), false);
+          const allowedExt = /(\.jpg|\.jpeg|\.png|\.webp|\.svg)$/i;
+          const allowedMime = /image\/(jpeg|png|webp|svg)/;
+
+          const extValid = allowedExt.test(file.originalname);
+          const mimeValid = allowedMime.test(file.mimetype);
+
+          if (extValid && mimeValid) {
+            cb(null, true);
+          } else {
+            cb(
+              new BadRequestException(
+                'Apenas arquivos de imagem (JPG, PNG, WEBP, SVG) são permitidos.',
+              ),
+              false,
+            );
+          }
         },
       },
     ),
