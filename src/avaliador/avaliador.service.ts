@@ -123,6 +123,47 @@ export class AvaliadorService {
     };
   }
 
+  async getAvaliadores(recrutador_id: number) {
+    const avaliadores = await this.prisma.usuario_perfil_avaliador.findMany({
+      where: {
+        empresa: {
+          recrutador_id: recrutador_id, // <-- filtro via relação
+        },
+      },
+      select: {
+        id: true,
+        localizacao: true,
+        logo: true,
+        status_cadastro: true,
+        ativo: true,
+        empresa: {
+          select: {
+            id: true,
+            nome_empresa: true,
+          },
+        },
+        usuario: {
+          select: {
+            primeiro_nome: true,
+            ultimo_nome: true,
+          },
+        },
+      },
+    });
+
+    return avaliadores.map((a) => ({
+      id: a.id,
+      localizacao: a.localizacao,
+      logo: a.logo,
+      status_cadastro: a.status_cadastro,
+      ativo: a.ativo,
+      empresa_id: a.empresa?.id,
+      nome_empresa: a.empresa?.nome_empresa ?? '',
+      nomeUser:
+        `${a.usuario?.primeiro_nome ?? ''} ${a.usuario?.ultimo_nome ?? ''}`.trim(),
+    }));
+  }
+
   async createAvaliador(data: {
     usuario_id: number;
     perfil_id: number;
@@ -651,6 +692,138 @@ export class AvaliadorService {
           status_cadastro: {
             not: 1,
           },
+        },
+        select: {
+          id: true, // 👈 só esse campo do avaliador
+          status_cadastro: true,
+          usuario_id: true,
+          empresa: {
+            select: {
+              nome_empresa: true,
+            },
+          },
+          usuario: {
+            select: {
+              email: true,
+              primeiro_nome: true,
+              ultimo_nome: true,
+            },
+          },
+        },
+      });
+
+      if (!avaliador) {
+        const messageRetorno = this.i18n.translate(
+          'common.auth.usuario_nao_encotrado',
+          { lang: language },
+        );
+        throw new Error(messageRetorno);
+      }
+
+      if (avaliador.status_cadastro === 0) return avaliador;
+
+      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+        where: { id: avaliador.id },
+        data: { status_cadastro: 0 },
+      });
+
+      await this.mailService.sendRejectAvaliador(
+        avaliador?.usuario.email ?? '',
+        `${avaliador?.usuario.primeiro_nome} ${avaliador?.usuario.ultimo_nome}`,
+        avaliador?.empresa?.nome_empresa ?? '',
+        language,
+      );
+
+      return avalaidorRet;
+    } catch (err) {
+      let messageRetorno = '';
+
+      if (err instanceof jwt.TokenExpiredError) {
+        messageRetorno = this.i18n.translate('common.auth.token_expirado', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
+      } else {
+        messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
+      }
+    }
+  }
+
+  async activateUserByForm(id: number, empresa_id: number, language: string) {
+    try {
+      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+        where: {
+          id: id,
+          empresa_id: empresa_id,
+        },
+        select: {
+          id: true, // 👈 só esse campo do avaliador
+          status_cadastro: true,
+          usuario_id: true,
+          empresa: {
+            select: {
+              nome_empresa: true,
+            },
+          },
+          usuario: {
+            select: {
+              email: true,
+              primeiro_nome: true,
+              ultimo_nome: true,
+            },
+          },
+        },
+      });
+
+      if (!avaliador) {
+        const messageRetorno = this.i18n.translate(
+          'common.auth.usuario_nao_encotrado',
+          { lang: language },
+        );
+        throw new Error(messageRetorno);
+      }
+
+      if (avaliador.status_cadastro === 1) return avaliador;
+
+      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+        where: { id: avaliador.id },
+        data: { status_cadastro: 1 },
+      });
+
+      await this.mailService.sendWelcomeAvaliador(
+        avaliador?.usuario.email ?? '',
+        `${avaliador?.usuario.primeiro_nome} ${avaliador?.usuario.ultimo_nome}`,
+        avaliador?.empresa?.nome_empresa ?? '',
+        language,
+      );
+
+      return avalaidorRet;
+    } catch (err) {
+      let messageRetorno = '';
+
+      if (err instanceof jwt.TokenExpiredError) {
+        messageRetorno = this.i18n.translate('common.auth.token_expirado', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
+      } else {
+        messageRetorno = this.i18n.translate('common.auth.token_invalido', {
+          lang: language,
+        });
+        throw new BadRequestException(messageRetorno);
+      }
+    }
+  }
+
+  async rejectUserByForm(id: number, empresa_id: number, language: string) {
+    try {
+      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+        where: {
+          id: id,
+          empresa_id: empresa_id,
         },
         select: {
           id: true, // 👈 só esse campo do avaliador
