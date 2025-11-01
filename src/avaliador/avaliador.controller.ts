@@ -536,6 +536,12 @@ export class AvaliadorController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('recrutador/:id')
+  getAvaliadores(@Param('id', ParseIntPipe) id: number) {
+    return this.avaliadorService.getAvaliadores(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('empresas-cadastro')
   getEmpresasCadastro() {
     return this.avaliadorService.getEmpresasCadastro();
@@ -594,6 +600,50 @@ export class AvaliadorController {
       token,
       language,
       3,
+    );
+    const messageRetorno = this.i18n.translate(
+      'common.auth.conta_reject_sucesso',
+      {
+        lang: language,
+      },
+    );
+    return { message: messageRetorno, user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('activate-form')
+  async activateAccountForm(
+    @Body() body: { id: number; empresa_id: number },
+    @Headers('accept-language') language: string,
+  ) {
+    const { id, empresa_id } = body;
+
+    const user = await this.avaliadorService.activateUserByForm(
+      id,
+      empresa_id,
+      language,
+    );
+    const messageRetorno = this.i18n.translate(
+      'common.auth.conta_ativada_sucesso',
+      {
+        lang: language,
+      },
+    );
+    return { message: messageRetorno, user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('reject-form')
+  async rejectAccountForm(
+    @Body() body: { id: number; empresa_id: number },
+    @Headers('accept-language') language: string,
+  ) {
+    const { id, empresa_id } = body;
+
+    const user = await this.avaliadorService.rejectUserByForm(
+      id,
+      empresa_id,
+      language,
     );
     const messageRetorno = this.i18n.translate(
       'common.auth.conta_reject_sucesso',
