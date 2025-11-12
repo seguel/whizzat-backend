@@ -99,6 +99,7 @@ export class AvaliadorController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
     @Body() body: CreateAvaliadorDto,
+    @Headers('accept-language') language: string,
   ) {
     /* console.log(
       'Arquivos recebidos:',
@@ -148,7 +149,7 @@ export class AvaliadorController {
       logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
       meio_notificacao: body.meio_notificacao,
       status_cadastro: body.empresaId ? -1 : 1,
-      language: 'pt',
+      language: language,
     });
 
     // Monta formacoes
@@ -310,6 +311,7 @@ export class AvaliadorController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
     @Body() body: UpdateAvaliadorDto, // <-- adicionar perfil_id no body
+    @Headers('accept-language') language: string,
   ) {
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
@@ -362,7 +364,7 @@ export class AvaliadorController {
         : avaliadorAtual?.logo,
       meio_notificacao: body.meio_notificacao,
       ativo: body.ativo,
-      language: 'pt',
+      language: language,
     });
 
     // skills existentes
@@ -552,10 +554,11 @@ export class AvaliadorController {
   resendLink(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request & { user: JwtPayload },
+    @Headers('accept-language') language: string,
   ) {
     const usuarioId = req.user?.sub;
 
-    return this.avaliadorService.resendLink(id, usuarioId);
+    return this.avaliadorService.resendLink(id, usuarioId, language);
   }
 
   @Post('activate')
