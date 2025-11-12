@@ -256,34 +256,45 @@ export class VagaService {
       },
     });
 
-    // transforma em array plano de vagas, adicionando prazo e infos da empresa
-    const vagasPlanas = empresas.flatMap((empresa) =>
-      empresa.vagas.map((vaga) => {
-        const prazoDate = new Date(vaga.data_cadastro);
-        prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
+    const agora = new Date();
 
-        return {
-          empresa_id: empresa.id,
-          recrutador_id: empresa.recrutador_id,
-          logo: empresa.logo,
-          nome_empresa: empresa.nome_empresa,
-          vaga_id: vaga.vaga_id,
-          nome_vaga: vaga.nome_vaga,
-          localizacao: vaga.local_vaga,
-          data_cadastro: vaga.data_cadastro,
-          qtde_dias_aberta: vaga.qtde_dias_aberta,
-          prazo: prazoDate.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
+    const vagasPlanas = empresas
+      .flatMap((empresa) =>
+        empresa.vagas
+          .filter((vaga) => {
+            const prazoDate = new Date(vaga.data_cadastro);
+            prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
+            return prazoDate >= agora; // mantém apenas as vagas válidas
+          })
+          .map((vaga) => {
+            const prazoDate = new Date(vaga.data_cadastro);
+            prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
+
+            return {
+              empresa_id: empresa.id,
+              recrutador_id: empresa.recrutador_id,
+              logo: empresa.logo,
+              nome_empresa: empresa.nome_empresa,
+              vaga_id: vaga.vaga_id,
+              nome_vaga: vaga.nome_vaga,
+              localizacao: vaga.local_vaga,
+              data_cadastro: vaga.data_cadastro,
+              qtde_dias_aberta: vaga.qtde_dias_aberta,
+              prazo: prazoDate.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+              }),
+              prazo_timestamp: prazoDate.getTime(), // adiciona para facilitar ordenação
+              pcd: vaga.pcd,
+              lgbtq: vaga.lgbtq,
+              mulheres: vaga.mulheres,
+              cinquenta_mais: vaga.cinquenta_mais,
+              skills: vaga.skills.map((s) => s.skill.skill),
+            };
           }),
-          pcd: vaga.pcd,
-          lgbtq: vaga.lgbtq,
-          mulheres: vaga.mulheres,
-          cinquenta_mais: vaga.cinquenta_mais,
-          skills: vaga.skills.map((s) => s.skill.skill),
-        };
-      }),
-    );
+      )
+      // ordena globalmente: vencimento mais próximo primeiro
+      .sort((a, b) => a.prazo_timestamp - b.prazo_timestamp);
 
     return vagasPlanas;
   }

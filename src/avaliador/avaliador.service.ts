@@ -545,7 +545,7 @@ export class AvaliadorService {
     }
   }
 
-  async resendLink(id: number, usuarioId: number) {
+  async resendLink(id: number, usuarioId: number, language: string) {
     const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
       where: {
         id: id,
@@ -564,7 +564,6 @@ export class AvaliadorService {
     });
 
     const token = generateActivationToken72(id, avaliador?.empresa_id ?? 0);
-    const language = 'pt';
 
     const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-avaliador?token=${token}&pf=${avaliador?.perfil_id}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
     const rejectLink = `${process.env.SITE_URL}/cadastro/rejeitar-avaliador?token=${token}&pf=${avaliador?.perfil_id}&lng=${language}`;
