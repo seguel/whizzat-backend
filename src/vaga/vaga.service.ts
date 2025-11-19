@@ -79,20 +79,48 @@ export class VagaService {
       avaliador_proprio: boolean;
     }[],
   ) {
-    // Remove todas as skills antigas
-    await this.prisma.empresa_vaga_skill.deleteMany({
+    // Busca skills atuais do vaga
+    const existentes = await this.prisma.empresa_vaga_skill.findMany({
       where: { vaga_id },
     });
 
-    // Insere as novas
-    if (skills.length > 0) {
-      await this.prisma.empresa_vaga_skill.createMany({
-        data: skills,
+    const idsExistentes = existentes.map((s) => s.skill_id);
+    const idsNovos = skills.map((s) => s.skill_id);
+
+    // 🔹 Remove apenas as skills que não estão mais no novo array
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.empresa_vaga_skill.deleteMany({
+        where: { vaga_id, skill_id: { in: paraRemover } },
       });
+    }
+
+    // 🔹 Atualiza ou cria
+    for (const s of skills) {
+      const existente = existentes.find((e) => e.skill_id === s.skill_id);
+      if (existente) {
+        // Atualiza apenas se houve mudança real
+        const precisaAtualizar =
+          existente.peso !== s.peso ||
+          existente.avaliador_proprio !== s.avaliador_proprio;
+
+        if (precisaAtualizar) {
+          await this.prisma.empresa_vaga_skill.updateMany({
+            where: { vaga_id, skill_id: s.skill_id },
+            data: {
+              peso: s.peso,
+              avaliador_proprio: s.avaliador_proprio,
+            },
+          });
+        }
+      } else {
+        // Cria nova
+        await this.prisma.empresa_vaga_skill.create({ data: s });
+      }
     }
   }
 
-  async getVagas(
+  async getVagasRecrutador(
     empresaId: number,
   ): Promise<{ empresa_id: number; vagas: any[] }> {
     const vagas = await this.prisma.empresa_vaga.findMany({
@@ -114,6 +142,7 @@ export class VagaService {
             skill: {
               select: {
                 skill: true,
+                tipo_skill_id: true,
               },
             },
           },
@@ -136,14 +165,19 @@ export class VagaService {
   async getVaga({
     vaga_id,
     empresa_id,
+    lang,
   }: {
     vaga_id: number;
     empresa_id: number;
+    lang: string;
   }) {
     const vaga = await this.prisma.empresa_vaga.findFirst({
       where: {
         vaga_id,
         empresa_id,
+        empresa: {
+          linguagem: lang,
+        },
       },
       include: {
         modalidade_trabalho: true,
@@ -156,6 +190,7 @@ export class VagaService {
             skill: {
               select: {
                 skill: true,
+                tipo_skill_id: true,
               },
             },
           },
@@ -181,6 +216,7 @@ export class VagaService {
       peso: s.peso,
       avaliador_proprio: s.avaliador_proprio,
       skill: s.skill.skill, // pega direto o texto da skill
+      tipo_skill_id: s.skill.tipo_skill_id,
     }));
 
     return {
@@ -193,7 +229,7 @@ export class VagaService {
     };
   }
 
-  async getVagasAbertas(
+  async getVagasAbertasRecrutador(
     userId: number,
     recrutadorId: number,
     empresaId?: string,
@@ -247,6 +283,7 @@ export class VagaService {
                 skill: {
                   select: {
                     skill: true,
+                    tipo_skill_id: true,
                   },
                 },
               },
@@ -297,5 +334,44 @@ export class VagaService {
       .sort((a, b) => a.prazo_timestamp - b.prazo_timestamp);
 
     return vagasPlanas;
+  }
+
+  async getVagas(lang: string): Promise<{ vagas: any[] }> {
+    const vagas = await this.prisma.empresa_vaga.findMany({
+      where: {
+        ativo: true,
+        empresa: {
+          ativo: true,
+          linguagem: lang,
+        },
+      },
+      include: {
+        modalidade_trabalho: true,
+        periodo_trabalho: true,
+        skills: {
+          select: {
+            skill_id: true,
+            peso: true,
+            avaliador_proprio: true,
+            skill: {
+              select: {
+                skill: true,
+                tipo_skill_id: true,
+              },
+            },
+          },
+        },
+        empresa: {
+          select: {
+            nome_empresa: true,
+            logo: true,
+          },
+        },
+      },
+    });
+
+    return {
+      vagas, // se não houver nada, retorna []
+    };
   }
 }

@@ -3,4 +3,5 @@ export interface JwtPayload {
   email: string;
   nome: string;
   perfil?: number;
+  lang?: string;
 }

@@ -28,4 +28,9 @@ export class CreateNovaSkillAvaliadorDto {
   @IsOptional()
   @IsString()
   tempo_favorito!: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  tipo_skill_id!: number;
 }

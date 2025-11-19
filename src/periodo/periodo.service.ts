@@ -6,9 +6,9 @@ import { periodo_trabalho } from '@prisma/client';
 export class PeriodoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPeriodos(): Promise<periodo_trabalho[]> {
+  async getPeriodos(language: string): Promise<periodo_trabalho[]> {
     return this.prisma.periodo_trabalho.findMany({
-      where: { ativo: true },
+      where: { ativo: true, linguagem: language },
       orderBy: {
         periodo: 'asc', // ou 'desc'
       },

@@ -6,9 +6,9 @@ import { modalidade_trabalho } from '@prisma/client';
 export class ModalidadeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getModalidades(): Promise<modalidade_trabalho[]> {
+  async getModalidades(language: string): Promise<modalidade_trabalho[]> {
     return this.prisma.modalidade_trabalho.findMany({
-      where: { ativo: true },
+      where: { ativo: true, linguagem: language },
       orderBy: {
         modalidade: 'asc', // ou 'desc'
       },

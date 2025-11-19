@@ -136,6 +136,7 @@ export class RecrutadorController {
     @Body() body: CreateRecrutadorDto,
   ) {
     const usuario_id = req.user?.sub;
+    const lang = req.user?.lang ?? 'pt';
 
     // Base URL para frontend
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
@@ -151,6 +152,7 @@ export class RecrutadorController {
       logo: files.logo?.[0]
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
         : '',
+      language: lang,
     };
 
     return this.recrutadorService.createRecrutador(data);

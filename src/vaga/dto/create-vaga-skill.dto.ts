@@ -18,4 +18,9 @@ export class CreateVagaSkillDto {
   @IsOptional()
   @IsString()
   nome?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  tipo_skill_id!: number;
 }

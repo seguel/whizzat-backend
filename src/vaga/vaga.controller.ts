@@ -32,6 +32,8 @@ export class VagaController {
     @Req() req: Request & { user: JwtPayload },
     @Body() body: CreateVagaDto & { recrutador_id: number }, // <-- adicionar perfil_id no body
   ) {
+    const lang = req.user?.lang ?? 'pt';
+
     const vaga = await this.vagaService.createVaga({
       empresa_id: body.empresa_id,
       nome_vaga: body.nome_vaga,
@@ -55,18 +57,24 @@ export class VagaController {
         skill_id: skill.skill_id,
         peso: skill.peso,
         avaliador_proprio: skill.avaliador_proprio,
+        tipo_skill_id: skill.tipo_skill_id,
       })) ?? [];
 
     // Skills novas
     const skillsNovas = await Promise.all(
       (body.novas_skills ?? []).map(async (novaSkill: CreateNovaSkillDto) => {
-        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
+        const skill = await this.skillService.createOrGetSkill(
+          novaSkill.nome,
+          lang,
+          novaSkill.tipo_skill_id,
+        );
 
         return {
           vaga_id: vaga.vaga_id,
           skill_id: skill.skill_id,
           peso: novaSkill.peso,
           avaliador_proprio: novaSkill.avaliador_proprio,
+          tipo_skill_id: novaSkill.tipo_skill_id,
         };
       }),
     );
@@ -79,6 +87,7 @@ export class VagaController {
         skill_id: number;
         peso: number;
         avaliador_proprio: boolean;
+        tipo_skill_id: number;
       } => typeof skill.skill_id === 'number',
     );
 
@@ -90,6 +99,7 @@ export class VagaController {
     const vagaCompleta = await this.vagaService.getVaga({
       vaga_id: vaga.vaga_id,
       empresa_id: body.empresa_id,
+      lang: lang,
     });
 
     const vagaComSkillsMapeadas = {
@@ -99,6 +109,7 @@ export class VagaController {
         peso: s.peso,
         avaliador_proprio: s.avaliador_proprio,
         nome: s.skill,
+        tipo_skill_id: s.tipo_skill_id,
       })),
     };
 
@@ -111,6 +122,8 @@ export class VagaController {
     @Req() req: Request & { user: JwtPayload },
     @Body() body: UpdateVagaDto & { recrutador_id: number },
   ) {
+    const lang = req.user?.lang ?? 'pt';
+
     const vaga = await this.vagaService.updateVaga({
       vaga_id: body.vaga_id,
       empresa_id: body.empresa_id,
@@ -140,7 +153,11 @@ export class VagaController {
     // novas skills
     const skillsNovas = await Promise.all(
       (body.novas_skills ?? []).map(async (novaSkill) => {
-        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
+        const skill = await this.skillService.createOrGetSkill(
+          novaSkill.nome,
+          lang,
+          novaSkill.tipo_skill_id,
+        );
 
         return {
           vaga_id: vaga.vaga_id,
@@ -159,6 +176,7 @@ export class VagaController {
         skill_id: number;
         peso: number;
         avaliador_proprio: boolean;
+        tipo_skill_id: number;
       } => typeof skill.skill_id === 'number',
     );
 
@@ -170,6 +188,7 @@ export class VagaController {
     const vagaCompleta = await this.vagaService.getVaga({
       vaga_id: vaga.vaga_id,
       empresa_id: body.empresa_id,
+      lang: lang,
     });
 
     const vagaComSkillsMapeadas = {
@@ -179,6 +198,7 @@ export class VagaController {
         peso: s.peso,
         avaliador_proprio: s.avaliador_proprio,
         nome: s.skill,
+        tipo_skill_id: s.tipo_skill_id,
       })),
     };
 
@@ -187,11 +207,13 @@ export class VagaController {
 
   @UseGuards(JwtAuthGuard)
   @Get('vagas/:empresaId')
-  getVagas(@Param('empresaId', ParseIntPipe) empresaId: number): Promise<{
+  getVagasRecrutador(
+    @Param('empresaId', ParseIntPipe) empresaId: number,
+  ): Promise<{
     empresa_id: number;
     vagas: empresa[];
   }> {
-    return this.vagaService.getVagas(empresaId);
+    return this.vagaService.getVagasRecrutador(empresaId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -199,10 +221,14 @@ export class VagaController {
   async getVaga(
     @Param('vaga_id', ParseIntPipe) vaga_id: number,
     @Param('empresa_id', ParseIntPipe) empresa_id: number,
+    @Req() req: Request & { user: JwtPayload },
   ) {
+    const lang = req.user?.lang ?? 'pt';
+
     const vagaCompleta = await this.vagaService.getVaga({
       vaga_id,
       empresa_id,
+      lang,
     });
 
     if (!vagaCompleta) {
@@ -218,6 +244,7 @@ export class VagaController {
         peso: s.peso,
         avaliador_proprio: s.avaliador_proprio,
         nome: s.skill,
+        tipo_skill_id: s.tipo_skill_id,
       })),
     };
 
@@ -226,7 +253,7 @@ export class VagaController {
 
   @UseGuards(JwtAuthGuard)
   @Get('vagas-abertas/:recrutadorId')
-  async getVagasSugeridas(
+  async getVagasAbertasRecrutador(
     @Req() req: Request & { user: JwtPayload },
     @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
     @Query('empresaId') empresaId?: string,
@@ -238,11 +265,20 @@ export class VagaController {
     const empresaFiltro = empresaId || 'todos';
     const skillFiltro = skill || 'todos';
 
-    return await this.vagaService.getVagasAbertas(
+    return await this.vagaService.getVagasAbertasRecrutador(
       usuarioId,
       recrutadorId,
       empresaFiltro,
       skillFiltro,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  getVagas(@Req() req: Request & { user: JwtPayload }): Promise<{
+    vagas: empresa[];
+  }> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.vagaService.getVagas(lang);
   }
 }

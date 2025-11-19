@@ -38,6 +38,7 @@ export class AuthService {
         primeiro_nome,
         ultimo_nome,
         ativo: false,
+        linguagem: language,
       },
     });
 
@@ -86,6 +87,7 @@ export class AuthService {
       email: user.email,
       nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
       perfil: user.id_perfil,
+      lang: user.linguagem,
     };
     const token = this.jwtService.sign(payload);
 
@@ -104,6 +106,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+        lang: user.linguagem,
       },
       redirectTo: rotaPerfil
         ? `/dashboard?perfil=${rotaPerfil}`
