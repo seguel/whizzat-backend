@@ -57,6 +57,7 @@ export class UserController {
     @Body() body: { id_perfil: number },
   ) {
     const user = req.user;
+    const lang = req.user?.lang ?? 'pt';
 
     if (!user?.sub) {
       throw new UnauthorizedException('Usuário não autenticado');
@@ -76,6 +77,7 @@ export class UserController {
       { id_perfil: body.id_perfil },
       user.email,
       user.nome,
+      lang,
     );
 
     // Define novo token com payload atualizado

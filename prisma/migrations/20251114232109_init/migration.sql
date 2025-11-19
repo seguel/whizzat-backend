@@ -8,6 +8,7 @@ CREATE TABLE "usuario" (
     "id_perfil" INTEGER,
     "ativo" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "usuario_pkey" PRIMARY KEY ("id")
 );
@@ -34,6 +35,7 @@ CREATE TABLE "usuario_perfil_recrutador" (
     "meio_notificacao" TEXT NOT NULL,
     "data_cadastro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "usuario_perfil_recrutador_pkey" PRIMARY KEY ("id")
 );
@@ -54,6 +56,7 @@ CREATE TABLE "usuario_perfil_avaliador" (
     "ativo" BOOLEAN NOT NULL DEFAULT true,
     "status_cadastro" INTEGER NOT NULL DEFAULT -1,
     "data_envio_link" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "usuario_perfil_avaliador_pkey" PRIMARY KEY ("id")
 );
@@ -75,6 +78,7 @@ CREATE TABLE "avaliador_formacao_academica" (
     "id" SERIAL NOT NULL,
     "avaliador_id" INTEGER NOT NULL,
     "graduacao_id" INTEGER NOT NULL,
+    "formacao" TEXT NOT NULL,
     "certificado_file" TEXT NOT NULL,
 
     CONSTRAINT "avaliador_formacao_academica_pkey" PRIMARY KEY ("id")
@@ -104,6 +108,7 @@ CREATE TABLE "empresa" (
     "imagem_fundo" TEXT NOT NULL,
     "data_cadastro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "empresa_pkey" PRIMARY KEY ("id")
 );
@@ -118,6 +123,9 @@ CREATE TABLE "empresa_vaga" (
     "modalidade_trabalho_id" INTEGER NOT NULL,
     "periodo_trabalho_id" INTEGER NOT NULL,
     "pcd" BOOLEAN NOT NULL,
+    "lgbtq" BOOLEAN NOT NULL DEFAULT false,
+    "mulheres" BOOLEAN NOT NULL DEFAULT false,
+    "cinquenta_mais" BOOLEAN NOT NULL DEFAULT false,
     "qtde_dias_aberta" INTEGER NOT NULL,
     "qtde_posicao" INTEGER NOT NULL,
     "data_cadastro" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -138,10 +146,20 @@ CREATE TABLE "empresa_vaga_skill" (
 );
 
 -- CreateTable
+CREATE TABLE "tipo_skill" (
+    "id" SERIAL NOT NULL,
+    "tipo_Skill" TEXT NOT NULL,
+
+    CONSTRAINT "tipo_skill_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "skill" (
     "skill_id" SERIAL NOT NULL,
     "skill" TEXT NOT NULL,
+    "tipo_skill_id" INTEGER NOT NULL,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "skill_pkey" PRIMARY KEY ("skill_id")
 );
@@ -151,6 +169,7 @@ CREATE TABLE "modalidade_trabalho" (
     "modalidade_trabalho_id" SERIAL NOT NULL,
     "modalidade" TEXT NOT NULL,
     "ativo" BOOLEAN NOT NULL,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "modalidade_trabalho_pkey" PRIMARY KEY ("modalidade_trabalho_id")
 );
@@ -160,6 +179,7 @@ CREATE TABLE "periodo_trabalho" (
     "periodo_trabalho_id" SERIAL NOT NULL,
     "periodo" TEXT NOT NULL,
     "ativo" BOOLEAN NOT NULL,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "periodo_trabalho_pkey" PRIMARY KEY ("periodo_trabalho_id")
 );
@@ -169,6 +189,7 @@ CREATE TABLE "certificacoes" (
     "id" SERIAL NOT NULL,
     "certificado" TEXT NOT NULL,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "certificacoes_pkey" PRIMARY KEY ("id")
 );
@@ -178,6 +199,7 @@ CREATE TABLE "graduacao" (
     "id" SERIAL NOT NULL,
     "graduacao" TEXT NOT NULL,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
+    "linguagem" TEXT NOT NULL,
 
     CONSTRAINT "graduacao_pkey" PRIMARY KEY ("id")
 );
@@ -247,3 +269,6 @@ ALTER TABLE "empresa_vaga_skill" ADD CONSTRAINT "empresa_vaga_skill_vaga_id_fkey
 
 -- AddForeignKey
 ALTER TABLE "empresa_vaga_skill" ADD CONSTRAINT "empresa_vaga_skill_skill_id_fkey" FOREIGN KEY ("skill_id") REFERENCES "skill"("skill_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "skill" ADD CONSTRAINT "skill_tipo_skill_id_fkey" FOREIGN KEY ("tipo_skill_id") REFERENCES "tipo_skill"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

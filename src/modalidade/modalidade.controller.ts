@@ -5,8 +5,10 @@ import {
   Get,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ModalidadeService } from './modalidade.service';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { modalidade_trabalho } from '@prisma/client';
@@ -25,7 +27,10 @@ export class ModalidadeController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getModalidades(): Promise<modalidade_trabalho[]> {
-    return this.modalidadeService.getModalidades();
+  getModalidades(
+    @Req() req: Request & { user: JwtPayload },
+  ): Promise<modalidade_trabalho[]> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.modalidadeService.getModalidades(lang);
   }
 }

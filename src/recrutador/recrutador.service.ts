@@ -69,6 +69,7 @@ export class RecrutadorService {
     apresentacao: string;
     meio_notificacao: string;
     logo: string;
+    language: string;
   }) {
     const createData: Prisma.usuario_perfil_recrutadorCreateInput = {
       usuario: {
@@ -82,6 +83,7 @@ export class RecrutadorService {
       apresentacao: data.apresentacao,
       meio_notificacao: data.meio_notificacao,
       logo: data.logo ?? '',
+      linguagem: data.language,
     };
 
     // --- Criação ---

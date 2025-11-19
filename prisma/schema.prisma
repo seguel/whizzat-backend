@@ -22,6 +22,7 @@ model usuario {
   id_perfil              Int?
   ativo                  Boolean                  @default(false)
   createdAt              DateTime                 @default(now())
+  linguagem              String
 
   //usuario_perfil_empresa usuario_perfil_empresa[]
   avaliador   usuario_perfil_avaliador []
@@ -50,6 +51,7 @@ model usuario_perfil_recrutador {
   meio_notificacao  String
   data_cadastro     DateTime  @default(now())
   ativo             Boolean   @default(true)
+  linguagem         String
 
   usuario    usuario @relation(fields: [usuario_id], references: [id])
   perfil     perfil  @relation(fields: [perfil_id], references: [id])
@@ -73,6 +75,7 @@ model usuario_perfil_avaliador {
   ativo             Boolean   @default(true)
   status_cadastro   Int       @default(-1)
   data_envio_link   DateTime  @default(now())
+  linguagem         String
 
   // Relações
   usuario          usuario     @relation(fields: [usuario_id], references: [id])
@@ -136,6 +139,7 @@ model empresa {
   imagem_fundo   String
   data_cadastro  DateTime   @default(now())
   ativo          Boolean    @default(true)
+  linguagem      String
 
   recrutador     usuario_perfil_recrutador @relation(fields: [recrutador_id], references: [id])
   vagas          empresa_vaga[]            @relation("EmpresaVagas") // ✅ lado inverso nomeado
@@ -180,15 +184,24 @@ model empresa_vaga_skill {
   skill             skill        @relation(fields: [skill_id], references: [skill_id])
 }
 
+model tipo_skill{
+  id          Int       @id @default(autoincrement())
+  tipo_Skill  String
+
+  skills       skill[]
+}
 
 model skill {
-  skill_id    Int                     @id @default(autoincrement())
-  skill       String  @unique
-  ativo       Boolean @default(true)
+  skill_id        Int                     @id @default(autoincrement())
+  skill           String  @unique
+  tipo_skill_id   Int
+  ativo           Boolean @default(true)
+  linguagem       String
 
   // Relações
   vagas       empresa_vaga_skill[]
   avaliadores avaliador_skill[]
+  tipo_skill  tipo_skill @relation(fields: [tipo_skill_id], references: [id])
 }
 
 
@@ -196,6 +209,7 @@ model modalidade_trabalho {
   modalidade_trabalho_id Int              @id @default(autoincrement())
   modalidade             String
   ativo                  Boolean
+  linguagem              String
 
   // Relações
   vagas                  empresa_vaga[]
@@ -206,6 +220,7 @@ model periodo_trabalho {
   periodo_trabalho_id Int              @id @default(autoincrement())
   periodo             String
   ativo               Boolean
+  linguagem           String
 
   // Relações
   vagas               empresa_vaga[]
@@ -215,6 +230,7 @@ model certificacoes {
   id              Int @id @default(autoincrement())
   certificado     String  @unique
   ativo           Boolean @default(true)
+  linguagem   String
 
   // Relações
   avaliadores_certificado avaliador_certificacoes[]
@@ -224,6 +240,7 @@ model graduacao {
   id          Int     @id @default(autoincrement())
   graduacao   String  
   ativo       Boolean @default(true)
+  linguagem   String
 
   // Relações
   avaliadores_formacao avaliador_formacao_academica[]
