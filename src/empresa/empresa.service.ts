@@ -18,6 +18,7 @@ export class EmpresaService {
     apresentacao: string;
     logo: string;
     imagem_fundo: string;
+    linguagem: string;
   }) {
     const domíniosPublicos = [
       'gmail.com',
@@ -107,6 +108,7 @@ export class EmpresaService {
       apresentacao: data.apresentacao,
       logo: data.logo ?? '',
       imagem_fundo: data.imagem_fundo ?? '',
+      linguagem: data.linguagem ?? 'pt',
     };
     /* 
     // adiciona só se existir
@@ -210,7 +212,7 @@ export class EmpresaService {
     });
   }
 
-  async getEmpresas(
+  async getEmpresasRecrutador(
     recrutadorId: number,
     usuarioId: number,
   ): Promise<{ usuario_id: number; empresas: any[] }> {
@@ -233,14 +235,32 @@ export class EmpresaService {
     };
   }
 
+  async getEmpresas(lang: string): Promise<{ empresas: any[] }> {
+    const empresas = await this.prisma.empresa.findMany({
+      where: {
+        ativo: true,
+        linguagem: lang,
+      },
+      orderBy: {
+        nome_empresa: 'asc',
+      },
+    });
+
+    return {
+      empresas, // se não houver nada, retorna []
+    };
+  }
+
   async getEmpresasAtivas(
     recrutadorId: number,
     usuarioId: number,
+    lang: string,
   ): Promise<{ usuario_id: number; empresas: any[] }> {
     const empresas = await this.prisma.empresa.findMany({
       where: {
         recrutador_id: recrutadorId,
         ativo: true,
+        linguagem: lang,
       },
       orderBy: {
         nome_empresa: 'asc',

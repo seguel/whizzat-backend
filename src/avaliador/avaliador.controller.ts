@@ -99,7 +99,6 @@ export class AvaliadorController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
     @Body() body: CreateAvaliadorDto,
-    @Headers('accept-language') language: string,
   ) {
     /* console.log(
       'Arquivos recebidos:',
@@ -111,6 +110,7 @@ export class AvaliadorController {
     ); */
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
+    const lang = req.user?.lang ?? 'pt';
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
     // Separar arquivos por prefixo
@@ -149,7 +149,7 @@ export class AvaliadorController {
       logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
       meio_notificacao: body.meio_notificacao,
       status_cadastro: body.empresaId ? -1 : 1,
-      language: language,
+      language: lang,
     });
 
     // Monta formacoes
@@ -188,6 +188,7 @@ export class AvaliadorController {
           const certificado =
             await this.certificacoesService.createOrGetCertificado(
               novoCertificado.certificado,
+              lang,
             );
           return {
             avaliador_id: avaliador.id,
@@ -233,18 +234,24 @@ export class AvaliadorController {
         peso: skill.peso,
         favorito: skill.favorito,
         tempo_favorito: skill.tempo_favorito,
+        tipo_skill_id: skill.tipo_skill_id,
       })) ?? [];
 
     // Skills novas
     const skillsNovas = await Promise.all(
       (novasSkills ?? []).map(async (novaSkill) => {
-        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
+        const skill = await this.skillService.createOrGetSkill(
+          novaSkill.nome,
+          lang,
+          novaSkill.tipo_skill_id,
+        );
         return {
           avaliador_id: avaliador.id,
           skill_id: skill.skill_id,
           peso: novaSkill.peso,
           favorito: novaSkill.favorito,
           tempo_favorito: novaSkill.tempo_favorito,
+          tipo_skill_id: novaSkill.tipo_skill_id,
         };
       }),
     );
@@ -259,6 +266,7 @@ export class AvaliadorController {
         favorito: boolean;
         tempo_favorito: string;
         nome: string;
+        tipo_skill_id: number;
       } => typeof skill.skill_id === 'number',
     );
 
@@ -283,6 +291,7 @@ export class AvaliadorController {
         favorito: s.favorito,
         tempo_favorito: s.tempo_favorito,
         nome: s.nome,
+        tipo_skill_id: s.tipo_skill_id,
       })),
     };
   }
@@ -311,10 +320,10 @@ export class AvaliadorController {
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
     @Body() body: UpdateAvaliadorDto, // <-- adicionar perfil_id no body
-    @Headers('accept-language') language: string,
   ) {
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
+    const lang = req.user?.lang ?? 'pt';
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
@@ -364,7 +373,7 @@ export class AvaliadorController {
         : avaliadorAtual?.logo,
       meio_notificacao: body.meio_notificacao,
       ativo: body.ativo,
-      language: language,
+      language: lang,
     });
 
     // skills existentes
@@ -380,7 +389,11 @@ export class AvaliadorController {
     // novas skills
     const skillsNovas = await Promise.all(
       (novasSkills ?? []).map(async (novaSkill) => {
-        const skill = await this.skillService.createOrGetSkill(novaSkill.nome);
+        const skill = await this.skillService.createOrGetSkill(
+          novaSkill.nome,
+          lang,
+          novaSkill.tipo_skill_id,
+        );
 
         return {
           avaliador_id: avaliador.id,
@@ -453,6 +466,7 @@ export class AvaliadorController {
             const certificado =
               await this.certificacoesService.createOrGetCertificado(
                 novoCertificado.certificado,
+                lang,
               );
 
             return {
@@ -513,6 +527,7 @@ export class AvaliadorController {
         favorito: s.favorito,
         tempo_favorito: s.tempo_favorito,
         nome: s.nome,
+        tipo_skill_id: s.tipo_skill_id,
       })),
     };
 
@@ -545,8 +560,9 @@ export class AvaliadorController {
 
   @UseGuards(JwtAuthGuard)
   @Get('empresas-cadastro')
-  getEmpresasCadastro() {
-    return this.avaliadorService.getEmpresasCadastro();
+  getEmpresasCadastro(@Req() req: Request & { user: JwtPayload }) {
+    const lang = req.user?.lang ?? 'pt';
+    return this.avaliadorService.getEmpresasCadastro(lang);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -554,11 +570,11 @@ export class AvaliadorController {
   resendLink(
     @Param('id', ParseIntPipe) id: number,
     @Req() req: Request & { user: JwtPayload },
-    @Headers('accept-language') language: string,
   ) {
     const usuarioId = req.user?.sub;
+    const lang = req.user?.lang ?? 'pt';
 
-    return this.avaliadorService.resendLink(id, usuarioId, language);
+    return this.avaliadorService.resendLink(id, usuarioId, lang);
   }
 
   @Post('activate')
@@ -617,19 +633,20 @@ export class AvaliadorController {
   @Post('activate-form')
   async activateAccountForm(
     @Body() body: { id: number; empresa_id: number },
-    @Headers('accept-language') language: string,
+    @Req() req: Request & { user: JwtPayload },
   ) {
     const { id, empresa_id } = body;
+    const lang = req.user?.lang ?? 'pt';
 
     const user = await this.avaliadorService.activateUserByForm(
       id,
       empresa_id,
-      language,
+      lang,
     );
     const messageRetorno = this.i18n.translate(
       'common.auth.conta_ativada_sucesso',
       {
-        lang: language,
+        lang: lang,
       },
     );
     return { message: messageRetorno, user };
@@ -639,19 +656,20 @@ export class AvaliadorController {
   @Post('reject-form')
   async rejectAccountForm(
     @Body() body: { id: number; empresa_id: number },
-    @Headers('accept-language') language: string,
+    @Req() req: Request & { user: JwtPayload },
   ) {
     const { id, empresa_id } = body;
+    const lang = req.user?.lang ?? 'pt';
 
     const user = await this.avaliadorService.rejectUserByForm(
       id,
       empresa_id,
-      language,
+      lang,
     );
     const messageRetorno = this.i18n.translate(
       'common.auth.conta_reject_sucesso',
       {
-        lang: language,
+        lang: lang,
       },
     );
     return { message: messageRetorno, user };

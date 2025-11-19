@@ -24,4 +24,9 @@ export class CreateNovaSkillDto {
 
   @IsBoolean()
   avaliador_proprio: boolean = false;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  tipo_skill_id!: number;
 }

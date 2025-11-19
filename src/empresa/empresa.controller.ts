@@ -89,6 +89,7 @@ export class EmpresaController {
     @Body() body: CreateEmpresaDto,
   ) {
     const usuario_id = req.user?.sub;
+    const lang = req.user?.lang ?? 'pt';
 
     // Base URL para frontend
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
@@ -109,6 +110,7 @@ export class EmpresaController {
       imagem_fundo: files.imagem_fundo?.[0]
         ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
         : '',
+      linguagem: lang,
     };
 
     return this.empresaService.createEmpresa(data);
@@ -193,7 +195,7 @@ export class EmpresaController {
 
   @UseGuards(JwtAuthGuard)
   @Get('recrutador/:recrutadorId')
-  getEmpresas(
+  getEmpresasRecrutador(
     @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
     @Req() req: Request & { user: JwtPayload },
   ): Promise<{
@@ -201,7 +203,7 @@ export class EmpresaController {
     empresas: empresa[];
   }> {
     const usuarioId = req.user?.sub;
-    return this.empresaService.getEmpresas(recrutadorId, usuarioId);
+    return this.empresaService.getEmpresasRecrutador(recrutadorId, usuarioId);
   }
 
   //Utilizado para listar empresas ativas, por exemplo usar em um combo de filtro em vagas abertas
@@ -216,7 +218,8 @@ export class EmpresaController {
     empresas: empresa[];
   }> {
     const usuarioId = req.user?.sub;
-    return this.empresaService.getEmpresasAtivas(recrutadorId, usuarioId);
+    const lang = req.user?.lang ?? 'pt';
+    return this.empresaService.getEmpresasAtivas(recrutadorId, usuarioId, lang);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -234,5 +237,14 @@ export class EmpresaController {
   @Get('lista-vagas-empresa/:empresaId')
   getListaVagasAtivas(@Param('empresaId', ParseIntPipe) empresaId: number) {
     return this.empresaService.getListaVagasAtivasEmpresa(empresaId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  getEmpresas(@Req() req: Request & { user: JwtPayload }): Promise<{
+    empresas: empresa[];
+  }> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.empresaService.getEmpresas(lang);
   }
 }

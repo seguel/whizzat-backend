@@ -6,19 +6,20 @@ import { skill } from '@prisma/client';
 export class SkillService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSkills(): Promise<skill[]> {
+  async getSkills(language: string): Promise<skill[]> {
     return this.prisma.skill.findMany({
-      where: { ativo: true },
+      where: { ativo: true, linguagem: language },
       orderBy: {
         skill: 'asc', // ou 'desc'
       },
     });
   }
 
-  async getSkillsFiltro(): Promise<skill[]> {
+  async getSkillsFiltro(language: string): Promise<skill[]> {
     return this.prisma.skill.findMany({
       where: {
         ativo: true,
+        linguagem: language,
         vagas: {
           some: {}, // Filtra apenas skills que possuem ao menos uma vaga associada
         },
@@ -46,22 +47,34 @@ export class SkillService {
     });
   }
 
-  async createSkill(data: { nome: string }): Promise<skill> {
+  async createSkill(
+    data: { nome: string },
+    language: string,
+    tipoSkill: number,
+  ): Promise<skill> {
     return this.prisma.skill.create({
       data: {
         skill: data.nome.trim(),
         ativo: true,
+        tipo_skill_id: tipoSkill ?? 1,
+        linguagem: language,
       },
     });
   }
 
-  async createOrGetSkill(nome: string): Promise<skill> {
+  async createOrGetSkill(
+    nome: string,
+    language: string,
+    tipoSkill: number,
+  ): Promise<skill> {
     return this.prisma.skill.upsert({
       where: { skill: nome.trim() },
       update: {}, // não atualiza nada se já existir
       create: {
         skill: nome.trim(),
         ativo: true,
+        tipo_skill_id: tipoSkill ?? 1,
+        linguagem: language,
       },
     });
   }

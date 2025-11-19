@@ -90,7 +90,7 @@ export class AvaliadorService {
           },
           skills: {
             include: {
-              skill: { select: { skill: true } },
+              skill: { select: { skill: true, tipo_skill_id: true } },
             },
           },
         },
@@ -113,6 +113,7 @@ export class AvaliadorService {
       favorito: s.favorito,
       tempo_favorito: s.tempo_favorito,
       nome: s.skill.skill, // pega direto o texto da skill
+      tipo_skill_id: s.skill.tipo_skill_id,
     }));
 
     return {
@@ -194,6 +195,7 @@ export class AvaliadorService {
       logo: data.logo ?? '',
       meio_notificacao: data.meio_notificacao,
       status_cadastro: data.status_cadastro, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
+      linguagem: data.language,
     };
 
     const avaliador = await this.prisma.usuario_perfil_avaliador.create({
@@ -363,10 +365,11 @@ export class AvaliadorService {
     });
   }
 
-  async getEmpresasCadastro(): Promise<{
+  async getEmpresasCadastro(lang: string): Promise<{
     empresas: { id: number; nome_empresa: string }[];
   }> {
     const empresas = await this.prisma.empresa.findMany({
+      where: { linguagem: lang },
       select: {
         id: true,
         nome_empresa: true,
