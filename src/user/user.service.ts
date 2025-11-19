@@ -43,6 +43,7 @@ export class UserService {
     data: Prisma.usuarioUpdateInput,
     email: string,
     primeiro_nome: string,
+    lang: string,
   ): Promise<{ access_token: string; user: usuario }> {
     const updatedUser = await this.prisma.usuario.update({
       where: { id },
@@ -54,6 +55,7 @@ export class UserService {
       email,
       nome: primeiro_nome,
       perfil: data.id_perfil,
+      lang: lang,
     };
 
     const token = this.jwtService.sign(payload);

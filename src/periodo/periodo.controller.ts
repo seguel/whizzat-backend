@@ -5,10 +5,12 @@ import {
   Get,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { PeriodoService } from './periodo.service';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { periodo_trabalho } from '@prisma/client';
 
 @Controller('Periodos')
@@ -25,7 +27,10 @@ export class PeriodoController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getPeriodos(): Promise<periodo_trabalho[]> {
-    return this.periodoService.getPeriodos();
+  getPeriodos(
+    @Req() req: Request & { user: JwtPayload },
+  ): Promise<periodo_trabalho[]> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.periodoService.getPeriodos(lang);
   }
 }

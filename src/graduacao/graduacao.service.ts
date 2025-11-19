@@ -5,9 +5,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class GraduacaoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getGraduacoes() {
+  async getGraduacoes(language: string) {
     return this.prisma.graduacao.findMany({
-      where: { ativo: true },
+      where: { ativo: true, linguagem: language },
       orderBy: {
         graduacao: 'asc', // ou 'desc'
       },

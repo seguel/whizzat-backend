@@ -5,9 +5,10 @@ import {
   Get,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { SkillService } from './skill.service';
-
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { skill } from '@prisma/client';
 
@@ -17,8 +18,11 @@ export class SkillController {
 
   @UseGuards(JwtAuthGuard)
   @Get('filtro')
-  getSkillsFiltro(): Promise<skill[]> {
-    return this.skillService.getSkillsFiltro();
+  getSkillsFiltro(
+    @Req() req: Request & { user: JwtPayload },
+  ): Promise<skill[]> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.skillService.getSkillsFiltro(lang);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -29,7 +33,8 @@ export class SkillController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getSkills(): Promise<skill[]> {
-    return this.skillService.getSkills();
+  getSkills(@Req() req: Request & { user: JwtPayload }): Promise<skill[]> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.skillService.getSkills(lang);
   }
 }
