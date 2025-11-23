@@ -223,6 +223,15 @@ export class EmpresaController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('filtro-ativas-all')
+  getEmpresasAtivasAll(@Req() req: Request & { user: JwtPayload }): Promise<{
+    empresas: empresa[];
+  }> {
+    const lang = req.user?.lang ?? 'pt';
+    return this.empresaService.getEmpresasAtivasAll(lang);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id/recrutador/:recrutadorId')
   getEmpresa(
     @Param('id', ParseIntPipe) id: number,

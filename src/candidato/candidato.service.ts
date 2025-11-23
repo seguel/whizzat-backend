@@ -1,0 +1,346 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { JwtService } from '@nestjs/jwt';
+/* import * as jwt from 'jsonwebtoken';
+
+interface JwtPayload {
+  userId: number;
+  empresaId: number;
+} */
+
+@Injectable()
+export class CandidatoService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
+
+  async getCheckHasPerfil(
+    usuarioId: number,
+    perfilId: number,
+  ): Promise<{ id: number | null; usuario_id: number }> {
+    const registro = await this.prisma.usuario_perfil_candidato.findUnique({
+      where: {
+        ativo: true,
+        usuario_id_perfil_id: {
+          // <-- chave composta
+          usuario_id: usuarioId,
+          perfil_id: perfilId,
+        },
+      },
+      select: { id: true }, // só pode usar colunas existentes
+    });
+
+    return {
+      id: registro?.id ?? null,
+      usuario_id: usuarioId, // adiciona manualmente
+    };
+  }
+
+  async getCheckHasPerfilCadastro(
+    usuarioId: number,
+    perfilId: number,
+    nomeUser: string,
+  ): Promise<{ id: number | null; usuario_id: number; nome_user: string }> {
+    const registro = await this.prisma.usuario_perfil_candidato.findUnique({
+      where: {
+        usuario_id_perfil_id: {
+          // <-- chave composta
+          usuario_id: usuarioId,
+          perfil_id: perfilId,
+        },
+      },
+      select: { id: true }, // só pode usar colunas existentes
+    });
+
+    return {
+      id: registro?.id ?? null,
+      usuario_id: usuarioId, // adiciona manualmente
+      nome_user: nomeUser,
+    };
+  }
+
+  async getCandidato(
+    id: number,
+    usuarioId: number,
+    perfilId: number,
+    nomeUser: string,
+  ) {
+    const candidato =
+      await this.prisma.usuario_perfil_candidato.findFirstOrThrow({
+        where: { id, usuario_id: usuarioId, perfil_id: perfilId },
+        include: {
+          formacao: {
+            include: {
+              graduacao: { select: { graduacao: true } },
+            },
+          },
+          certificacoes: {
+            include: {
+              certificacoes: { select: { certificado: true } },
+            },
+          },
+          skills: {
+            include: {
+              skill: { select: { skill: true, tipo_skill_id: true } },
+            },
+          },
+        },
+      });
+
+    // 🔹 Achatar as certificacoes
+    const certificacoes = candidato.certificacoes.map((s) => ({
+      id: s.id,
+      candidato_id: s.candidato_id,
+      certificacao_id: s.certificacao_id,
+      certificado: s.certificacoes.certificado,
+      certificado_file: s.certificado_file,
+    }));
+
+    const skills = candidato.skills.map((s) => ({
+      id: s.id,
+      candidato_id: s.candidato_id,
+      skill_id: s.skill_id,
+      peso: s.peso,
+      favorito: s.favorito,
+      tempo_favorito: s.tempo_favorito,
+      nome: s.skill.skill, // pega direto o texto da skill
+      tipo_skill_id: s.skill.tipo_skill_id,
+    }));
+
+    return {
+      ...candidato,
+      nomeUser,
+      skills,
+      certificacoes,
+    };
+  }
+
+  async createCandidato(data: {
+    usuario_id: number;
+    perfil_id: number;
+    telefone: string;
+    localizacao: string;
+    apresentacao: string;
+    logo?: string;
+    meio_notificacao: string;
+    language: string;
+  }) {
+    const createData: Prisma.usuario_perfil_candidatoCreateInput = {
+      usuario: {
+        connect: { id: data.usuario_id },
+      },
+      perfil: {
+        connect: { id: data.perfil_id },
+      },
+      telefone: data.telefone,
+      localizacao: data.localizacao,
+      apresentacao: data.apresentacao,
+      logo: data.logo ?? '',
+      meio_notificacao: data.meio_notificacao,
+      linguagem: data.language,
+    };
+
+    const candidato = await this.prisma.usuario_perfil_candidato.create({
+      data: createData,
+    });
+
+    return {
+      id: candidato.id,
+    };
+  }
+
+  async updateCandidato(data: {
+    candidato_id: number;
+    usuario_id: number;
+    perfil_id: number;
+    telefone: string;
+    localizacao: string;
+    apresentacao: string;
+    logo?: string;
+    meio_notificacao: string;
+    ativo: boolean;
+    language: string;
+  }) {
+    const updateData: Prisma.usuario_perfil_candidatoUpdateInput = {
+      telefone: data.telefone,
+      localizacao: data.localizacao,
+      apresentacao: data.apresentacao,
+      logo: data.logo ?? '',
+      meio_notificacao: data.meio_notificacao,
+      ativo: data.ativo,
+    };
+
+    return this.prisma.usuario_perfil_candidato.update({
+      where: { id: data.candidato_id },
+      data: updateData,
+    });
+  }
+
+  async createCandidatoSkills(skills: Prisma.candidato_skillCreateManyInput[]) {
+    return this.prisma.candidato_skill.createMany({
+      data: skills,
+    });
+  }
+
+  async updateCandidatoSkills(
+    candidato_id: number,
+    skills: {
+      candidato_id: number;
+      skill_id: number;
+      peso: number;
+      favorito: boolean;
+      tempo_favorito: string;
+    }[],
+  ) {
+    // Busca skills atuais do candidato
+    const existentes = await this.prisma.candidato_skill.findMany({
+      where: { candidato_id },
+    });
+
+    const idsExistentes = existentes.map((s) => s.skill_id);
+    const idsNovos = skills.map((s) => s.skill_id);
+
+    // 🔹 Remove apenas as skills que não estão mais no novo array
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.candidato_skill.deleteMany({
+        where: { candidato_id, skill_id: { in: paraRemover } },
+      });
+    }
+
+    // 🔹 Atualiza ou cria
+    for (const s of skills) {
+      const existente = existentes.find((e) => e.skill_id === s.skill_id);
+      if (existente) {
+        // Atualiza apenas se houve mudança real
+        const precisaAtualizar =
+          existente.peso !== s.peso ||
+          existente.favorito !== s.favorito ||
+          existente.tempo_favorito !== s.tempo_favorito;
+
+        if (precisaAtualizar) {
+          await this.prisma.candidato_skill.updateMany({
+            where: { candidato_id, skill_id: s.skill_id },
+            data: {
+              peso: s.peso,
+              favorito: s.favorito,
+              tempo_favorito: s.tempo_favorito,
+            },
+          });
+        }
+      } else {
+        // Cria nova
+        await this.prisma.candidato_skill.create({ data: s });
+      }
+    }
+  }
+
+  async createCandidatoFormacao(
+    formacoes: Prisma.candidato_formacao_academicaCreateManyInput[],
+  ) {
+    return this.prisma.candidato_formacao_academica.createMany({
+      data: formacoes,
+    });
+  }
+
+  async updateCandidatoFormacao(
+    candidato_id: number,
+    formacoes: {
+      candidato_id: number;
+      graduacao_id: number;
+      formacao: string;
+      certificado_file: string;
+    }[],
+  ) {
+    // Busca formacoes atuais no banco
+    const existentes = await this.prisma.candidato_formacao_academica.findMany({
+      where: { candidato_id },
+    });
+
+    // IDs atuais e novos
+    const idsExistentes = existentes.map((f) => f.graduacao_id);
+    const idsNovos = formacoes.map((f) => f.graduacao_id);
+
+    // Remove apenas as formações que não estão mais no novo array
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.candidato_formacao_academica.deleteMany({
+        where: { candidato_id, graduacao_id: { in: paraRemover } },
+      });
+    }
+
+    // Atualiza ou cria
+    for (const f of formacoes) {
+      const existente = existentes.find(
+        (e) => e.graduacao_id === f.graduacao_id,
+      );
+      if (existente) {
+        await this.prisma.candidato_formacao_academica.updateMany({
+          where: { candidato_id, graduacao_id: f.graduacao_id },
+          data: {
+            formacao: f.formacao,
+            certificado_file: f.certificado_file || existente.certificado_file,
+          },
+        });
+      } else {
+        await this.prisma.candidato_formacao_academica.create({
+          data: f,
+        });
+      }
+    }
+  }
+
+  async createCandidatoCertificacoes(
+    certificacoes: Prisma.candidato_certificacoesCreateManyInput[],
+  ) {
+    return this.prisma.candidato_certificacoes.createMany({
+      data: certificacoes,
+    });
+  }
+
+  async updateCandidatoCertificacoes(
+    candidato_id: number,
+    certificacoes: {
+      candidato_id: number;
+      certificacao_id: number;
+      certificado_file: string;
+    }[],
+  ) {
+    // Busca certificações atuais no banco
+    const existentes = await this.prisma.candidato_certificacoes.findMany({
+      where: { candidato_id },
+    });
+
+    const idsExistentes = existentes.map((c) => c.certificacao_id);
+    const idsNovos = certificacoes.map((c) => c.certificacao_id);
+
+    // Remove apenas as que sumiram
+    const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
+    if (paraRemover.length > 0) {
+      await this.prisma.candidato_certificacoes.deleteMany({
+        where: { candidato_id, certificacao_id: { in: paraRemover } },
+      });
+    }
+
+    // Atualiza ou cria
+    for (const c of certificacoes) {
+      const existente = existentes.find(
+        (e) => e.certificacao_id === c.certificacao_id,
+      );
+      if (existente) {
+        await this.prisma.candidato_certificacoes.updateMany({
+          where: { candidato_id, certificacao_id: c.certificacao_id },
+          data: {
+            certificado_file: c.certificado_file || existente.certificado_file,
+          },
+        });
+      } else {
+        await this.prisma.candidato_certificacoes.create({
+          data: c,
+        });
+      }
+    }
+  }
+}

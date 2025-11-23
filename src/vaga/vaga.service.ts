@@ -336,42 +336,102 @@ export class VagaService {
     return vagasPlanas;
   }
 
-  async getVagas(lang: string): Promise<{ vagas: any[] }> {
-    const vagas = await this.prisma.empresa_vaga.findMany({
-      where: {
-        ativo: true,
-        empresa: {
-          ativo: true,
-          linguagem: lang,
-        },
-      },
-      include: {
-        modalidade_trabalho: true,
-        periodo_trabalho: true,
-        skills: {
+  async getVagas(lang: string, modalidadeId?: string, skill?: string) {
+    // Tipagem segura do where
+    const whereEmpresa: Prisma.empresaWhereInput = {
+      linguagem: lang,
+      ativo: true,
+    };
+
+    // Consulta
+    const empresas = await this.prisma.empresa.findMany({
+      where: whereEmpresa,
+      select: {
+        id: true,
+        logo: true,
+        nome_empresa: true,
+        vagas: {
+          where: {
+            ativo: true,
+            ...(modalidadeId && modalidadeId !== 'todos'
+              ? { modalidade_trabalho_id: Number(modalidadeId) }
+              : {}),
+            ...(skill && skill !== 'todos'
+              ? {
+                  skills: {
+                    some: {
+                      skill: {
+                        skill: skill, // campo da tabela skill
+                      },
+                    },
+                  },
+                }
+              : {}),
+          },
           select: {
-            skill_id: true,
-            peso: true,
-            avaliador_proprio: true,
-            skill: {
+            vaga_id: true,
+            nome_vaga: true,
+            local_vaga: true,
+            pcd: true,
+            lgbtq: true,
+            mulheres: true,
+            cinquenta_mais: true,
+            qtde_dias_aberta: true,
+            data_cadastro: true,
+            skills: {
               select: {
-                skill: true,
-                tipo_skill_id: true,
+                skill: {
+                  select: {
+                    skill: true,
+                    tipo_skill_id: true,
+                  },
+                },
               },
             },
-          },
-        },
-        empresa: {
-          select: {
-            nome_empresa: true,
-            logo: true,
           },
         },
       },
     });
 
-    return {
-      vagas, // se não houver nada, retorna []
-    };
+    const agora = new Date();
+
+    const vagasPlanas = empresas
+      .flatMap((empresa) =>
+        empresa.vagas
+          .filter((vaga) => {
+            const prazoDate = new Date(vaga.data_cadastro);
+            prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
+            return prazoDate >= agora; // mantém apenas as vagas válidas
+          })
+          .map((vaga) => {
+            const prazoDate = new Date(vaga.data_cadastro);
+            prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
+
+            return {
+              empresa_id: empresa.id,
+              logo: empresa.logo,
+              nome_empresa: empresa.nome_empresa,
+              vaga_id: vaga.vaga_id,
+              nome_vaga: vaga.nome_vaga,
+              localizacao: vaga.local_vaga,
+              data_cadastro: vaga.data_cadastro,
+              qtde_dias_aberta: vaga.qtde_dias_aberta,
+              prazo: prazoDate.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+              }),
+              prazo_timestamp: prazoDate.getTime(), // adiciona para facilitar ordenação
+              pcd: vaga.pcd,
+              lgbtq: vaga.lgbtq,
+              mulheres: vaga.mulheres,
+              cinquenta_mais: vaga.cinquenta_mais,
+              skills: vaga.skills.map((s) => s.skill.skill),
+            };
+          }),
+      )
+      // ordena globalmente: vencimento mais próximo primeiro
+      .sort((a, b) => a.prazo_timestamp - b.prazo_timestamp);
+
+    return vagasPlanas;
   }
 }
