@@ -1,4 +1,3 @@
-//import { Controller } from '@nestjs/common';
 import {
   Param,
   Controller,
@@ -10,27 +9,24 @@ import {
   Body,
   UseInterceptors,
   UploadedFiles,
-  Headers,
-  BadRequestException,
 } from '@nestjs/common';
-import { AvaliadorService } from './avaliador.service';
+import { CandidatoService } from './candidato.service';
 import { SkillService } from '../skill/skill.service';
 import { CertificacoesService } from '../certificacoes/certificacoes.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Request } from 'express';
-import { CreateAvaliadorDto } from './dto/create-avaliador.dto';
-import { UpdateAvaliadorDto } from './dto/update-avaliador.dto';
-import { CreateAvaliadorSkillDto } from './dto/create-avaliador-skill.dto';
-import { CreateNovaSkillAvaliadorDto } from './dto/create-nova-skill.dto';
-import { CreateAvaliadorFormacaoDto } from './dto/create-avaliador-formacao.dto';
-import { CreateAvaliadorCertificadosDto } from './dto/create-avaliador-certificados.dto';
-import { CreateNovoCertificadoAvaliadorDto } from './dto/create-novo-certificado.dto';
+import { CreateCandidatoDto } from './dto/create-candidato.dto';
+import { UpdateCandidatoDto } from './dto/update-candidato.dto';
+import { CreateCandidatoSkillDto } from './dto/create-candidato-skill.dto';
+import { CreateNovaSkillCandidatoDto } from './dto/create-nova-skill.dto';
+import { CreateCandidatoFormacaoDto } from './dto/create-candidato-formacao.dto';
+import { CreateCandidatoCertificadosDto } from './dto/create-candidato-certificados.dto';
+import { CreateNovoCertificadoCandidatoDto } from './dto/create-novo-certificado.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
-import { I18nService } from 'nestjs-i18n';
 import { safeJsonParse } from '../lib/safe-json-parse';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
@@ -38,13 +34,12 @@ if (!existsSync(uploadDir)) {
   mkdirSync(uploadDir, { recursive: true });
 }
 
-@Controller('avaliador')
-export class AvaliadorController {
+@Controller('candidato')
+export class CandidatoController {
   constructor(
-    private readonly avaliadorService: AvaliadorService,
+    private readonly candidatoService: CandidatoService,
     private readonly skillService: SkillService,
     private readonly certificacoesService: CertificacoesService,
-    private readonly i18n: I18nService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -55,7 +50,7 @@ export class AvaliadorController {
   ) {
     const usuarioId = req.user?.sub;
 
-    return this.avaliadorService.getCheckHasPerfil(usuarioId, perfilId);
+    return this.candidatoService.getCheckHasPerfil(usuarioId, perfilId);
   }
 
   //Ese é usado somente no perfil, para ver se existe mesmo que esteja inativo, e poder ativar
@@ -68,7 +63,7 @@ export class AvaliadorController {
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
 
-    return this.avaliadorService.getCheckHasPerfilCadastro(
+    return this.candidatoService.getCheckHasPerfilCadastro(
       usuarioId,
       perfilId,
       nomeUser,
@@ -76,7 +71,7 @@ export class AvaliadorController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('create-avaliador')
+  @Post('create-candidato')
   @UseInterceptors(
     AnyFilesInterceptor({
       storage: diskStorage({
@@ -95,19 +90,19 @@ export class AvaliadorController {
       limits: { fileSize: 10 * 1024 * 1024 }, // até 10MB
     }),
   )
-  async createAvaliador(
+  async createCandidato(
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
-    @Body() body: CreateAvaliadorDto,
+    @Body() body: CreateCandidatoDto,
   ) {
     /* console.log(
-      'Arquivos recebidos:',
-      files.map((f) => ({
-        field: f.fieldname,
-        name: f.originalname,
-        mimetype: f.mimetype,
-      })),
-    ); */
+        'Arquivos recebidos:',
+        files.map((f) => ({
+          field: f.fieldname,
+          name: f.originalname,
+          mimetype: f.mimetype,
+        })),
+      ); */
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
     const lang = req.user?.lang ?? 'pt';
@@ -123,32 +118,29 @@ export class AvaliadorController {
     );
 
     // Parse seguro dos dados
-    const formacoes = safeJsonParse<CreateAvaliadorFormacaoDto[]>(
+    const formacoes = safeJsonParse<CreateCandidatoFormacaoDto[]>(
       body.formacoes,
     );
-    const certificados = safeJsonParse<CreateAvaliadorCertificadosDto[]>(
+    const certificados = safeJsonParse<CreateCandidatoCertificadosDto[]>(
       body.certificacoes,
     );
     const novosCertificados = safeJsonParse<
-      CreateNovoCertificadoAvaliadorDto[]
+      CreateNovoCertificadoCandidatoDto[]
     >(body.novas_certificacoes);
-    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills);
-    const novasSkills = safeJsonParse<CreateNovaSkillAvaliadorDto[]>(
+    const skills = safeJsonParse<CreateCandidatoSkillDto[]>(body.skills);
+    const novasSkills = safeJsonParse<CreateNovaSkillCandidatoDto[]>(
       body.novas_skills,
     );
 
-    // Cria o avaliador
-    const avaliador = await this.avaliadorService.createAvaliador({
+    // Cria o candidato
+    const candidato = await this.candidatoService.createCandidato({
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
-      empresa_id: body.empresaId ? Number(body.empresaId) : null,
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
-      avaliar_todos: body.avaliar_todos,
       logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
       meio_notificacao: body.meio_notificacao,
-      status_cadastro: body.empresaId ? -1 : 1,
       language: lang,
     });
 
@@ -159,7 +151,7 @@ export class AvaliadorController {
           (f) => f.fieldname === formacao.certificado_field,
         );
         return {
-          avaliador_id: avaliador.id,
+          candidato_id: candidato.id,
           graduacao_id: formacao.graduacao_id,
           formacao: formacao.formacao ?? '',
           certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
@@ -167,40 +159,32 @@ export class AvaliadorController {
       }) ?? [];
 
     if (montaFormacoes.length > 0) {
-      await this.avaliadorService.createAvaliadorFormacao(montaFormacoes);
+      await this.candidatoService.createCandidatoFormacao(montaFormacoes);
     }
-
-    // console.log(certificados);
-    // console.log(novosCertificados);
-    // console.log('----');
 
     // certificações já existentes
     const certificacoesExistentes =
       certificados?.map((certificado) => ({
-        avaliador_id: avaliador.id,
+        candidato_id: candidato.id,
         certificacao_id: Number(certificado.certificacao_id),
       })) ?? [];
 
     // certificações novas
     const certificacoesNovas = await Promise.all(
       (novosCertificados ?? []).map(
-        async (novoCertificado: CreateNovoCertificadoAvaliadorDto) => {
+        async (novoCertificado: CreateNovoCertificadoCandidatoDto) => {
           const certificado =
             await this.certificacoesService.createOrGetCertificado(
               novoCertificado.certificado,
               lang,
             );
           return {
-            avaliador_id: avaliador.id,
+            candidato_id: candidato.id,
             certificacao_id: Number(certificado.id),
           };
         },
       ),
     );
-
-    // console.log(certificacoesExistentes);
-    // console.log(certificacoesNovas);
-    // return;
 
     // Junta todas as certificações e anexa o arquivo (file) correspondente
     const todasCertificacoes = [
@@ -209,7 +193,7 @@ export class AvaliadorController {
     ].map((certificado, index) => {
       const file = certificacaoCertificados[index]; // pega o arquivo pelo index
       return {
-        avaliador_id: certificado.avaliador_id,
+        candidato_id: certificado.candidato_id,
         certificacao_id: certificado.certificacao_id,
         certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
       };
@@ -221,7 +205,7 @@ export class AvaliadorController {
     );
 
     if (todasCertificacoesValidas.length > 0) {
-      await this.avaliadorService.createAvaliadorCertificacoes(
+      await this.candidatoService.createCandidatoCertificacoes(
         todasCertificacoesValidas,
       );
     }
@@ -229,7 +213,7 @@ export class AvaliadorController {
     // Skills existentes
     const skillsExistentes =
       skills?.map((skill) => ({
-        avaliador_id: avaliador.id,
+        candidato_id: candidato.id,
         skill_id: skill.skill_id,
         peso: skill.peso,
         favorito: skill.favorito,
@@ -245,7 +229,7 @@ export class AvaliadorController {
           novaSkill.tipo_skill_id,
         );
         return {
-          avaliador_id: avaliador.id,
+          candidato_id: candidato.id,
           skill_id: skill.skill_id,
           peso: novaSkill.peso,
           favorito: novaSkill.favorito,
@@ -258,7 +242,7 @@ export class AvaliadorController {
       (
         skill,
       ): skill is {
-        avaliador_id: number;
+        candidato_id: number;
         skill_id: number;
         peso: number;
         favorito: boolean;
@@ -268,21 +252,21 @@ export class AvaliadorController {
     );
 
     if (todasSkills.length > 0) {
-      await this.avaliadorService.createAvaliadorSkills(todasSkills);
+      await this.candidatoService.createCandidatoSkills(todasSkills);
     }
 
-    // Retorna avaliador completo
-    const avaliadorCompleto = await this.avaliadorService.getAvaliador(
-      avaliador.id,
+    // Retorna candidato completo
+    const candidatoCompleto = await this.candidatoService.getCandidato(
+      candidato.id,
       usuarioId,
       body.perfilId,
       nomeUser,
     );
 
     return {
-      ...avaliadorCompleto,
-      skills: avaliadorCompleto?.skills?.map((s) => ({
-        avaliador_id: s.avaliador_id,
+      ...candidatoCompleto,
+      skills: candidatoCompleto?.skills?.map((s) => ({
+        candidato_id: s.candidato_id,
         skill_id: s.skill_id,
         peso: s.peso,
         favorito: s.favorito,
@@ -294,7 +278,7 @@ export class AvaliadorController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('update-avaliador')
+  @Post('update-candidato')
   @UseInterceptors(
     AnyFilesInterceptor({
       storage: diskStorage({
@@ -313,10 +297,10 @@ export class AvaliadorController {
       limits: { fileSize: 10 * 1024 * 1024 }, // até 10MB
     }),
   )
-  async updateAvaliador(
+  async updateCandidato(
     @UploadedFiles() files: Express.Multer.File[],
     @Req() req: Request & { user: JwtPayload },
-    @Body() body: UpdateAvaliadorDto, // <-- adicionar perfil_id no body
+    @Body() body: UpdateCandidatoDto, // <-- adicionar perfil_id no body
   ) {
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
@@ -335,39 +319,37 @@ export class AvaliadorController {
     // console.log(certificacaoCertificados);
 
     // Parse seguro dos dados
-    const formacoes = safeJsonParse<CreateAvaliadorFormacaoDto[]>(
+    const formacoes = safeJsonParse<CreateCandidatoFormacaoDto[]>(
       body.formacoes,
     );
-    const certificados = safeJsonParse<CreateAvaliadorCertificadosDto[]>(
+    const certificados = safeJsonParse<CreateCandidatoCertificadosDto[]>(
       body.certificacoes,
     );
     const novosCertificados = safeJsonParse<
-      CreateNovoCertificadoAvaliadorDto[]
+      CreateNovoCertificadoCandidatoDto[]
     >(body.novas_certificacoes);
-    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills);
-    const novasSkills = safeJsonParse<CreateNovaSkillAvaliadorDto[]>(
+    const skills = safeJsonParse<CreateCandidatoSkillDto[]>(body.skills);
+    const novasSkills = safeJsonParse<CreateNovaSkillCandidatoDto[]>(
       body.novas_skills,
     );
 
-    const avaliadorAtual = await this.avaliadorService.getAvaliador(
-      body.avaliadorId,
+    const candidatoAtual = await this.candidatoService.getCandidato(
+      body.candidatoId,
       usuarioId,
       body.perfilId,
       nomeUser,
     );
 
-    const avaliador = await this.avaliadorService.updateAvaliador({
-      avaliador_id: body.avaliadorId,
+    const candidato = await this.candidatoService.updateCandidato({
+      candidato_id: body.candidatoId,
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
-      empresa_id: body.empresaId ? Number(body.empresaId) : null,
       telefone: body.telefone,
       localizacao: body.localizacao,
       apresentacao: body.apresentacao,
-      avaliar_todos: body.avaliar_todos,
       logo: logoFile
         ? `${BASE_URL}/uploads/${logoFile.filename}`
-        : avaliadorAtual?.logo,
+        : candidatoAtual?.logo,
       meio_notificacao: body.meio_notificacao,
       ativo: body.ativo,
       language: lang,
@@ -376,7 +358,7 @@ export class AvaliadorController {
     // skills existentes
     const skillsExistentes =
       skills?.map((skill) => ({
-        avaliador_id: avaliador.id,
+        candidato_id: candidato.id,
         skill_id: skill.skill_id,
         peso: skill.peso,
         favorito: skill.favorito,
@@ -393,7 +375,7 @@ export class AvaliadorController {
         );
 
         return {
-          avaliador_id: avaliador.id,
+          candidato_id: candidato.id,
           skill_id: skill.skill_id,
           peso: novaSkill.peso,
           favorito: novaSkill.favorito,
@@ -406,7 +388,7 @@ export class AvaliadorController {
       (
         skill,
       ): skill is {
-        avaliador_id: number;
+        candidato_id: number;
         skill_id: number;
         peso: number;
         favorito: boolean;
@@ -415,8 +397,8 @@ export class AvaliadorController {
     );
 
     if (todasSkills.length > 0) {
-      await this.avaliadorService.updateAvaliadorSkills(
-        body.avaliadorId,
+      await this.candidatoService.updateCandidatoSkills(
+        body.candidatoId,
         todasSkills,
       );
     }
@@ -428,7 +410,7 @@ export class AvaliadorController {
           (f) => f.fieldname === formacao.certificado_field,
         );
         return {
-          avaliador_id: avaliador.id,
+          candidato_id: candidato.id,
           graduacao_id: formacao.graduacao_id,
           formacao: formacao.formacao ?? '',
           certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
@@ -436,8 +418,8 @@ export class AvaliadorController {
       }) ?? [];
 
     // if (montaFormacoes.length > 0) {
-    await this.avaliadorService.updateAvaliadorFormacao(
-      body.avaliadorId,
+    await this.candidatoService.updateCandidatoFormacao(
+      body.candidatoId,
       montaFormacoes,
     );
     // }
@@ -445,7 +427,7 @@ export class AvaliadorController {
     // certificações já existentes
     const certificacoesExistentes =
       certificados?.map((certificado) => ({
-        avaliador_id: avaliador.id,
+        candidato_id: candidato.id,
         certificacao_id: Number(certificado.certificacao_id),
         certificado_field: certificado.certificado_field ?? undefined,
       })) ?? [];
@@ -456,7 +438,7 @@ export class AvaliadorController {
         .filter((c) => Number(c.certificacao_id) < 0)
         .map(
           async (
-            novoCertificado: CreateNovoCertificadoAvaliadorDto & {
+            novoCertificado: CreateNovoCertificadoCandidatoDto & {
               certificado_field?: string;
             },
           ) => {
@@ -467,7 +449,7 @@ export class AvaliadorController {
               );
 
             return {
-              avaliador_id: avaliador.id,
+              candidato_id: candidato.id,
               certificacao_id: Number(certificado.id),
               certificado_field: novoCertificado.certificado_field ?? undefined,
             };
@@ -488,7 +470,7 @@ export class AvaliadorController {
           (f) => f.fieldname === certificado.certificado_field,
         );
         return {
-          avaliador_id: certificado.avaliador_id,
+          candidato_id: certificado.candidato_id,
           certificacao_id: certificado.certificacao_id,
           certificado_file: file ? `${BASE_URL}/uploads/${file.filename}` : '',
         };
@@ -502,23 +484,23 @@ export class AvaliadorController {
     // console.log(todasCertificacoesValidas);
 
     // if (todasCertificacoesValidas.length > 0) {
-    await this.avaliadorService.updateAvaliadorCertificacoes(
-      body.avaliadorId,
+    await this.candidatoService.updateCandidatoCertificacoes(
+      body.candidatoId,
       todasCertificacoesValidas,
     );
     // }
 
     // ✅ usar perfil_id
-    const avaliadorCompleto = await this.avaliadorService.getAvaliador(
-      avaliador.id,
+    const candidatoCompleto = await this.candidatoService.getCandidato(
+      candidato.id,
       usuarioId,
       body.perfilId,
       nomeUser,
     );
 
-    const avaliadorComSkillsMapeadas = {
-      ...avaliadorCompleto,
-      skills: avaliadorCompleto?.skills?.map((s) => ({
+    const candidatoComSkillsMapeadas = {
+      ...candidatoCompleto,
+      skills: candidatoCompleto?.skills?.map((s) => ({
         skill_id: s.skill_id,
         peso: s.peso,
         favorito: s.favorito,
@@ -528,12 +510,12 @@ export class AvaliadorController {
       })),
     };
 
-    return avaliadorComSkillsMapeadas;
+    return candidatoComSkillsMapeadas;
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id/perfil/:perfilId')
-  getAvaliador(
+  getCandidato(
     @Param('id', ParseIntPipe) id: number,
     @Param('perfilId', ParseIntPipe) perfilId: number,
     @Req() req: Request & { user: JwtPayload },
@@ -541,134 +523,11 @@ export class AvaliadorController {
     const usuarioId = req.user?.sub;
     const nomeUser = req.user?.nome;
 
-    return this.avaliadorService.getAvaliador(
+    return this.candidatoService.getCandidato(
       id,
       usuarioId,
       perfilId,
       nomeUser,
     );
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('recrutador/:id')
-  getAvaliadores(@Param('id', ParseIntPipe) id: number) {
-    return this.avaliadorService.getAvaliadores(id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('empresas-cadastro')
-  getEmpresasCadastro(@Req() req: Request & { user: JwtPayload }) {
-    const lang = req.user?.lang ?? 'pt';
-    return this.avaliadorService.getEmpresasCadastro(lang);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('reenviar-solicitacao/:id')
-  resendLink(
-    @Param('id', ParseIntPipe) id: number,
-    @Req() req: Request & { user: JwtPayload },
-  ) {
-    const usuarioId = req.user?.sub;
-    const lang = req.user?.lang ?? 'pt';
-
-    return this.avaliadorService.resendLink(id, usuarioId, lang);
-  }
-
-  @Post('activate')
-  async activateAccount(
-    @Body('token') token: string,
-    @Headers('accept-language') language: string,
-  ) {
-    if (!token) {
-      const messageRetorno = this.i18n.translate('common.auth.token_invalido', {
-        lang: language,
-      });
-      throw new BadRequestException(messageRetorno);
-    }
-
-    const user = await this.avaliadorService.activateUserByToken(
-      token,
-      language,
-      3,
-    );
-    const messageRetorno = this.i18n.translate(
-      'common.auth.conta_ativada_sucesso',
-      {
-        lang: language,
-      },
-    );
-    return { message: messageRetorno, user };
-  }
-
-  @Post('reject')
-  async rejectAccount(
-    @Body('token') token: string,
-    @Headers('accept-language') language: string,
-  ) {
-    if (!token) {
-      const messageRetorno = this.i18n.translate('common.auth.token_invalido', {
-        lang: language,
-      });
-      throw new BadRequestException(messageRetorno);
-    }
-
-    const user = await this.avaliadorService.rejectUserByToken(
-      token,
-      language,
-      3,
-    );
-    const messageRetorno = this.i18n.translate(
-      'common.auth.conta_reject_sucesso',
-      {
-        lang: language,
-      },
-    );
-    return { message: messageRetorno, user };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('activate-form')
-  async activateAccountForm(
-    @Body() body: { id: number; empresa_id: number },
-    @Req() req: Request & { user: JwtPayload },
-  ) {
-    const { id, empresa_id } = body;
-    const lang = req.user?.lang ?? 'pt';
-
-    const user = await this.avaliadorService.activateUserByForm(
-      id,
-      empresa_id,
-      lang,
-    );
-    const messageRetorno = this.i18n.translate(
-      'common.auth.conta_ativada_sucesso',
-      {
-        lang: lang,
-      },
-    );
-    return { message: messageRetorno, user };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('reject-form')
-  async rejectAccountForm(
-    @Body() body: { id: number; empresa_id: number },
-    @Req() req: Request & { user: JwtPayload },
-  ) {
-    const { id, empresa_id } = body;
-    const lang = req.user?.lang ?? 'pt';
-
-    const user = await this.avaliadorService.rejectUserByForm(
-      id,
-      empresa_id,
-      lang,
-    );
-    const messageRetorno = this.i18n.translate(
-      'common.auth.conta_reject_sucesso',
-      {
-        lang: lang,
-      },
-    );
-    return { message: messageRetorno, user };
   }
 }
