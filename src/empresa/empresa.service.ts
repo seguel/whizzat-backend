@@ -273,6 +273,22 @@ export class EmpresaService {
     };
   }
 
+  async getEmpresasAtivasAll(lang: string): Promise<{ empresas: any[] }> {
+    const empresas = await this.prisma.empresa.findMany({
+      where: {
+        ativo: true,
+        linguagem: lang,
+      },
+      orderBy: {
+        nome_empresa: 'asc',
+      },
+    });
+
+    return {
+      empresas, // se não houver nada, retorna []
+    };
+  }
+
   async getEmpresa(
     recrutadorId: number,
     /* usuarioId: number,

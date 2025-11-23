@@ -57,7 +57,6 @@ export class VagaController {
         skill_id: skill.skill_id,
         peso: skill.peso,
         avaliador_proprio: skill.avaliador_proprio,
-        tipo_skill_id: skill.tipo_skill_id,
       })) ?? [];
 
     // Skills novas
@@ -74,7 +73,6 @@ export class VagaController {
           skill_id: skill.skill_id,
           peso: novaSkill.peso,
           avaliador_proprio: novaSkill.avaliador_proprio,
-          tipo_skill_id: novaSkill.tipo_skill_id,
         };
       }),
     );
@@ -87,7 +85,6 @@ export class VagaController {
         skill_id: number;
         peso: number;
         avaliador_proprio: boolean;
-        tipo_skill_id: number;
       } => typeof skill.skill_id === 'number',
     );
 
@@ -275,10 +272,15 @@ export class VagaController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getVagas(@Req() req: Request & { user: JwtPayload }): Promise<{
-    vagas: empresa[];
-  }> {
+  getVagas(
+    @Req() req: Request & { user: JwtPayload },
+    @Query('modalidadeId') modalidadeId?: string,
+    @Query('skill') skill?: string,
+  ) {
     const lang = req.user?.lang ?? 'pt';
-    return this.vagaService.getVagas(lang);
+    const modalidadeFiltro = modalidadeId || 'todos';
+    const skillFiltro = skill || 'todos';
+
+    return this.vagaService.getVagas(lang, modalidadeFiltro, skillFiltro);
   }
 }
