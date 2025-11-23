@@ -21,6 +21,7 @@ import {
 import { VagaModule } from './vaga/vaga.module';
 import { GraduacaoModule } from './graduacao/graduacao.module';
 import { CertificacoesModule } from './certificacoes/certificacoes.module';
+import { CandidatoModule } from './candidato/candidato.module';
 import * as path from 'path';
 
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
@@ -61,6 +62,7 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     VagaModule,
     GraduacaoModule,
     CertificacoesModule,
+    CandidatoModule,
   ],
   providers: [MailService],
 })

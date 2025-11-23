@@ -27,6 +27,7 @@ model usuario {
   //usuario_perfil_empresa usuario_perfil_empresa[]
   avaliador   usuario_perfil_avaliador []
   recrutador  usuario_perfil_recrutador[]
+  candidato   usuario_perfil_candidato[]
 }
 
 model perfil {
@@ -38,6 +39,7 @@ model perfil {
   //usuario_perfil_empresa usuario_perfil_empresa[]
   avaliador   usuario_perfil_avaliador []
   recrutador  usuario_perfil_recrutador[]
+  candidato   usuario_perfil_candidato[]
 }
 
 model usuario_perfil_recrutador {
@@ -126,6 +128,67 @@ model avaliador_certificacoes {
   certificacoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
 }
 
+model usuario_perfil_candidato {
+  id                Int       @id @default(autoincrement())
+  usuario_id        Int
+  perfil_id         Int
+  telefone          String
+  localizacao       String
+  apresentacao      String
+  logo              String
+  meio_notificacao  String
+  data_cadastro     DateTime  @default(now())
+  ativo             Boolean   @default(true)
+  linguagem         String
+
+  // Relações
+  usuario          usuario     @relation(fields: [usuario_id], references: [id])
+  perfil           perfil      @relation(fields: [perfil_id], references: [id])
+  skills           candidato_skill[]
+  formacao         candidato_formacao_academica[]
+  certificacoes    candidato_certificacoes[]
+
+
+  // Garante que um mesmo usuário não tenha duplicidade de perfil
+  @@unique([usuario_id, perfil_id])
+}
+
+model candidato_skill {
+  id             Int      @id @default(autoincrement())
+  candidato_id   Int
+  skill_id       Int
+  peso           Int
+  favorito       Boolean
+  tempo_favorito String
+
+  // Relações
+  candidato      usuario_perfil_candidato @relation(fields: [candidato_id], references: [id])
+  skill          skill                    @relation(fields: [skill_id], references: [skill_id])
+}
+
+model candidato_formacao_academica {
+  id                Int      @id @default(autoincrement())
+  candidato_id      Int
+  graduacao_id      Int
+  formacao          String
+  certificado_file  String
+
+  // Relações
+  candidato      usuario_perfil_candidato @relation(fields: [candidato_id], references: [id])
+  graduacao      graduacao                @relation(fields: [graduacao_id], references: [id])
+}
+
+model candidato_certificacoes {
+  id                Int      @id @default(autoincrement())
+  candidato_id      Int
+  certificacao_id   Int
+  certificado_file  String
+
+  // Relações
+  candidato      usuario_perfil_candidato @relation(fields: [candidato_id], references: [id])
+  certificacoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
+}
+
 model empresa {
   id             Int        @id @default(autoincrement())
   recrutador_id  Int
@@ -201,6 +264,7 @@ model skill {
   // Relações
   vagas       empresa_vaga_skill[]
   avaliadores avaliador_skill[]
+  candidato   candidato_skill[]
   tipo_skill  tipo_skill @relation(fields: [tipo_skill_id], references: [id])
 }
 
@@ -234,6 +298,7 @@ model certificacoes {
 
   // Relações
   avaliadores_certificado avaliador_certificacoes[]
+  candidato_certificado   candidato_certificacoes[]
 }
 
 model graduacao {
@@ -244,5 +309,6 @@ model graduacao {
 
   // Relações
   avaliadores_formacao avaliador_formacao_academica[]
+  candidatos_formacao  candidato_formacao_academica[]
 }
 
