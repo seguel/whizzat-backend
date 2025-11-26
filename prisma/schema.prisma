@@ -4,14 +4,16 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+datasource db {
+  provider = "postgresql"
+  // url      = env("DATABASE_URL")
+}
+
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+
 
 model usuario {
   id                     Int                      @id @default(autoincrement())
@@ -23,11 +25,17 @@ model usuario {
   ativo                  Boolean                  @default(false)
   createdAt              DateTime                 @default(now())
   linguagem              String
+  data_nascimento        DateTime
+  genero_id              Int
+  nome_social            String?
+  cidade_id              Int
 
   //usuario_perfil_empresa usuario_perfil_empresa[]
   avaliador   usuario_perfil_avaliador []
   recrutador  usuario_perfil_recrutador[]
   candidato   usuario_perfil_candidato[]
+  genero      genero @relation(fields: [genero_id], references: [id])
+  cidade      estado_cidade @relation(fields: [cidade_id], references: [id])
 }
 
 model perfil {
@@ -40,6 +48,7 @@ model perfil {
   avaliador   usuario_perfil_avaliador []
   recrutador  usuario_perfil_recrutador[]
   candidato   usuario_perfil_candidato[]
+
 }
 
 model usuario_perfil_recrutador {
@@ -310,5 +319,37 @@ model graduacao {
   // Relações
   avaliadores_formacao avaliador_formacao_academica[]
   candidatos_formacao  candidato_formacao_academica[]
+}
+
+model genero {
+  id          Int     @id @default(autoincrement())
+  genero      String  
+  ativo       Boolean @default(true)
+  linguagem   String
+
+  // Relações
+  usuario usuario[]
+}
+
+model estado {
+  id          Int     @id @default(autoincrement())
+  estado      String  
+  sigla       String
+  linguagem   String
+
+  // Relações
+  cidade estado_cidade[]
+}
+
+model estado_cidade {
+  id          Int     @id @default(autoincrement())
+  estado_id   Int  
+  cidade      String
+  cep         String?
+
+  // Relações
+  @@unique([estado_id, cidade])
+  estado estado @relation(fields: [estado_id], references: [id])
+  usuario usuario[]
 }
 
