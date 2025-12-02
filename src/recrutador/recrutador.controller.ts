@@ -1,4 +1,5 @@
 import { RecrutadorService } from './recrutador.service';
+import { UserService } from '../user/user.service';
 import {
   Body,
   Param,
@@ -30,7 +31,10 @@ if (!existsSync(uploadDir)) {
 
 @Controller('recrutador')
 export class RecrutadorController {
-  constructor(private readonly recrutadorService: RecrutadorService) {}
+  constructor(
+    private readonly recrutadorService: RecrutadorService,
+    private readonly userService: UserService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('check-hasperfil/:perfilId')
@@ -146,7 +150,7 @@ export class RecrutadorController {
       usuario_id: usuario_id,
       perfil_id: Number(body.perfilId),
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: body.localizacao ?? '',
       apresentacao: body.apresentacao,
       meio_notificacao: body.meio_notificacao,
       logo: files.logo?.[0]
@@ -155,7 +159,20 @@ export class RecrutadorController {
       language: lang,
     };
 
-    return this.recrutadorService.createRecrutador(data);
+    const recrutador = await this.recrutadorService.createRecrutador(data);
+
+    const dataUser = {
+      primeiro_nome: body.primeiro_nome,
+      ultimo_nome: body.ultimo_nome,
+      nome_social: body.nome_social,
+      data_nascimento: body.data_nascimento,
+      genero_id: body.genero_id,
+      cidade_id: body.cidade_id,
+    };
+
+    await this.userService.updateUser(usuario_id, dataUser);
+
+    return recrutador;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -214,7 +231,7 @@ export class RecrutadorController {
     const data = {
       id: body.recrutadorId,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: body.localizacao ?? '',
       apresentacao: body.apresentacao,
       meio_notificacao: body.meio_notificacao,
       logo: files.logo?.[0]
@@ -222,7 +239,20 @@ export class RecrutadorController {
         : '',
       ativo: body.ativo,
     };
-    return this.recrutadorService.updateRecrutador(data);
+    const recrutador = await this.recrutadorService.updateRecrutador(data);
+
+    const dataUser = {
+      primeiro_nome: body.primeiro_nome,
+      ultimo_nome: body.ultimo_nome,
+      nome_social: body.nome_social,
+      data_nascimento: body.data_nascimento,
+      genero_id: body.genero_id,
+      cidade_id: body.cidade_id,
+    };
+
+    await this.userService.updateUser(req.user?.sub, dataUser);
+
+    return recrutador;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -233,12 +263,16 @@ export class RecrutadorController {
     @Req() req: Request & { user: JwtPayload },
   ) {
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
-    return this.recrutadorService.getRecrutador(
-      id,
-      usuarioId,
-      perfilId,
-      nomeUser,
-    );
+    const lang = req.user?.lang ?? 'pt';
+    return this.recrutadorService.getRecrutador(id, usuarioId, perfilId, lang);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user')
+  getUser(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+    const lang = req.user?.lang ?? 'pt';
+
+    return this.recrutadorService.getUser(usuarioId, lang);
   }
 }

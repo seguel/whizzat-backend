@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AvaliadorController } from './avaliador.controller';
 import { AvaliadorService } from './avaliador.service';
+import { UserModule } from '../user/user.module';
 import { SkillModule } from '../skill/skill.module';
 import { CertificacoesModule } from '../certificacoes/certificacoes.module';
 import { MailModule } from '../mail/mail.module';
@@ -16,6 +17,7 @@ import { JwtStrategy } from '../auth/jwt.strategy';
     MailModule,
     SkillModule,
     CertificacoesModule,
+    UserModule,
   ],
   controllers: [AvaliadorController],
   providers: [AvaliadorService, JwtStrategy],

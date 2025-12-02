@@ -6,6 +6,8 @@ import {
   MinLength,
   MaxLength,
   Matches,
+  IsOptional,
+  IsInt,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -33,4 +35,20 @@ export class RegisterDto {
   @IsDate()
   @Type(() => Date) // Necessário para converter string em Date com class-transformer
   createdAt: Date = new Date();
+
+  @IsDate()
+  @Type(() => Date) // Necessário para converter string em Date com class-transformer
+  data_nascimento: Date = new Date();
+
+  @IsOptional()
+  @IsString()
+  nome_social?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  genero_id!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  cidade_id!: number;
 }

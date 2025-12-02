@@ -20,7 +20,6 @@ import { LoginDto } from './dto/login.dto';
 import { ResendActivationDto } from './dto/resend-activation.dto';
 import { RequestPasswordResetDto } from './dto/RequestPasswordResetDto';
 import { ResetPasswordDto } from './dto/ResetPasswordDto';
-import { MailService } from '../mail/mail.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Response } from 'express';
@@ -32,7 +31,6 @@ export class AuthController {
     private authService: AuthService,
     private readonly userService: UserService,
     private prisma: PrismaService,
-    private readonly mailService: MailService,
     private readonly i18n: I18nService,
   ) {}
 
@@ -41,9 +39,25 @@ export class AuthController {
     @Body() body: RegisterDto,
     @Headers('accept-language') language: string,
   ) {
-    const { primeiro_nome, ultimo_nome, email, senha } = body;
+    const {
+      primeiro_nome,
+      ultimo_nome,
+      email,
+      senha,
+      data_nascimento,
+      genero_id,
+      cidade_id,
+    } = body;
 
-    if (!primeiro_nome || !ultimo_nome || !email || !senha) {
+    if (
+      !primeiro_nome ||
+      !ultimo_nome ||
+      !email ||
+      !senha ||
+      !data_nascimento ||
+      !genero_id ||
+      !cidade_id
+    ) {
       const messageRetorno = this.i18n.translate(
         'common.auth.campo_obrigatorio',
         {

@@ -48,6 +48,7 @@ export class VagaController {
       qtde_dias_aberta: body.qtde_dias_aberta,
       qtde_posicao: body.qtde_posicao,
       data_cadastro: new Date(),
+      cidade_id: body.cidade_id,
     });
 
     // Skills já existentes
@@ -136,6 +137,7 @@ export class VagaController {
       qtde_dias_aberta: body.qtde_dias_aberta,
       qtde_posicao: body.qtde_posicao,
       ativo: body.ativo,
+      cidade_id: body.cidade_id,
     });
 
     // skills existentes
