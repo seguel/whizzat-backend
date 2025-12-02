@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import axios from 'axios';
 
 @Injectable()
 export class EstadoService {
@@ -26,14 +25,11 @@ export class EstadoService {
     interface CidadeIBGE {
       id: number;
       nome: string;
-      microrregiao?: any;
-      mesorregiao?: any;
-      // pode adicionar outros campos se precisar
     }
 
     const url = `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`;
-    const response = await axios.get<CidadeIBGE[]>(url); // <CidadeIBGE[]> tipa o retorno
-    const cidadesIBGE: CidadeIBGE[] = response.data;
+    const response = await fetch(url);
+    const cidadesIBGE = (await response.json()) as CidadeIBGE[];
 
     // 2️⃣ Prepara os dados para bulk create
     const cidadesData = cidadesIBGE.map((c) => ({

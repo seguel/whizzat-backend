@@ -56,7 +56,7 @@ model usuario_perfil_recrutador {
   usuario_id        Int
   perfil_id         Int
   telefone          String
-  localizacao       String
+  localizacao       String?
   apresentacao      String
   logo              String
   meio_notificacao  String
@@ -77,7 +77,7 @@ model usuario_perfil_avaliador {
   perfil_id         Int
   empresa_id        Int?
   telefone          String
-  localizacao       String
+  localizacao       String?
   apresentacao      String
   logo              String
   avaliar_todos     Boolean   @default(false)
@@ -142,7 +142,7 @@ model usuario_perfil_candidato {
   usuario_id        Int
   perfil_id         Int
   telefone          String
-  localizacao       String
+  localizacao       String?
   apresentacao      String
   logo              String
   meio_notificacao  String
@@ -205,17 +205,19 @@ model empresa {
   website        String
   email          String
   telefone       String
-  localizacao    String
+  localizacao    String?
   apresentacao   String
   logo           String
   imagem_fundo   String
   data_cadastro  DateTime   @default(now())
   ativo          Boolean    @default(true)
   linguagem      String
+  cidade_id      Int
 
   recrutador     usuario_perfil_recrutador @relation(fields: [recrutador_id], references: [id])
   vagas          empresa_vaga[]            @relation("EmpresaVagas") // ✅ lado inverso nomeado
   avaliadores    usuario_perfil_avaliador[]
+  cidade         estado_cidade @relation(fields: [cidade_id], references: [id])
 }
 
 model empresa_vaga {
@@ -223,7 +225,7 @@ model empresa_vaga {
   empresa_id               Int
   nome_vaga                String
   descricao                String
-  local_vaga               String
+  local_vaga               String?
   modalidade_trabalho_id   Int
   periodo_trabalho_id      Int
   pcd                      Boolean
@@ -234,12 +236,14 @@ model empresa_vaga {
   qtde_posicao             Int
   data_cadastro            DateTime  @default(now())
   ativo                    Boolean   @default(true)
+  cidade_id                Int
 
   // Relações
   modalidade_trabalho      modalidade_trabalho     @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
   periodo_trabalho         periodo_trabalho        @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
   skills                   empresa_vaga_skill[]
-
+  
+  cidade                   estado_cidade @relation(fields: [cidade_id], references: [id])
   empresa                  empresa  @relation(name: "EmpresaVagas", fields: [empresa_id], references: [id]) // <- lado "um"
 }
 
@@ -351,5 +355,7 @@ model estado_cidade {
   @@unique([estado_id, cidade])
   estado estado @relation(fields: [estado_id], references: [id])
   usuario usuario[]
+  empresa empresa[]
+  vaga    empresa_vaga[]
 }
 

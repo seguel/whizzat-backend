@@ -13,6 +13,7 @@ import {
 import { CandidatoService } from './candidato.service';
 import { SkillService } from '../skill/skill.service';
 import { CertificacoesService } from '../certificacoes/certificacoes.service';
+import { UserService } from '../user/user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Request } from 'express';
@@ -40,6 +41,7 @@ export class CandidatoController {
     private readonly candidatoService: CandidatoService,
     private readonly skillService: SkillService,
     private readonly certificacoesService: CertificacoesService,
+    private readonly userService: UserService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -104,7 +106,6 @@ export class CandidatoController {
         })),
       ); */
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
     const lang = req.user?.lang ?? 'pt';
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
@@ -137,12 +138,23 @@ export class CandidatoController {
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: '',
       apresentacao: body.apresentacao,
       logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
       meio_notificacao: body.meio_notificacao,
       language: lang,
     });
+
+    const dataUser = {
+      primeiro_nome: body.primeiro_nome,
+      ultimo_nome: body.ultimo_nome,
+      nome_social: body.nome_social,
+      data_nascimento: body.data_nascimento,
+      genero_id: body.genero_id,
+      cidade_id: body.cidade_id,
+    };
+
+    await this.userService.updateUser(usuarioId, dataUser);
 
     // Monta formacoes
     const montaFormacoes =
@@ -260,7 +272,7 @@ export class CandidatoController {
       candidato.id,
       usuarioId,
       body.perfilId,
-      nomeUser,
+      lang,
     );
 
     return {
@@ -303,7 +315,6 @@ export class CandidatoController {
     @Body() body: UpdateCandidatoDto, // <-- adicionar perfil_id no body
   ) {
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
     const lang = req.user?.lang ?? 'pt';
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
@@ -337,7 +348,7 @@ export class CandidatoController {
       body.candidatoId,
       usuarioId,
       body.perfilId,
-      nomeUser,
+      lang,
     );
 
     const candidato = await this.candidatoService.updateCandidato({
@@ -345,7 +356,7 @@ export class CandidatoController {
       usuario_id: usuarioId,
       perfil_id: body.perfilId,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: '',
       apresentacao: body.apresentacao,
       logo: logoFile
         ? `${BASE_URL}/uploads/${logoFile.filename}`
@@ -354,6 +365,17 @@ export class CandidatoController {
       ativo: body.ativo,
       language: lang,
     });
+
+    const dataUser = {
+      primeiro_nome: body.primeiro_nome,
+      ultimo_nome: body.ultimo_nome,
+      nome_social: body.nome_social,
+      data_nascimento: body.data_nascimento,
+      genero_id: body.genero_id,
+      cidade_id: body.cidade_id,
+    };
+
+    await this.userService.updateUser(usuarioId, dataUser);
 
     // skills existentes
     const skillsExistentes =
@@ -495,7 +517,7 @@ export class CandidatoController {
       candidato.id,
       usuarioId,
       body.perfilId,
-      nomeUser,
+      lang,
     );
 
     const candidatoComSkillsMapeadas = {
@@ -521,13 +543,17 @@ export class CandidatoController {
     @Req() req: Request & { user: JwtPayload },
   ) {
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
+    const lang = req.user?.lang ?? 'pt';
 
-    return this.candidatoService.getCandidato(
-      id,
-      usuarioId,
-      perfilId,
-      nomeUser,
-    );
+    return this.candidatoService.getCandidato(id, usuarioId, perfilId, lang);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user')
+  getUser(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+    const lang = req.user?.lang ?? 'pt';
+
+    return this.candidatoService.getUser(usuarioId, lang);
   }
 }

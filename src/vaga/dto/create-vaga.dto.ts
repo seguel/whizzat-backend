@@ -6,6 +6,7 @@ import {
   IsBoolean,
   ValidateNested,
   IsArray,
+  IsOptional,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CreateVagaSkillDto } from './create-vaga-skill.dto';
@@ -24,7 +25,7 @@ export class CreateVagaDto {
   @IsString()
   descricao!: string;
 
-  @IsNotEmpty({ message: 'O local da vaga é obrigatório' })
+  @IsOptional()
   @IsString()
   local_vaga!: string;
 
@@ -66,4 +67,8 @@ export class CreateVagaDto {
   @ValidateNested({ each: true })
   @Type(() => CreateNovaSkillDto)
   novas_skills?: CreateNovaSkillDto[];
+
+  @Type(() => Number)
+  @IsInt()
+  cidade_id!: number;
 }

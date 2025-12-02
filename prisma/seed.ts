@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import axios from 'axios';
 
 const prisma = new PrismaClient();
 
@@ -18,8 +17,13 @@ async function main() {
 
       // 2️⃣ Chama a API do IBGE
       const url = `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${estado.sigla}/municipios`;
-      const response = await axios.get<CidadeIBGE[]>(url);
-      const cidadesIBGE = response.data;
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Erro ao consultar IBGE: ${response.status}`);
+      }
+
+      const cidadesIBGE = (await response.json()) as CidadeIBGE[];
 
       // 3️⃣ Prepara dados para inserir
       const cidadesData = cidadesIBGE.map((c) => ({
@@ -28,25 +32,27 @@ async function main() {
         cep: null,
       }));
 
-      // 4️⃣ Insere no banco usando createMany
+      // 4️⃣ Inserção
       if (cidadesData.length > 0) {
         await prisma.estado_cidade.createMany({
           data: cidadesData,
-          skipDuplicates: true, // evita duplicatas
+          skipDuplicates: true, // evita duplicações
         });
       }
 
       console.log(
-        `✅ ${cidadesData.length} cidades inseridas para ${estado.sigla}`,
+        `✅ ${cidadesData.length} cidades inseridas para o estado ${estado.sigla}`,
       );
     } catch (error) {
       console.error(`❌ Erro ao popular cidades para ${estado.sigla}:`, error);
     }
   }
 
-  console.log('Seed finalizado!');
+  console.log('🎉 Seed finalizado!');
 }
 
 main()
   .catch((e) => console.error(e))
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
