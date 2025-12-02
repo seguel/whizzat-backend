@@ -18,14 +18,29 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Request, Response } from 'express';
+import { RegisterDto } from './dto/register.dto';
+import { Prisma } from '@prisma/client';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  createUser(@Body() data: usuario): Promise<usuario> {
-    return this.userService.createUser(data);
+  async createUser(@Body() data: RegisterDto): Promise<usuario> {
+    const prismaData: Prisma.usuarioCreateInput = {
+      primeiro_nome: data.primeiro_nome,
+      ultimo_nome: data.ultimo_nome,
+      email: data.email,
+      senha: data.senha,
+      linguagem: data.linguagem,
+      data_nascimento: data.data_nascimento,
+      nome_social: data.nome_social ?? null,
+
+      genero: { connect: { id: data.genero_id } },
+      cidade: { connect: { id: data.cidade_id } },
+    };
+
+    return this.userService.createUser(prismaData);
   }
 
   @UseGuards(JwtAuthGuard)

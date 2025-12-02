@@ -20,6 +20,7 @@ export class VagaService {
     qtde_dias_aberta: number;
     qtde_posicao: number;
     data_cadastro: Date;
+    cidade_id: number;
   }) {
     return this.prisma.empresa_vaga.create({
       data,
@@ -41,6 +42,7 @@ export class VagaService {
     qtde_dias_aberta: number;
     qtde_posicao: number;
     ativo: boolean;
+    cidade_id: number;
   }) {
     return this.prisma.empresa_vaga.update({
       where: {
@@ -60,6 +62,7 @@ export class VagaService {
         qtde_dias_aberta: data.qtde_dias_aberta,
         qtde_posicao: data.qtde_posicao,
         ativo: data.ativo,
+        cidade_id: data.cidade_id,
       },
     });
   }
@@ -153,6 +156,17 @@ export class VagaService {
             logo: true,
           },
         },
+        cidade: {
+          select: {
+            estado_id: true,
+            cidade: true,
+            estado: {
+              select: {
+                estado: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -201,6 +215,17 @@ export class VagaService {
             logo: true,
           },
         },
+        cidade: {
+          select: {
+            estado_id: true,
+            cidade: true,
+            estado: {
+              select: {
+                estado: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -226,6 +251,9 @@ export class VagaService {
         month: '2-digit',
       }),
       skills,
+      cidade_label: vaga.cidade?.cidade ?? null,
+      estado_id: vaga.cidade?.estado_id ?? null,
+      estado_label: vaga.cidade?.estado?.estado ?? null,
     };
   }
 
@@ -278,12 +306,25 @@ export class VagaService {
             cinquenta_mais: true,
             qtde_dias_aberta: true,
             data_cadastro: true,
+            cidade_id: true,
             skills: {
               select: {
                 skill: {
                   select: {
                     skill: true,
                     tipo_skill_id: true,
+                  },
+                },
+              },
+            },
+            cidade: {
+              select: {
+                estado_id: true,
+                cidade: true,
+                estado: {
+                  select: {
+                    estado: true,
+                    sigla: true,
                   },
                 },
               },
@@ -327,6 +368,11 @@ export class VagaService {
               mulheres: vaga.mulheres,
               cinquenta_mais: vaga.cinquenta_mais,
               skills: vaga.skills.map((s) => s.skill.skill),
+              cidade_label: vaga.cidade.cidade,
+              cidade_id: vaga.cidade_id,
+              estado_id: vaga.cidade.estado_id,
+              estado_label: vaga.cidade.estado,
+              estado_sigla: vaga.cidade.estado.sigla,
             };
           }),
       )
@@ -378,12 +424,25 @@ export class VagaService {
             cinquenta_mais: true,
             qtde_dias_aberta: true,
             data_cadastro: true,
+            cidade_id: true,
             skills: {
               select: {
                 skill: {
                   select: {
                     skill: true,
                     tipo_skill_id: true,
+                  },
+                },
+              },
+            },
+            cidade: {
+              select: {
+                estado_id: true,
+                cidade: true,
+                estado: {
+                  select: {
+                    estado: true,
+                    sigla: true,
                   },
                 },
               },
@@ -426,6 +485,11 @@ export class VagaService {
               mulheres: vaga.mulheres,
               cinquenta_mais: vaga.cinquenta_mais,
               skills: vaga.skills.map((s) => s.skill.skill),
+              cidade_label: vaga.cidade.cidade,
+              cidade_id: vaga.cidade_id,
+              estado_id: vaga.cidade.estado_id,
+              estado_label: vaga.cidade.estado,
+              estado_sigla: vaga.cidade.estado.sigla,
             };
           }),
       )

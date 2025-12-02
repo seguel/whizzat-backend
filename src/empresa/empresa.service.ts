@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, empresa } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class EmpresaService {
@@ -19,6 +19,7 @@ export class EmpresaService {
     logo: string;
     imagem_fundo: string;
     linguagem: string;
+    cidade_id: number;
   }) {
     const domíniosPublicos = [
       'gmail.com',
@@ -109,6 +110,9 @@ export class EmpresaService {
       logo: data.logo ?? '',
       imagem_fundo: data.imagem_fundo ?? '',
       linguagem: data.linguagem ?? 'pt',
+      cidade: {
+        connect: { id: data.cidade_id },
+      },
     };
     /* 
     // adiciona só se existir
@@ -134,6 +138,7 @@ export class EmpresaService {
     logo?: string;
     imagem_fundo?: string;
     ativo: boolean;
+    cidade_id: number;
   }) {
     const domíniosPublicos = [
       'gmail.com',
@@ -197,6 +202,9 @@ export class EmpresaService {
       localizacao: data.localizacao,
       apresentacao: data.apresentacao,
       ativo: data.ativo,
+      cidade: {
+        connect: { id: data.cidade_id },
+      },
     };
 
     // adiciona só se existir
@@ -294,17 +302,35 @@ export class EmpresaService {
     /* usuarioId: number,
     perfilId: number, */
     id: number,
-  ): Promise<empresa | null> {
-    return this.prisma.empresa.findUnique({
+  ) {
+    const empresa = await this.prisma.empresa.findUnique({
       where: {
-        id: id,
+        id,
         recrutador_id: recrutadorId,
-        /* recrutador: {
-          usuario_id: usuarioId,
-          perfil_id: perfilId,
-        }, */
+      },
+      include: {
+        cidade: {
+          select: {
+            cidade: true,
+            estado_id: true,
+            estado: {
+              select: {
+                estado: true,
+              },
+            },
+          },
+        },
       },
     });
+
+    if (!empresa) return null;
+
+    return {
+      ...empresa,
+      cidade_label: empresa.cidade?.cidade ?? null,
+      estado_id: empresa.cidade?.estado_id ?? null,
+      estado_label: empresa.cidade?.estado?.estado ?? null,
+    };
   }
 
   async getListaVagasAtivasEmpresa(empresaId: number) {
@@ -320,6 +346,18 @@ export class EmpresaService {
             id: true,
             nome_empresa: true,
             logo: true,
+          },
+        },
+        cidade: {
+          select: {
+            estado_id: true,
+            cidade: true,
+            estado: {
+              select: {
+                estado: true,
+                sigla: true,
+              },
+            },
           },
         },
       },
@@ -366,6 +404,10 @@ export class EmpresaService {
         modalidade_trabalho: vaga.modalidade_trabalho,
         periodo_trabalho: vaga.periodo_trabalho,
         ativo: vaga.ativo,
+        cidade_label: vaga.cidade?.cidade ?? null,
+        estado_id: vaga.cidade?.estado_id ?? null,
+        estado_label: vaga.cidade?.estado?.estado ?? null,
+        estado_sigla: vaga.cidade?.estado?.sigla ?? null,
       };
     });
   }

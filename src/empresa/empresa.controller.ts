@@ -102,7 +102,7 @@ export class EmpresaController {
       website: body.site,
       email: body.email,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: '',
       apresentacao: body.apresentacao,
       logo: files.logo?.[0]
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
@@ -111,6 +111,7 @@ export class EmpresaController {
         ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
         : '',
       linguagem: lang,
+      cidade_id: body.cidade_id,
     };
 
     return this.empresaService.createEmpresa(data);
@@ -180,7 +181,7 @@ export class EmpresaController {
       website: body.site,
       email: body.email,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: '',
       apresentacao: body.apresentacao,
       logo: files.logo?.[0]
         ? `${BASE_URL}/uploads/${files.logo[0].filename}`
@@ -189,6 +190,7 @@ export class EmpresaController {
         ? `${BASE_URL}/uploads/${files.imagem_fundo[0].filename}`
         : undefined,
       ativo: body.ativo,
+      cidade_id: body.cidade_id,
     };
     return this.empresaService.updateEmpresa(data);
   }
@@ -237,7 +239,7 @@ export class EmpresaController {
     @Param('id', ParseIntPipe) id: number,
     @Param('recrutadorId', ParseIntPipe) recrutadorId: number,
     // @Req() req: Request & { user: JwtPayload },
-  ): Promise<empresa | null> {
+  ) {
     //const usuarioId = req.user?.sub;
     return this.empresaService.getEmpresa(recrutadorId, id);
   }
