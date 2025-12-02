@@ -65,7 +65,7 @@ export class CandidatoService {
     id: number,
     usuarioId: number,
     perfilId: number,
-    nomeUser: string,
+    lang: string,
   ) {
     const candidato =
       await this.prisma.usuario_perfil_candidato.findFirstOrThrow({
@@ -86,8 +86,66 @@ export class CandidatoService {
               skill: { select: { skill: true, tipo_skill_id: true } },
             },
           },
+          usuario: {
+            select: {
+              primeiro_nome: true,
+              ultimo_nome: true,
+              nome_social: true,
+              data_nascimento: true,
+              genero_id: true,
+              genero: {
+                select: {
+                  genero: true,
+                },
+              },
+              cidade_id: true,
+              cidade: {
+                select: {
+                  estado_id: true,
+                  cidade: true,
+                  estado: {
+                    select: {
+                      estado: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
+
+    const usr = candidato.usuario;
+
+    // 🔥 Corrigindo o problema do timezone
+    let dataFormatada: string | null = null;
+
+    if (usr.data_nascimento) {
+      const iso = usr.data_nascimento.toISOString().substring(0, 10); // YYYY-MM-DD
+
+      const [year, month, day] = iso.split('-').map(Number);
+
+      const date = new Date(year, month - 1, day); // ← sem UTC
+
+      dataFormatada = new Intl.DateTimeFormat(lang ?? 'pt-BR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(date);
+    }
+
+    const usuario = {
+      primeiro_nome: usr.primeiro_nome,
+      ultimo_nome: usr.ultimo_nome,
+      nome_social: usr.nome_social ?? '',
+      data_nascimento: dataFormatada, // agora correto
+      genero_id: usr.genero_id,
+      genero: usr.genero.genero,
+      cidade_id: usr.cidade_id,
+      cidade: usr.cidade.cidade,
+      estado_id: usr.cidade?.estado_id ?? null,
+      estado: usr.cidade.estado.estado,
+    };
 
     // 🔹 Achatar as certificacoes
     const certificacoes = candidato.certificacoes.map((s) => ({
@@ -111,9 +169,9 @@ export class CandidatoService {
 
     return {
       ...candidato,
-      nomeUser,
       skills,
       certificacoes,
+      usuario,
     };
   }
 
@@ -342,5 +400,66 @@ export class CandidatoService {
         });
       }
     }
+  }
+
+  async getUser(usuarioId: number, lang: string) {
+    const usr = await this.prisma.usuario.findFirstOrThrow({
+      where: { id: usuarioId, linguagem: lang },
+
+      select: {
+        primeiro_nome: true,
+        ultimo_nome: true,
+        nome_social: true,
+        data_nascimento: true,
+        genero_id: true,
+        genero: {
+          select: {
+            genero: true,
+          },
+        },
+        cidade_id: true,
+        cidade: {
+          select: {
+            estado_id: true,
+            cidade: true,
+            estado: {
+              select: {
+                estado: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // 🔥 Corrigindo o problema do timezone
+    let dataFormatada: string | null = null;
+
+    if (usr.data_nascimento) {
+      const iso = usr.data_nascimento.toISOString().substring(0, 10); // YYYY-MM-DD
+
+      const [year, month, day] = iso.split('-').map(Number);
+
+      const date = new Date(year, month - 1, day); // ← sem UTC
+
+      dataFormatada = new Intl.DateTimeFormat(lang ?? 'pt-BR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(date);
+    }
+
+    return {
+      primeiro_nome: usr.primeiro_nome,
+      ultimo_nome: usr.ultimo_nome,
+      nome_social: usr.nome_social ?? '',
+      data_nascimento: dataFormatada, // agora correto
+      genero_id: usr.genero_id,
+      genero: usr.genero.genero,
+      cidade_id: usr.cidade_id,
+      cidade: usr.cidade.cidade,
+      estado_id: usr.cidade?.estado_id ?? null,
+      estado: usr.cidade.estado.estado,
+    };
   }
 }

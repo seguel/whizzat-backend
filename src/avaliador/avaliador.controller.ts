@@ -17,6 +17,7 @@ import { AvaliadorService } from './avaliador.service';
 import { SkillService } from '../skill/skill.service';
 import { CertificacoesService } from '../certificacoes/certificacoes.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UserService } from '../user/user.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { Request } from 'express';
 import { CreateAvaliadorDto } from './dto/create-avaliador.dto';
@@ -45,6 +46,7 @@ export class AvaliadorController {
     private readonly skillService: SkillService,
     private readonly certificacoesService: CertificacoesService,
     private readonly i18n: I18nService,
+    private readonly userService: UserService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -109,7 +111,6 @@ export class AvaliadorController {
       })),
     ); */
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
     const lang = req.user?.lang ?? 'pt';
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
 
@@ -143,7 +144,7 @@ export class AvaliadorController {
       perfil_id: body.perfilId,
       empresa_id: body.empresaId ? Number(body.empresaId) : null,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: '',
       apresentacao: body.apresentacao,
       avaliar_todos: body.avaliar_todos,
       logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
@@ -151,6 +152,17 @@ export class AvaliadorController {
       status_cadastro: body.empresaId ? -1 : 1,
       language: lang,
     });
+
+    const dataUser = {
+      primeiro_nome: body.primeiro_nome,
+      ultimo_nome: body.ultimo_nome,
+      nome_social: body.nome_social,
+      data_nascimento: body.data_nascimento,
+      genero_id: body.genero_id,
+      cidade_id: body.cidade_id,
+    };
+
+    await this.userService.updateUser(usuarioId, dataUser);
 
     // Monta formacoes
     const montaFormacoes =
@@ -276,7 +288,7 @@ export class AvaliadorController {
       avaliador.id,
       usuarioId,
       body.perfilId,
-      nomeUser,
+      lang,
     );
 
     return {
@@ -319,7 +331,6 @@ export class AvaliadorController {
     @Body() body: UpdateAvaliadorDto, // <-- adicionar perfil_id no body
   ) {
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
     const lang = req.user?.lang ?? 'pt';
 
     const BASE_URL = process.env.FILE_BASE_URL || 'http://localhost:3000';
@@ -353,7 +364,7 @@ export class AvaliadorController {
       body.avaliadorId,
       usuarioId,
       body.perfilId,
-      nomeUser,
+      lang,
     );
 
     const avaliador = await this.avaliadorService.updateAvaliador({
@@ -362,7 +373,7 @@ export class AvaliadorController {
       perfil_id: body.perfilId,
       empresa_id: body.empresaId ? Number(body.empresaId) : null,
       telefone: body.telefone,
-      localizacao: body.localizacao,
+      localizacao: '',
       apresentacao: body.apresentacao,
       avaliar_todos: body.avaliar_todos,
       logo: logoFile
@@ -372,6 +383,17 @@ export class AvaliadorController {
       ativo: body.ativo,
       language: lang,
     });
+
+    const dataUser = {
+      primeiro_nome: body.primeiro_nome,
+      ultimo_nome: body.ultimo_nome,
+      nome_social: body.nome_social,
+      data_nascimento: body.data_nascimento,
+      genero_id: body.genero_id,
+      cidade_id: body.cidade_id,
+    };
+
+    await this.userService.updateUser(usuarioId, dataUser);
 
     // skills existentes
     const skillsExistentes =
@@ -513,7 +535,7 @@ export class AvaliadorController {
       avaliador.id,
       usuarioId,
       body.perfilId,
-      nomeUser,
+      lang,
     );
 
     const avaliadorComSkillsMapeadas = {
@@ -539,14 +561,9 @@ export class AvaliadorController {
     @Req() req: Request & { user: JwtPayload },
   ) {
     const usuarioId = req.user?.sub;
-    const nomeUser = req.user?.nome;
+    const lang = req.user?.lang ?? 'pt';
 
-    return this.avaliadorService.getAvaliador(
-      id,
-      usuarioId,
-      perfilId,
-      nomeUser,
-    );
+    return this.avaliadorService.getAvaliador(id, usuarioId, perfilId, lang);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -670,5 +687,14 @@ export class AvaliadorController {
       },
     );
     return { message: messageRetorno, user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user')
+  getUser(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+    const lang = req.user?.lang ?? 'pt';
+
+    return this.avaliadorService.getUser(usuarioId, lang);
   }
 }

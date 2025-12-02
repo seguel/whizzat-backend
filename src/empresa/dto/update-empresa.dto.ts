@@ -6,6 +6,7 @@ import {
   IsUrl,
   IsInt,
   IsBoolean,
+  IsOptional,
 } from 'class-validator';
 
 export class UpdateEmpresaDto {
@@ -33,9 +34,9 @@ export class UpdateEmpresaDto {
   @IsString()
   telefone!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  localizacao!: string;
+  localizacao?: string;
 
   @IsNotEmpty()
   @IsString()
@@ -48,4 +49,8 @@ export class UpdateEmpresaDto {
   @Transform(({ value }) => value === 'true' || value === '1')
   @IsBoolean()
   ativo: boolean = true;
+
+  @Type(() => Number)
+  @IsInt()
+  cidade_id!: number;
 }

@@ -22,6 +22,9 @@ import { VagaModule } from './vaga/vaga.module';
 import { GraduacaoModule } from './graduacao/graduacao.module';
 import { CertificacoesModule } from './certificacoes/certificacoes.module';
 import { CandidatoModule } from './candidato/candidato.module';
+import { GeneroModule } from './genero/genero.module';
+import { EstadoModule } from './estado/estado.module';
+import { CidadeModule } from './cidade/cidade.module';
 import * as path from 'path';
 
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
@@ -63,6 +66,9 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     GraduacaoModule,
     CertificacoesModule,
     CandidatoModule,
+    GeneroModule,
+    EstadoModule,
+    CidadeModule,
   ],
   providers: [MailService],
 })

@@ -50,7 +50,7 @@ export class MailService {
             style="display: block; margin: 0 auto 20px; width: 180px; height: auto;" />
 
           <p style="font-size: 16px; margin-bottom: 20px;">
-            ${primeira_linha} ${name},
+            ${primeira_linha} <strong>${name}</strong>,
           </p>
 
           <p style="font-size: 16px; margin-bottom: 20px;">
@@ -124,7 +124,7 @@ export class MailService {
             style="display: block; margin: 0 auto 20px; width: 180px; height: auto;" />
 
           <p style="font-size: 16px; margin-bottom: 20px;">
-            ${primeira_linha_reset_senha} ${name}
+            ${primeira_linha_reset_senha} <strong>${name}</strong>
           </p>
 
           <p style="font-size: 16px; margin-bottom: 20px;">

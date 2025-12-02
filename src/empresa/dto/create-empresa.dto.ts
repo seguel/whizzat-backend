@@ -1,5 +1,12 @@
 // src/empresa/dto/create-empresa.dto.ts
-import { IsEmail, IsNotEmpty, IsString, IsUrl, IsInt } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  IsUrl,
+  IsInt,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateEmpresaDto {
@@ -19,9 +26,9 @@ export class CreateEmpresaDto {
   @IsString()
   telefone!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  localizacao!: string;
+  localizacao?: string;
 
   @IsNotEmpty()
   @IsString()
@@ -42,4 +49,8 @@ export class CreateEmpresaDto {
   @Type(() => Number) // transforma string em number
   @IsInt()
   recrutadorId!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  cidade_id!: number;
 }

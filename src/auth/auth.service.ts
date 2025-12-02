@@ -28,7 +28,16 @@ export class AuthService {
   ) {}
 
   async register(data: RegisterDto, language: string) {
-    const { primeiro_nome, ultimo_nome, email, senha } = data;
+    const {
+      primeiro_nome,
+      ultimo_nome,
+      email,
+      senha,
+      data_nascimento,
+      genero_id,
+      cidade_id,
+      nome_social,
+    } = data;
 
     const hashedPassword = await bcrypt.hash(senha, 10);
     const newUser = await this.prisma.usuario.create({
@@ -39,16 +48,21 @@ export class AuthService {
         ultimo_nome,
         ativo: false,
         linguagem: language,
+        data_nascimento,
+        genero_id,
+        cidade_id,
+        nome_social,
       },
     });
 
     const token = generateActivationToken(newUser.id);
 
     const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-email?token=${token}&email=${email}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
-
+    const nome_user =
+      newUser.nome_social || `${newUser.primeiro_nome} ${newUser.ultimo_nome}`;
     await this.mailService.sendWelcomeEmail(
       newUser.email,
-      `${newUser.primeiro_nome} ${newUser.ultimo_nome}`,
+      nome_user,
       activationLink,
       language,
     );
@@ -58,6 +72,7 @@ export class AuthService {
       email: newUser.email,
       primeiro_nome: newUser.primeiro_nome,
       ultimo_nome: newUser.ultimo_nome,
+      nome_social: newUser.nome_social ?? null,
     };
   }
 
@@ -126,9 +141,11 @@ export class AuthService {
 
     const Link = `${process.env.SITE_URL}/cadastro/redefinir-senha?token=${token}&email=${email}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
 
+    const nome_user =
+      user.nome_social || `${user.primeiro_nome} ${user.ultimo_nome}`;
     await this.mailService.sendPasswordResetEmail(
       email,
-      `${user.primeiro_nome} ${user.ultimo_nome}`,
+      nome_user,
       Link,
       language,
     );
@@ -268,10 +285,12 @@ export class AuthService {
     const token = generateActivationToken(user.id);
 
     const activationLink = `${process.env.SITE_URL}/cadastro/confirmar-email?token=${token}&email=${email}&lng=${language}`; //`https://meusite.com/confirmar-email?token=${token}`;
+    const nome_user =
+      user.nome_social || `${user.primeiro_nome} ${user.ultimo_nome}`;
 
     await this.mailService.sendWelcomeEmail(
       user.email,
-      `${user.primeiro_nome} ${user.ultimo_nome}`,
+      nome_user,
       activationLink,
       language,
     );

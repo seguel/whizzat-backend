@@ -1,5 +1,11 @@
 // src/candidato/dto/create-candidato.dto.ts
-import { IsNotEmpty, IsString, IsInt, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsInt,
+  IsOptional,
+  IsDate,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateCandidatoDto {
@@ -7,9 +13,9 @@ export class CreateCandidatoDto {
   @IsString()
   telefone!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  localizacao!: string;
+  localizacao?: string;
 
   @IsString()
   apresentacao!: string;
@@ -41,4 +47,26 @@ export class CreateCandidatoDto {
   @IsOptional()
   @IsString()
   novas_skills?: string;
+
+  @IsString()
+  primeiro_nome!: string;
+
+  @IsString()
+  ultimo_nome!: string;
+
+  @IsDate()
+  @Type(() => Date) // Necessário para converter string em Date com class-transformer
+  data_nascimento: Date = new Date();
+
+  @IsOptional()
+  @IsString()
+  nome_social?: string;
+
+  @Type(() => Number)
+  @IsInt()
+  genero_id!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  cidade_id!: number;
 }

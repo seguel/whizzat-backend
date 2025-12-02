@@ -3,6 +3,7 @@ import { CandidatoService } from './candidato.service';
 import { CandidatoController } from './candidato.controller';
 import { SkillModule } from '../skill/skill.module';
 import { CertificacoesModule } from '../certificacoes/certificacoes.module';
+import { UserModule } from '../user/user.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from '../auth/jwt.strategy';
 
@@ -14,6 +15,7 @@ import { JwtStrategy } from '../auth/jwt.strategy';
     }),
     SkillModule,
     CertificacoesModule,
+    UserModule,
   ],
   controllers: [CandidatoController],
   providers: [CandidatoService, JwtStrategy],
