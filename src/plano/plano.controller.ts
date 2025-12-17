@@ -24,9 +24,8 @@ export class PlanoController {
     return this.planoService.getPlano(id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
-  getPlanos(@Req() req: Request & { user: JwtPayload }): Promise<plano[]> {
+  getPlanos(@Req() req: Request & { user: JwtPayload }) {
     const lang = req.user?.lang ?? 'pt';
     return this.planoService.getPlanos(lang);
   }

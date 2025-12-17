@@ -12,13 +12,41 @@ export type ValidaPlanoRetorno =
 export class PlanoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPlanos(language: string): Promise<plano[]> {
-    return this.prisma.plano.findMany({
-      where: { ativo: true, linguagem: language },
-      orderBy: {
-        plano: 'asc', // ou 'desc'
+  async getPlanos(language: string, perfilId?: number) {
+    const planos = await this.prisma.plano.findMany({
+      where: {
+        ativo: true,
+        linguagem: language,
+        periodos: {
+          some: {
+            ativo: true,
+            ...(perfilId ? { perfil_id: perfilId } : {}),
+          },
+        },
+      },
+      select: {
+        plano: true,
+        descricao: true,
+        periodos: {
+          where: {
+            ativo: true,
+            ...(perfilId ? { perfil_id: perfilId } : {}),
+          },
+          orderBy: {
+            perfil_id: 'asc', // 🔥 ordena aqui
+          },
+          select: {
+            id: true,
+            periodo: true,
+            validade_dias: true,
+            valor: true,
+            perfil_id: true,
+          },
+        },
       },
     });
+
+    return planos;
   }
 
   async getPlano(id: number): Promise<plano | null> {

@@ -380,6 +380,7 @@ model plano_periodo {
   validade_dias Int
   valor         Decimal @db.Decimal(10,2)
   ativo         Boolean @default(true)
+  perfil_id     Int     @default(0)
   
 
   // Relações
