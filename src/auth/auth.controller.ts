@@ -209,18 +209,24 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('check-perfil')
-  checkPerfil(@Req() req: Request & { user: JwtPayload }) {
-    //const usuarioId = req.user?.sub;
-    const perfilId = req.user?.perfil;
+  async checkPerfil(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+    const perfilId = req.user?.perfil ?? 0;
+
+    const validaPlano = await this.authService.validaPlanoUser(
+      usuarioId,
+      perfilId,
+    );
 
     const url =
-      perfilId === 2
+      validaPlano ||
+      (perfilId === 2
         ? '/dashboard?perfil=recrutador'
         : perfilId === 3
           ? '/dashboard?perfil=avaliador'
           : perfilId === 1
             ? '/dashboard?perfil=candidato'
-            : '';
+            : '');
 
     return { redirect_to: url };
   }

@@ -25,6 +25,7 @@ import { CandidatoModule } from './candidato/candidato.module';
 import { GeneroModule } from './genero/genero.module';
 import { EstadoModule } from './estado/estado.module';
 import { CidadeModule } from './cidade/cidade.module';
+import { PlanoModule } from './plano/plano.module';
 import * as path from 'path';
 
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
@@ -69,6 +70,7 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     GeneroModule,
     EstadoModule,
     CidadeModule,
+    PlanoModule,
   ],
   providers: [MailService],
 })

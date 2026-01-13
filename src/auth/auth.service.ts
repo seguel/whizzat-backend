@@ -6,6 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { PlanoService } from '../plano/plano.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -25,6 +26,7 @@ export class AuthService {
     private jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly i18n: I18nService,
+    private readonly plano: PlanoService,
   ) {}
 
   async register(data: RegisterDto, language: string) {
@@ -115,6 +117,69 @@ export class AuthService {
             ? 'avaliador'
             : '';
 
+    if (user.id_perfil ?? 0 > 0) {
+      const plano = await this.plano.validaPlanoUsuario(
+        user.id,
+        user.id_perfil ?? 0,
+      );
+
+      switch (plano.status) {
+        case 'SEM_PERFIL':
+        case 'SEM_PLANO':
+          return {
+            access_token: token,
+            user: {
+              id: user.id,
+              email: user.email,
+              nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+              lang: user.linguagem,
+            },
+            plano: {
+              status: 'SEM_PLANO',
+              plano: '',
+              validade: null,
+            },
+            redirectTo: `/cadastro/plano?perfil=${rotaPerfil}`,
+          };
+
+        case 'PLANO_EXPIRADO':
+          return {
+            access_token: token,
+            user: {
+              id: user.id,
+              email: user.email,
+              nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+              lang: user.linguagem,
+            },
+            plano: {
+              status: 'PLANO_EXPIRADO',
+              plano: plano.plano,
+              validade: plano.vencimento,
+            },
+            redirectTo: `/cadastro/plano?perfil=${rotaPerfil}&expirado=1`,
+          };
+
+        case 'OK':
+          return {
+            access_token: token,
+            user: {
+              id: user.id,
+              email: user.email,
+              nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+              lang: user.linguagem,
+            },
+            plano: {
+              status: 'PLANO_OK',
+              plano: plano.plano,
+              validade: plano.vencimento,
+            },
+            redirectTo: rotaPerfil
+              ? `/dashboard?perfil=${rotaPerfil}`
+              : '/cadastro/perfil', // fallback
+          };
+      }
+    }
+
     return {
       access_token: token,
       user: {
@@ -123,6 +188,7 @@ export class AuthService {
         nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
         lang: user.linguagem,
       },
+
       redirectTo: rotaPerfil
         ? `/dashboard?perfil=${rotaPerfil}`
         : '/cadastro/perfil', // fallback
@@ -296,5 +362,31 @@ export class AuthService {
     );
 
     return 'Link de ativação reenviado com sucesso.';
+  }
+
+  async validaPlanoUser(userId: number, perfilId: number) {
+    const plano = await this.plano.validaPlanoUsuario(userId, perfilId);
+
+    const rotaPerfil =
+      perfilId === 3
+        ? 'avaliador'
+        : perfilId === 2
+          ? 'recrutador'
+          : 'candidato';
+
+    // console.log(rotaPerfil, plano.status);
+
+    switch (plano.status) {
+      case 'SEM_PERFIL':
+      case 'SEM_PLANO':
+        return `/cadastro/plano?perfil=${rotaPerfil}`;
+
+      case 'PLANO_EXPIRADO':
+        return `/cadastro/plano?perfil=${rotaPerfil}&expirado=1`;
+
+      case 'OK':
+      default:
+        return '';
+    }
   }
 }
