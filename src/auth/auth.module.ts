@@ -6,6 +6,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailModule } from '../mail/mail.module';
 import { UserModule } from '../user/user.module';
+import { PlanoModule } from '../plano/plano.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
@@ -19,6 +20,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
     }),
     MailModule,
+    PlanoModule,
     forwardRef(() => UserModule),
   ],
   providers: [AuthService, JwtStrategy, PrismaService],

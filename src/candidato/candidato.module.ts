@@ -4,6 +4,7 @@ import { CandidatoController } from './candidato.controller';
 import { SkillModule } from '../skill/skill.module';
 import { CertificacoesModule } from '../certificacoes/certificacoes.module';
 import { UserModule } from '../user/user.module';
+import { AuthModule } from '../auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from '../auth/jwt.strategy';
 
@@ -16,6 +17,7 @@ import { JwtStrategy } from '../auth/jwt.strategy';
     SkillModule,
     CertificacoesModule,
     UserModule,
+    AuthModule,
   ],
   controllers: [CandidatoController],
   providers: [CandidatoService, JwtStrategy],
