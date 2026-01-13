@@ -7,6 +7,7 @@ import {
   UseGuards,
   Req,
   Post,
+  Query,
 } from '@nestjs/common';
 import { PlanoService } from './plano.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -25,9 +26,15 @@ export class PlanoController {
   }
 
   @Get()
-  getPlanos(@Req() req: Request & { user: JwtPayload }) {
+  getPlanos(
+    @Req() req: Request & { user: JwtPayload },
+    @Query('perfilId') perfilId?: string,
+  ) {
     const lang = req.user?.lang ?? 'pt';
-    return this.planoService.getPlanos(lang);
+    return this.planoService.getPlanos(
+      lang,
+      perfilId ? Number(perfilId) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

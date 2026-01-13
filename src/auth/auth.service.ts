@@ -363,4 +363,30 @@ export class AuthService {
 
     return 'Link de ativação reenviado com sucesso.';
   }
+
+  async validaPlanoUser(userId: number, perfilId: number) {
+    const plano = await this.plano.validaPlanoUsuario(userId, perfilId);
+
+    const rotaPerfil =
+      perfilId === 3
+        ? 'avaliador'
+        : perfilId === 2
+          ? 'recrutador'
+          : 'candidato';
+
+    // console.log(rotaPerfil, plano.status);
+
+    switch (plano.status) {
+      case 'SEM_PERFIL':
+      case 'SEM_PLANO':
+        return `/cadastro/plano?perfil=${rotaPerfil}`;
+
+      case 'PLANO_EXPIRADO':
+        return `/cadastro/plano?perfil=${rotaPerfil}&expirado=1`;
+
+      case 'OK':
+      default:
+        return '';
+    }
+  }
 }

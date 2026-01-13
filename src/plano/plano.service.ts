@@ -25,8 +25,10 @@ export class PlanoService {
         },
       },
       select: {
+        id: true,
         plano: true,
         descricao: true,
+        highlight: true,
         periodos: {
           where: {
             ativo: true,
@@ -41,6 +43,20 @@ export class PlanoService {
             validade_dias: true,
             valor: true,
             perfil_id: true,
+            valor_old: true,
+            desconto: true,
+          },
+        },
+        itens: {
+          where: {
+            linguagem: language,
+          },
+          orderBy: {
+            ordem: 'asc', // 🔥 ordena aqui
+          },
+          select: {
+            id: true,
+            descricao: true,
           },
         },
       },

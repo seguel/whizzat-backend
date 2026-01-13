@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { generateActivationToken72 } from '../lib/util';
 import { I18nService } from 'nestjs-i18n';
 import { MailService } from '../mail/mail.service';
+import { AuthService } from '../auth/auth.service';
 // import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as jwt from 'jsonwebtoken';
@@ -20,12 +21,13 @@ export class AvaliadorService {
     private jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly i18n: I18nService,
+    private readonly authService: AuthService,
   ) {}
 
   async getCheckHasPerfil(
     usuarioId: number,
     perfilId: number,
-  ): Promise<{ id: number | null; usuario_id: number }> {
+  ): Promise<{ id: number | null; usuario_id: number; redirect_to: string }> {
     const registro = await this.prisma.usuario_perfil_avaliador.findUnique({
       where: {
         ativo: true,
@@ -39,9 +41,15 @@ export class AvaliadorService {
       select: { id: true }, // só pode usar colunas existentes
     });
 
+    const validaPlano = await this.authService.validaPlanoUser(
+      usuarioId,
+      perfilId,
+    );
+
     return {
       id: registro?.id ?? null,
       usuario_id: usuarioId, // adiciona manualmente
+      redirect_to: validaPlano ?? '',
     };
   }
 
