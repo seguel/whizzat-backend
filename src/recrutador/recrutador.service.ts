@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, empresa } from '@prisma/client';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class RecrutadorService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   async getCheckHasPerfil(
     usuarioId: number,
     perfilId: number,
-  ): Promise<{ id: number | null; usuario_id: number }> {
+  ): Promise<{ id: number | null; usuario_id: number; redirect_to: string }> {
     const registro = await this.prisma.usuario_perfil_recrutador.findUnique({
       where: {
         ativo: true,
@@ -22,9 +26,15 @@ export class RecrutadorService {
       select: { id: true }, // só pode usar colunas existentes
     });
 
+    const validaPlano = await this.authService.validaPlanoUser(
+      usuarioId,
+      perfilId,
+    );
+
     return {
       id: registro?.id ?? null,
       usuario_id: usuarioId, // adiciona manualmente
+      redirect_to: validaPlano ?? '',
     };
   }
 
