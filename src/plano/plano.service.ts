@@ -16,7 +16,11 @@ export class PlanoService {
     const planos = await this.prisma.plano.findMany({
       where: {
         ativo: true,
-        linguagem: language,
+        linguagem: {
+          some: {
+            linguagem: language,
+          },
+        },
         periodos: {
           some: {
             ativo: true,
@@ -26,9 +30,16 @@ export class PlanoService {
       },
       select: {
         id: true,
-        plano: true,
-        descricao: true,
         highlight: true,
+        linguagem: {
+          where: {
+            linguagem: language,
+          },
+          select: {
+            plano: true,
+            descricao: true,
+          },
+        },
         periodos: {
           where: {
             ativo: true,
@@ -75,7 +86,11 @@ export class PlanoService {
     userId: number,
     perfilId: number,
     planoPeriodoId: number,
+    language: string,
+    token_pagto?: string,
   ): Promise<ValidaPlanoRetorno> {
+    const pagamentoConfirmado = Boolean(token_pagto);
+
     // 1) Criar ou obter usuario_perfil
     const usuarioPerfil = await this.prisma.usuario_perfil.upsert({
       where: {
@@ -94,34 +109,55 @@ export class PlanoService {
     // 2) Criar OU atualizar um plano já existente para esse usuario_perfil
     const planoUsuario = await this.prisma.usuario_perfil_plano.upsert({
       where: {
-        usuario_perfil_id: usuarioPerfil.id, // precisa ser UNIQUE
+        usuario_perfil_id: usuarioPerfil.id,
       },
       create: {
         usuario_perfil_id: usuarioPerfil.id,
         plano_periodo_id: planoPeriodoId,
-        ativo: true,
+        ativo: pagamentoConfirmado,
+        pagto_pendente: !pagamentoConfirmado,
       },
       update: {
         plano_periodo_id: planoPeriodoId,
         data_inicio: new Date(),
-        ativo: true,
+        ativo: pagamentoConfirmado,
+        pagto_pendente: !pagamentoConfirmado,
       },
     });
 
-    // 3) Buscar dados do período (validade dias)
-    const planoPeriodo = await this.prisma.plano_periodo.findFirst({
-      where: {
-        id: planoPeriodoId,
-        ativo: true,
-      },
+    // 4) Buscar dados do período (validade dias)
+    const planoPeriodo = await this.prisma.plano_periodo.findUnique({
+      where: { id: planoPeriodoId },
       include: {
-        plano: true,
+        plano: {
+          include: {
+            linguagem: {
+              where: { linguagem: language }, // 🔹 filtra a linguagem desejada
+              select: {
+                plano: true,
+                descricao: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    const nome = planoPeriodo?.plano.plano;
+    if (token_pagto) {
+      await this.prisma.plano_pagto_log.create({
+        data: {
+          usuario_perfil_plano_id: planoUsuario.id,
+          transacao_id: token_pagto,
+          data_pagto: new Date(),
+          valor: planoPeriodo?.valor ?? 0,
+          status: 'OK',
+        },
+      });
+    }
+
+    const nome = planoPeriodo?.plano.linguagem[0]?.plano;
     const validadeDias = planoPeriodo?.validade_dias ?? 30;
-    const dataInicio = planoUsuario.data_inicio;
+    const dataInicio = planoUsuario.data_inicio ?? new Date();
 
     const dataVencimento = new Date(
       dataInicio.getTime() + validadeDias * 24 * 60 * 60 * 1000,
