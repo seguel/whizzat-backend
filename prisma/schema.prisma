@@ -364,15 +364,25 @@ model estado_cidade {
 
 model plano {
   id          Int     @id @default(autoincrement())
-  plano       String  
-  descricao   String 
+  plano       String    
   ativo       Boolean @default(true)
-  linguagem   String
   highlight   Boolean @default(false)
 
   // Relações
   periodos plano_periodo[]
   itens plano_itens[]
+  linguagem plano_linguagem[]
+}
+
+model plano_linguagem {
+  id          Int     @id @default(autoincrement())
+  plano_id    Int
+  plano       String  
+  descricao   String?
+  linguagem   String
+
+  // Relações
+  planos plano @relation(fields: [plano_id], references: [id])
 }
 
 model plano_itens {
@@ -418,18 +428,28 @@ model usuario_perfil {
   @@unique([usuario_id, perfil_id]) // um usuário não pode ter 2 perfis iguais
 }
 
-
-
 model usuario_perfil_plano {
   id                  Int     @id @default(autoincrement())
   usuario_perfil_id   Int     @unique
   plano_periodo_id    Int
   data_inicio         DateTime @default(now())
-  ativo               Boolean @default(true)
-  
+  ativo               Boolean @default(false)
+  pagto_pendente      Boolean @default(true)
 
   // Relações
   usuario_perfil usuario_perfil @relation(fields: [usuario_perfil_id], references: [id])
   periodo plano_periodo @relation(fields: [plano_periodo_id], references: [id])
+  pagto_log plano_pagto_log[]
 }
 
+model plano_pagto_log {
+  id                        Int     @id @default(autoincrement())
+  usuario_perfil_plano_id   Int     
+  transacao_id              String  @unique
+  data_pagto                DateTime @default(now())
+  valor                     Decimal @db.Decimal(10,2)
+  status                    String
+
+  // Relações
+  usuario_plano usuario_perfil_plano @relation(fields: [usuario_perfil_plano_id], references: [id])
+}
