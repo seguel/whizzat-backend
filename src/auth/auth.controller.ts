@@ -124,6 +124,7 @@ export class AuthController {
       maxAge: 60 * 60 * 2000, //1h
     });
 
+    // console.log(loginResult);
     return loginResult;
   }
 
@@ -212,6 +213,10 @@ export class AuthController {
   async checkPerfil(@Req() req: Request & { user: JwtPayload }) {
     const usuarioId = req.user?.sub;
     const perfilId = req.user?.perfil ?? 0;
+
+    if (perfilId == 0) return { redirect_to: '' };
+    else if (perfilId == 3)
+      return { redirect_to: '/dashboard?perfil=avaliador' };
 
     const validaPlano = await this.authService.validaPlanoUser(
       usuarioId,
