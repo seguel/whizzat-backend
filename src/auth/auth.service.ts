@@ -117,66 +117,68 @@ export class AuthService {
             ? 'avaliador'
             : '';
 
-    if (user.id_perfil ?? 0 > 0) {
-      const plano = await this.plano.validaPlanoUsuario(
-        user.id,
-        user.id_perfil ?? 0,
-      );
+    if (user.id_perfil && user.id_perfil != 3) {
+      if (user.id_perfil ?? 0 > 0) {
+        const plano = await this.plano.validaPlanoUsuario(
+          user.id,
+          user.id_perfil ?? 0,
+        );
 
-      switch (plano.status) {
-        case 'SEM_PERFIL':
-        case 'SEM_PLANO':
-          return {
-            access_token: token,
-            user: {
-              id: user.id,
-              email: user.email,
-              nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
-              lang: user.linguagem,
-            },
-            plano: {
-              status: 'SEM_PLANO',
-              plano: '',
-              validade: null,
-            },
-            redirectTo: `/cadastro/plano?perfil=${rotaPerfil}`,
-          };
+        switch (plano.status) {
+          case 'SEM_PERFIL':
+          case 'SEM_PLANO':
+            return {
+              access_token: token,
+              user: {
+                id: user.id,
+                email: user.email,
+                nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+                lang: user.linguagem,
+              },
+              plano: {
+                status: 'SEM_PLANO',
+                plano: '',
+                validade: null,
+              },
+              redirectTo: `/cadastro/plano?perfil=${rotaPerfil}`,
+            };
 
-        case 'PLANO_EXPIRADO':
-          return {
-            access_token: token,
-            user: {
-              id: user.id,
-              email: user.email,
-              nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
-              lang: user.linguagem,
-            },
-            plano: {
-              status: 'PLANO_EXPIRADO',
-              plano: plano.plano,
-              validade: plano.vencimento,
-            },
-            redirectTo: `/cadastro/plano?perfil=${rotaPerfil}&expirado=1`,
-          };
+          case 'PLANO_EXPIRADO':
+            return {
+              access_token: token,
+              user: {
+                id: user.id,
+                email: user.email,
+                nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+                lang: user.linguagem,
+              },
+              plano: {
+                status: 'PLANO_EXPIRADO',
+                plano: plano.plano,
+                validade: plano.vencimento,
+              },
+              redirectTo: `/cadastro/plano?perfil=${rotaPerfil}&expirado=1`,
+            };
 
-        case 'OK':
-          return {
-            access_token: token,
-            user: {
-              id: user.id,
-              email: user.email,
-              nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
-              lang: user.linguagem,
-            },
-            plano: {
-              status: 'PLANO_OK',
-              plano: plano.plano,
-              validade: plano.vencimento,
-            },
-            redirectTo: rotaPerfil
-              ? `/dashboard?perfil=${rotaPerfil}`
-              : '/cadastro/perfil', // fallback
-          };
+          case 'OK':
+            return {
+              access_token: token,
+              user: {
+                id: user.id,
+                email: user.email,
+                nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+                lang: user.linguagem,
+              },
+              plano: {
+                status: 'PLANO_OK',
+                plano: plano.plano,
+                validade: plano.vencimento,
+              },
+              redirectTo: rotaPerfil
+                ? `/dashboard?perfil=${rotaPerfil}`
+                : '/cadastro/perfil', // fallback
+            };
+        }
       }
     }
 
