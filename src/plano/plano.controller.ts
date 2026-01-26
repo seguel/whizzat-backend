@@ -14,7 +14,7 @@ import { PlanoService } from './plano.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { plano } from '@prisma/client';
+import { Plano } from '@prisma/client';
 import { I18nService } from 'nestjs-i18n';
 
 @Controller('planos')
@@ -26,7 +26,7 @@ export class PlanoController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getPlano(@Param('id', ParseIntPipe) id: number): Promise<plano | null> {
+  getPlano(@Param('id', ParseIntPipe) id: number): Promise<Plano | null> {
     return this.planoService.getPlano(id);
   }
 

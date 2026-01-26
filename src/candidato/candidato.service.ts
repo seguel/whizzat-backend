@@ -10,6 +10,53 @@ interface JwtPayload {
   empresaId: number;
 } */
 
+export interface UsuarioDto {
+  primeiro_nome: string;
+  ultimo_nome: string;
+  nome_social: string;
+  data_nascimento: string | null;
+  genero_id: number;
+  genero: string;
+  cidade_id: number;
+  cidade: string;
+  estado_id: number | null;
+  estado: string;
+}
+
+export interface CandidatoSkillDto {
+  id: number;
+  candidato_id: number;
+  skill_id: number;
+  peso: number;
+  favorito: boolean;
+  tempo_favorito: string;
+  nome: string;
+  tipo_skill_id: number;
+}
+
+export interface CandidatoCertificacaoDto {
+  id: number;
+  candidato_id: number;
+  certificacao_id: number;
+  certificado: string;
+  certificado_file: string;
+}
+
+export interface CandidatoDto {
+  id: number;
+  usuario_id: number;
+  perfil_id: number;
+  telefone: string;
+  localizacao: string | null;
+  apresentacao: string;
+  logo?: string;
+  meio_notificacao: string;
+  ativo: boolean;
+  skills: CandidatoSkillDto[];
+  certificacoes: CandidatoCertificacaoDto[];
+  usuario: UsuarioDto;
+}
+
 @Injectable()
 export class CandidatoService {
   constructor(
@@ -22,7 +69,7 @@ export class CandidatoService {
     usuarioId: number,
     perfilId: number,
   ): Promise<{ id: number | null; usuario_id: number; redirect_to: string }> {
-    const registro = await this.prisma.usuario_perfil_candidato.findUnique({
+    const registro = await this.prisma.usuarioPerfilCandidato.findUnique({
       where: {
         ativo: true,
         usuario_id_perfil_id: {
@@ -51,7 +98,7 @@ export class CandidatoService {
     perfilId: number,
     nomeUser: string,
   ): Promise<{ id: number | null; usuario_id: number; nome_user: string }> {
-    const registro = await this.prisma.usuario_perfil_candidato.findUnique({
+    const registro = await this.prisma.usuarioPerfilCandidato.findUnique({
       where: {
         usuario_id_perfil_id: {
           // <-- chave composta
@@ -74,9 +121,9 @@ export class CandidatoService {
     usuarioId: number,
     perfilId: number,
     lang: string,
-  ) {
-    const candidato =
-      await this.prisma.usuario_perfil_candidato.findFirstOrThrow({
+  ): Promise<CandidatoDto> {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirstOrThrow(
+      {
         where: { id, usuario_id: usuarioId, perfil_id: perfilId },
         include: {
           formacao: {
@@ -121,7 +168,8 @@ export class CandidatoService {
             },
           },
         },
-      });
+      },
+    );
 
     const usr = candidato.usuario;
 
@@ -142,7 +190,7 @@ export class CandidatoService {
       }).format(date);
     }
 
-    const usuario = {
+    const usuario: UsuarioDto = {
       primeiro_nome: usr.primeiro_nome,
       ultimo_nome: usr.ultimo_nome,
       nome_social: usr.nome_social ?? '',
@@ -156,15 +204,16 @@ export class CandidatoService {
     };
 
     // 🔹 Achatar as certificacoes
-    const certificacoes = candidato.certificacoes.map((s) => ({
-      id: s.id,
-      candidato_id: s.candidato_id,
-      certificacao_id: s.certificacao_id,
-      certificado: s.certificacoes.certificado,
-      certificado_file: s.certificado_file,
-    }));
+    const certificacoes: CandidatoCertificacaoDto[] =
+      candidato.certificacoes.map((s) => ({
+        id: s.id,
+        candidato_id: s.candidato_id,
+        certificacao_id: s.certificacao_id,
+        certificado: s.certificacoes.certificado,
+        certificado_file: s.certificado_file,
+      }));
 
-    const skills = candidato.skills.map((s) => ({
+    const skills: CandidatoSkillDto[] = candidato.skills.map((s) => ({
       id: s.id,
       candidato_id: s.candidato_id,
       skill_id: s.skill_id,
@@ -193,7 +242,7 @@ export class CandidatoService {
     meio_notificacao: string;
     language: string;
   }) {
-    const createData: Prisma.usuario_perfil_candidatoCreateInput = {
+    const createData: Prisma.UsuarioPerfilCandidatoCreateInput = {
       usuario: {
         connect: { id: data.usuario_id },
       },
@@ -208,7 +257,7 @@ export class CandidatoService {
       linguagem: data.language,
     };
 
-    const candidato = await this.prisma.usuario_perfil_candidato.create({
+    const candidato = await this.prisma.usuarioPerfilCandidato.create({
       data: createData,
     });
 
@@ -229,7 +278,7 @@ export class CandidatoService {
     ativo: boolean;
     language: string;
   }) {
-    const updateData: Prisma.usuario_perfil_candidatoUpdateInput = {
+    const updateData: Prisma.UsuarioPerfilCandidatoUpdateInput = {
       telefone: data.telefone,
       localizacao: data.localizacao,
       apresentacao: data.apresentacao,
@@ -238,14 +287,14 @@ export class CandidatoService {
       ativo: data.ativo,
     };
 
-    return this.prisma.usuario_perfil_candidato.update({
+    return this.prisma.usuarioPerfilCandidato.update({
       where: { id: data.candidato_id },
       data: updateData,
     });
   }
 
-  async createCandidatoSkills(skills: Prisma.candidato_skillCreateManyInput[]) {
-    return this.prisma.candidato_skill.createMany({
+  async createCandidatoSkills(skills: Prisma.CandidatoSkillCreateManyInput[]) {
+    return this.prisma.candidatoSkill.createMany({
       data: skills,
     });
   }
@@ -261,7 +310,7 @@ export class CandidatoService {
     }[],
   ) {
     // Busca skills atuais do candidato
-    const existentes = await this.prisma.candidato_skill.findMany({
+    const existentes = await this.prisma.candidatoSkill.findMany({
       where: { candidato_id },
     });
 
@@ -271,7 +320,7 @@ export class CandidatoService {
     // 🔹 Remove apenas as skills que não estão mais no novo array
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.candidato_skill.deleteMany({
+      await this.prisma.candidatoSkill.deleteMany({
         where: { candidato_id, skill_id: { in: paraRemover } },
       });
     }
@@ -287,7 +336,7 @@ export class CandidatoService {
           existente.tempo_favorito !== s.tempo_favorito;
 
         if (precisaAtualizar) {
-          await this.prisma.candidato_skill.updateMany({
+          await this.prisma.candidatoSkill.updateMany({
             where: { candidato_id, skill_id: s.skill_id },
             data: {
               peso: s.peso,
@@ -298,15 +347,15 @@ export class CandidatoService {
         }
       } else {
         // Cria nova
-        await this.prisma.candidato_skill.create({ data: s });
+        await this.prisma.candidatoSkill.create({ data: s });
       }
     }
   }
 
   async createCandidatoFormacao(
-    formacoes: Prisma.candidato_formacao_academicaCreateManyInput[],
+    formacoes: Prisma.CandidatoFormacaoAcademicaCreateManyInput[],
   ) {
-    return this.prisma.candidato_formacao_academica.createMany({
+    return this.prisma.candidatoFormacaoAcademica.createMany({
       data: formacoes,
     });
   }
@@ -321,7 +370,7 @@ export class CandidatoService {
     }[],
   ) {
     // Busca formacoes atuais no banco
-    const existentes = await this.prisma.candidato_formacao_academica.findMany({
+    const existentes = await this.prisma.candidatoFormacaoAcademica.findMany({
       where: { candidato_id },
     });
 
@@ -332,7 +381,7 @@ export class CandidatoService {
     // Remove apenas as formações que não estão mais no novo array
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.candidato_formacao_academica.deleteMany({
+      await this.prisma.candidatoFormacaoAcademica.deleteMany({
         where: { candidato_id, graduacao_id: { in: paraRemover } },
       });
     }
@@ -343,7 +392,7 @@ export class CandidatoService {
         (e) => e.graduacao_id === f.graduacao_id,
       );
       if (existente) {
-        await this.prisma.candidato_formacao_academica.updateMany({
+        await this.prisma.candidatoFormacaoAcademica.updateMany({
           where: { candidato_id, graduacao_id: f.graduacao_id },
           data: {
             formacao: f.formacao,
@@ -351,7 +400,7 @@ export class CandidatoService {
           },
         });
       } else {
-        await this.prisma.candidato_formacao_academica.create({
+        await this.prisma.candidatoFormacaoAcademica.create({
           data: f,
         });
       }
@@ -359,9 +408,9 @@ export class CandidatoService {
   }
 
   async createCandidatoCertificacoes(
-    certificacoes: Prisma.candidato_certificacoesCreateManyInput[],
+    certificacoes: Prisma.CandidatoCertificacoesCreateManyInput[],
   ) {
-    return this.prisma.candidato_certificacoes.createMany({
+    return this.prisma.candidatoCertificacoes.createMany({
       data: certificacoes,
     });
   }
@@ -375,7 +424,7 @@ export class CandidatoService {
     }[],
   ) {
     // Busca certificações atuais no banco
-    const existentes = await this.prisma.candidato_certificacoes.findMany({
+    const existentes = await this.prisma.candidatoCertificacoes.findMany({
       where: { candidato_id },
     });
 
@@ -385,7 +434,7 @@ export class CandidatoService {
     // Remove apenas as que sumiram
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.candidato_certificacoes.deleteMany({
+      await this.prisma.candidatoCertificacoes.deleteMany({
         where: { candidato_id, certificacao_id: { in: paraRemover } },
       });
     }
@@ -396,14 +445,14 @@ export class CandidatoService {
         (e) => e.certificacao_id === c.certificacao_id,
       );
       if (existente) {
-        await this.prisma.candidato_certificacoes.updateMany({
+        await this.prisma.candidatoCertificacoes.updateMany({
           where: { candidato_id, certificacao_id: c.certificacao_id },
           data: {
             certificado_file: c.certificado_file || existente.certificado_file,
           },
         });
       } else {
-        await this.prisma.candidato_certificacoes.create({
+        await this.prisma.candidatoCertificacoes.create({
           data: c,
         });
       }

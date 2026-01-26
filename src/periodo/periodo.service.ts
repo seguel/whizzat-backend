@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { periodo_trabalho } from '@prisma/client';
 
 @Injectable()
 export class PeriodoService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getPeriodos(language: string): Promise<periodo_trabalho[]> {
-    return this.prisma.periodo_trabalho.findMany({
+  async getPeriodos(language: string) {
+    return await this.prisma.periodoTrabalho.findMany({
       where: { ativo: true, linguagem: language },
       orderBy: {
         periodo: 'asc', // ou 'desc'
@@ -15,8 +14,8 @@ export class PeriodoService {
     });
   }
 
-  async getPeriodo(id: number): Promise<periodo_trabalho | null> {
-    return this.prisma.periodo_trabalho.findUnique({
+  async getPeriodo(id: number) {
+    return await this.prisma.periodoTrabalho.findUnique({
       where: { periodo_trabalho_id: id },
     });
   }

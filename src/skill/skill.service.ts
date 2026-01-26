@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { skill } from '@prisma/client';
+import { Skill } from '@prisma/client';
 
 @Injectable()
 export class SkillService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSkills(language: string): Promise<skill[]> {
-    return this.prisma.skill.findMany({
+  async getSkills(language: string): Promise<Skill[]> {
+    return await this.prisma.skill.findMany({
       where: { ativo: true, linguagem: language },
       orderBy: {
         skill: 'asc', // ou 'desc'
@@ -15,8 +15,8 @@ export class SkillService {
     });
   }
 
-  async getSkillsFiltro(language: string): Promise<skill[]> {
-    return this.prisma.skill.findMany({
+  async getSkillsFiltro(language: string): Promise<Skill[]> {
+    return await this.prisma.skill.findMany({
       where: {
         ativo: true,
         linguagem: language,
@@ -30,16 +30,16 @@ export class SkillService {
     });
   }
 
-  async getSkill(id: number): Promise<skill | null> {
-    return this.prisma.skill.findUnique({
+  async getSkill(id: number): Promise<Skill | null> {
+    return await this.prisma.skill.findUnique({
       where: { skill_id: id },
     });
   }
 
   // src/skill/skill.service.ts
 
-  async getSkillByName(nome: string): Promise<skill | null> {
-    return this.prisma.skill.findFirst({
+  async getSkillByName(nome: string): Promise<Skill | null> {
+    return await this.prisma.skill.findFirst({
       where: {
         skill: nome.trim(),
         ativo: true,
@@ -51,7 +51,7 @@ export class SkillService {
     data: { nome: string },
     language: string,
     tipoSkill: number,
-  ): Promise<skill> {
+  ): Promise<Skill> {
     return this.prisma.skill.create({
       data: {
         skill: data.nome.trim(),
@@ -66,7 +66,7 @@ export class SkillService {
     nome: string,
     language: string,
     tipoSkill: number,
-  ): Promise<skill> {
+  ): Promise<Skill> {
     return this.prisma.skill.upsert({
       where: { skill: nome.trim() },
       update: {}, // não atualiza nada se já existir

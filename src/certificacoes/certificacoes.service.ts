@@ -6,7 +6,7 @@ export class CertificacoesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getCertificados() {
-    return this.prisma.certificacoes.findMany({
+    return await this.prisma.certificacoes.findMany({
       where: { ativo: true },
       orderBy: {
         certificado: 'asc', // ou 'desc'
@@ -15,7 +15,7 @@ export class CertificacoesService {
   }
 
   async getCertificado(id: number) {
-    return this.prisma.certificacoes.findUnique({
+    return await this.prisma.certificacoes.findUnique({
       where: { id: id },
     });
   }

@@ -126,16 +126,19 @@ export class AvaliadorController {
     // Parse seguro dos dados
     const formacoes = safeJsonParse<CreateAvaliadorFormacaoDto[]>(
       body.formacoes,
+      [],
     );
     const certificados = safeJsonParse<CreateAvaliadorCertificadosDto[]>(
       body.certificacoes,
+      [],
     );
     const novosCertificados = safeJsonParse<
       CreateNovoCertificadoAvaliadorDto[]
-    >(body.novas_certificacoes);
-    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills);
+    >(body.novas_certificacoes, []);
+    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills, []);
     const novasSkills = safeJsonParse<CreateNovaSkillAvaliadorDto[]>(
       body.novas_skills,
+      [],
     );
 
     // Cria o avaliador
@@ -348,16 +351,19 @@ export class AvaliadorController {
     // Parse seguro dos dados
     const formacoes = safeJsonParse<CreateAvaliadorFormacaoDto[]>(
       body.formacoes,
+      [],
     );
     const certificados = safeJsonParse<CreateAvaliadorCertificadosDto[]>(
       body.certificacoes,
+      [],
     );
     const novosCertificados = safeJsonParse<
       CreateNovoCertificadoAvaliadorDto[]
-    >(body.novas_certificacoes);
-    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills);
+    >(body.novas_certificacoes, []);
+    const skills = safeJsonParse<CreateAvaliadorSkillDto[]>(body.skills, []);
     const novasSkills = safeJsonParse<CreateNovaSkillAvaliadorDto[]>(
       body.novas_skills,
+      [],
     );
 
     const avaliadorAtual = await this.avaliadorService.getAvaliador(
