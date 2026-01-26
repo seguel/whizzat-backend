@@ -6,7 +6,7 @@ export class EstadoService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getEstados(language: string) {
-    return this.prisma.estado.findMany({
+    return await this.prisma.estado.findMany({
       where: { linguagem: language },
       orderBy: {
         estado: 'asc', // ou 'desc'
@@ -15,7 +15,7 @@ export class EstadoService {
   }
 
   async getEstado(id: number) {
-    return this.prisma.estado.findUnique({
+    return await this.prisma.estado.findUnique({
       where: { id: id },
     });
   }
@@ -40,7 +40,7 @@ export class EstadoService {
 
     // 3️⃣ Insere no banco usando upsert (evita duplicados)
     for (const c of cidadesData) {
-      await this.prisma.estado_cidade.upsert({
+      await this.prisma.estadoCidade.upsert({
         where: {
           estado_id_cidade: {
             estado_id: c.estado_id,
@@ -53,7 +53,7 @@ export class EstadoService {
     }
 
     // 4️⃣ Retorna as cidades inseridas
-    return this.prisma.estado_cidade.findMany({
+    return await this.prisma.estadoCidade.findMany({
       where: { estado_id: estadoId },
     });
   }

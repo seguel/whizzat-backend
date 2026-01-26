@@ -14,6 +14,123 @@ interface JwtPayload {
   empresaId: number;
 }
 
+export interface CheckPerfil {
+  id: number | null;
+  usuario_id: number;
+  redirect_to: string;
+}
+
+export interface CheckPerfilCadastro {
+  id: number | null;
+  usuario_id: number;
+  nome_user: string;
+}
+
+export interface UsuarioDto {
+  primeiro_nome: string;
+  ultimo_nome: string;
+  nome_social: string;
+  data_nascimento: string | null;
+  genero_id: number;
+  genero: string;
+  cidade_id: number;
+  cidade: string;
+  estado_id: number | null;
+  estado: string;
+}
+
+export interface AvaliadorSkillDto {
+  id: number;
+  avaliador_id: number;
+  skill_id: number;
+  peso: number;
+  favorito: boolean;
+  tempo_favorito: string;
+  nome: string;
+  tipo_skill_id: number;
+}
+
+export interface AvaliadorCertificacaoDto {
+  id: number;
+  avaliador_id: number;
+  certificacao_id: number;
+  certificado: string;
+  certificado_file: string;
+}
+
+export interface AvaliadorDto {
+  id: number;
+  usuario_id: number;
+  perfil_id: number;
+  empresa_id: number | null;
+  telefone: string;
+  localizacao: string | null;
+  apresentacao: string;
+  avaliar_todos: boolean;
+  logo?: string;
+  meio_notificacao: string;
+  status_cadastro: number;
+  ativo: boolean;
+  skills: AvaliadorSkillDto[];
+  certificacoes: AvaliadorCertificacaoDto[];
+  usuario: UsuarioDto;
+}
+/* 
+export interface EmpresaDto {
+  id: number;
+  nome_empresa: string;
+}
+
+export interface AvaliadorCreateInput {
+  usuario_id: number;
+  perfil_id: number;
+  empresa_id: number | null;
+  telefone: string;
+  localizacao: string;
+  apresentacao: string;
+  avaliar_todos: boolean;
+  logo?: string;
+  meio_notificacao: string;
+  status_cadastro: number;
+  language: string;
+}
+
+export interface AvaliadorUpdateInput {
+  avaliador_id: number;
+  usuario_id: number;
+  perfil_id: number;
+  empresa_id: number | null;
+  telefone: string;
+  localizacao: string;
+  apresentacao: string;
+  avaliar_todos: boolean;
+  logo?: string;
+  meio_notificacao: string;
+  ativo: boolean;
+  language: string;
+}
+
+export interface SkillInput {
+  avaliador_id: number;
+  skill_id: number;
+  peso: number;
+  favorito: boolean;
+  tempo_favorito: string;
+}
+
+export interface FormacaoInput {
+  avaliador_id: number;
+  graduacao_id: number;
+  formacao: string;
+  certificado_file: string;
+}
+
+export interface CertificacaoInput {
+  avaliador_id: number;
+  certificacao_id: number;
+  certificado_file: string;
+} */
+
 @Injectable()
 export class AvaliadorService {
   constructor(
@@ -27,8 +144,8 @@ export class AvaliadorService {
   async getCheckHasPerfil(
     usuarioId: number,
     perfilId: number,
-  ): Promise<{ id: number | null; usuario_id: number; redirect_to: string }> {
-    const registro = await this.prisma.usuario_perfil_avaliador.findUnique({
+  ): Promise<CheckPerfil> {
+    const registro = await this.prisma.usuarioPerfilAvaliador.findUnique({
       where: {
         ativo: true,
         status_cadastro: 1, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
@@ -57,8 +174,8 @@ export class AvaliadorService {
     usuarioId: number,
     perfilId: number,
     nomeUser: string,
-  ): Promise<{ id: number | null; usuario_id: number; nome_user: string }> {
-    const registro = await this.prisma.usuario_perfil_avaliador.findUnique({
+  ): Promise<CheckPerfilCadastro> {
+    const registro = await this.prisma.usuarioPerfilAvaliador.findUnique({
       where: {
         usuario_id_perfil_id: {
           // <-- chave composta
@@ -81,9 +198,9 @@ export class AvaliadorService {
     usuarioId: number,
     perfilId: number,
     lang: string,
-  ) {
-    const avaliador =
-      await this.prisma.usuario_perfil_avaliador.findFirstOrThrow({
+  ): Promise<AvaliadorDto> {
+    const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirstOrThrow(
+      {
         where: { id, usuario_id: usuarioId, perfil_id: perfilId },
         include: {
           formacao: {
@@ -128,7 +245,8 @@ export class AvaliadorService {
             },
           },
         },
-      });
+      },
+    );
 
     const usr = avaliador.usuario;
 
@@ -149,7 +267,7 @@ export class AvaliadorService {
       }).format(date);
     }
 
-    const usuario = {
+    const usuario: UsuarioDto = {
       primeiro_nome: usr.primeiro_nome,
       ultimo_nome: usr.ultimo_nome,
       nome_social: usr.nome_social ?? '',
@@ -163,15 +281,16 @@ export class AvaliadorService {
     };
 
     // 🔹 Achatar as certificacoes
-    const certificacoes = avaliador.certificacoes.map((s) => ({
-      id: s.id,
-      avaliador_id: s.avaliador_id,
-      certificacao_id: s.certificacao_id,
-      certificado: s.certificacoes.certificado,
-      certificado_file: s.certificado_file,
-    }));
+    const certificacoes: AvaliadorCertificacaoDto[] =
+      avaliador.certificacoes.map((s) => ({
+        id: s.id,
+        avaliador_id: s.avaliador_id,
+        certificacao_id: s.certificacao_id,
+        certificado: s.certificacoes.certificado,
+        certificado_file: s.certificado_file,
+      }));
 
-    const skills = avaliador.skills.map((s) => ({
+    const skills: AvaliadorSkillDto[] = avaliador.skills.map((s) => ({
       id: s.id,
       avaliador_id: s.avaliador_id,
       skill_id: s.skill_id,
@@ -191,7 +310,7 @@ export class AvaliadorService {
   }
 
   async getAvaliadores(recrutador_id: number) {
-    const avaliadores = await this.prisma.usuario_perfil_avaliador.findMany({
+    const avaliadores = await this.prisma.usuarioPerfilAvaliador.findMany({
       where: {
         empresa: {
           recrutador_id: recrutador_id, // <-- filtro via relação
@@ -244,7 +363,7 @@ export class AvaliadorService {
     status_cadastro: number;
     language: string;
   }) {
-    const createData: Prisma.usuario_perfil_avaliadorCreateInput = {
+    const createData: Prisma.UsuarioPerfilAvaliadorCreateInput = {
       usuario: {
         connect: { id: data.usuario_id },
       },
@@ -264,7 +383,7 @@ export class AvaliadorService {
       linguagem: data.language,
     };
 
-    const avaliador = await this.prisma.usuario_perfil_avaliador.create({
+    const avaliador = await this.prisma.usuarioPerfilAvaliador.create({
       data: createData,
     });
 
@@ -340,7 +459,7 @@ export class AvaliadorService {
 
     if (data.empresa_id) {
       //busca e valida a empresa atual no cadastro
-      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+      const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
         where: {
           id: data.avaliador_id,
         },
@@ -407,7 +526,7 @@ export class AvaliadorService {
       }
     }
 
-    const updateData: Prisma.usuario_perfil_avaliadorUpdateInput = {
+    const updateData: Prisma.UsuarioPerfilAvaliadorUpdateInput = {
       empresa: data.empresa_id
         ? { connect: { id: data.empresa_id } }
         : { disconnect: true },
@@ -425,7 +544,7 @@ export class AvaliadorService {
       updateData.data_envio_link = new Date();
     }
 
-    return this.prisma.usuario_perfil_avaliador.update({
+    return this.prisma.usuarioPerfilAvaliador.update({
       where: { id: data.avaliador_id },
       data: updateData,
     });
@@ -448,8 +567,8 @@ export class AvaliadorService {
     return { empresas };
   }
 
-  async createAvaliadorSkills(skills: Prisma.avaliador_skillCreateManyInput[]) {
-    return this.prisma.avaliador_skill.createMany({
+  async createAvaliadorSkills(skills: Prisma.AvaliadorSkillCreateManyInput[]) {
+    return this.prisma.avaliadorSkill.createMany({
       data: skills,
     });
   }
@@ -465,7 +584,7 @@ export class AvaliadorService {
     }[],
   ) {
     // Busca skills atuais do avaliador
-    const existentes = await this.prisma.avaliador_skill.findMany({
+    const existentes = await this.prisma.avaliadorSkill.findMany({
       where: { avaliador_id },
     });
 
@@ -475,7 +594,7 @@ export class AvaliadorService {
     // 🔹 Remove apenas as skills que não estão mais no novo array
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.avaliador_skill.deleteMany({
+      await this.prisma.avaliadorSkill.deleteMany({
         where: { avaliador_id, skill_id: { in: paraRemover } },
       });
     }
@@ -491,7 +610,7 @@ export class AvaliadorService {
           existente.tempo_favorito !== s.tempo_favorito;
 
         if (precisaAtualizar) {
-          await this.prisma.avaliador_skill.updateMany({
+          await this.prisma.avaliadorSkill.updateMany({
             where: { avaliador_id, skill_id: s.skill_id },
             data: {
               peso: s.peso,
@@ -502,15 +621,15 @@ export class AvaliadorService {
         }
       } else {
         // Cria nova
-        await this.prisma.avaliador_skill.create({ data: s });
+        await this.prisma.avaliadorSkill.create({ data: s });
       }
     }
   }
 
   async createAvaliadorFormacao(
-    formacoes: Prisma.avaliador_formacao_academicaCreateManyInput[],
+    formacoes: Prisma.AvaliadorFormacaoAcademicaCreateManyInput[],
   ) {
-    return this.prisma.avaliador_formacao_academica.createMany({
+    return this.prisma.avaliadorFormacaoAcademica.createMany({
       data: formacoes,
     });
   }
@@ -525,7 +644,7 @@ export class AvaliadorService {
     }[],
   ) {
     // Busca formacoes atuais no banco
-    const existentes = await this.prisma.avaliador_formacao_academica.findMany({
+    const existentes = await this.prisma.avaliadorFormacaoAcademica.findMany({
       where: { avaliador_id },
     });
 
@@ -536,7 +655,7 @@ export class AvaliadorService {
     // Remove apenas as formações que não estão mais no novo array
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.avaliador_formacao_academica.deleteMany({
+      await this.prisma.avaliadorFormacaoAcademica.deleteMany({
         where: { avaliador_id, graduacao_id: { in: paraRemover } },
       });
     }
@@ -547,7 +666,7 @@ export class AvaliadorService {
         (e) => e.graduacao_id === f.graduacao_id,
       );
       if (existente) {
-        await this.prisma.avaliador_formacao_academica.updateMany({
+        await this.prisma.avaliadorFormacaoAcademica.updateMany({
           where: { avaliador_id, graduacao_id: f.graduacao_id },
           data: {
             formacao: f.formacao,
@@ -555,7 +674,7 @@ export class AvaliadorService {
           },
         });
       } else {
-        await this.prisma.avaliador_formacao_academica.create({
+        await this.prisma.avaliadorFormacaoAcademica.create({
           data: f,
         });
       }
@@ -563,9 +682,9 @@ export class AvaliadorService {
   }
 
   async createAvaliadorCertificacoes(
-    certificacoes: Prisma.avaliador_certificacoesCreateManyInput[],
+    certificacoes: Prisma.AvaliadorCertificacoesCreateManyInput[],
   ) {
-    return this.prisma.avaliador_certificacoes.createMany({
+    return this.prisma.avaliadorCertificacoes.createMany({
       data: certificacoes,
     });
   }
@@ -579,7 +698,7 @@ export class AvaliadorService {
     }[],
   ) {
     // Busca certificações atuais no banco
-    const existentes = await this.prisma.avaliador_certificacoes.findMany({
+    const existentes = await this.prisma.avaliadorCertificacoes.findMany({
       where: { avaliador_id },
     });
 
@@ -589,7 +708,7 @@ export class AvaliadorService {
     // Remove apenas as que sumiram
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.avaliador_certificacoes.deleteMany({
+      await this.prisma.avaliadorCertificacoes.deleteMany({
         where: { avaliador_id, certificacao_id: { in: paraRemover } },
       });
     }
@@ -600,14 +719,14 @@ export class AvaliadorService {
         (e) => e.certificacao_id === c.certificacao_id,
       );
       if (existente) {
-        await this.prisma.avaliador_certificacoes.updateMany({
+        await this.prisma.avaliadorCertificacoes.updateMany({
           where: { avaliador_id, certificacao_id: c.certificacao_id },
           data: {
             certificado_file: c.certificado_file || existente.certificado_file,
           },
         });
       } else {
-        await this.prisma.avaliador_certificacoes.create({
+        await this.prisma.avaliadorCertificacoes.create({
           data: c,
         });
       }
@@ -615,7 +734,7 @@ export class AvaliadorService {
   }
 
   async resendLink(id: number, usuarioId: number, language: string) {
-    const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+    const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
       where: {
         id: id,
         usuario_id: usuarioId,
@@ -661,7 +780,7 @@ export class AvaliadorService {
       language,
     );
 
-    await this.prisma.usuario_perfil_avaliador.update({
+    await this.prisma.usuarioPerfilAvaliador.update({
       where: {
         id: id,
       },
@@ -678,7 +797,7 @@ export class AvaliadorService {
         process.env.JWT_ACTIVATE_SECRET!,
       ) as JwtPayload;
 
-      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+      const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
         where: {
           id: payload.userId,
           perfil_id: perfilId,
@@ -713,7 +832,7 @@ export class AvaliadorService {
 
       if (avaliador.status_cadastro === 1) return avaliador;
 
-      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+      const avalaidorRet = await this.prisma.usuarioPerfilAvaliador.update({
         where: { id: avaliador.id },
         data: { status_cadastro: 1 },
       });
@@ -752,7 +871,7 @@ export class AvaliadorService {
 
       // console.log(payload);
 
-      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+      const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
         where: {
           id: payload.userId,
           perfil_id: perfilId,
@@ -790,7 +909,7 @@ export class AvaliadorService {
 
       if (avaliador.status_cadastro === 0) return avaliador;
 
-      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+      const avalaidorRet = await this.prisma.usuarioPerfilAvaliador.update({
         where: { id: avaliador.id },
         data: { status_cadastro: 0 },
       });
@@ -822,7 +941,7 @@ export class AvaliadorService {
 
   async activateUserByForm(id: number, empresa_id: number, language: string) {
     try {
-      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+      const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
         where: {
           id: id,
           empresa_id: empresa_id,
@@ -856,7 +975,7 @@ export class AvaliadorService {
 
       if (avaliador.status_cadastro === 1) return avaliador;
 
-      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+      const avalaidorRet = await this.prisma.usuarioPerfilAvaliador.update({
         where: { id: avaliador.id },
         data: { status_cadastro: 1 },
       });
@@ -888,7 +1007,7 @@ export class AvaliadorService {
 
   async rejectUserByForm(id: number, empresa_id: number, language: string) {
     try {
-      const avaliador = await this.prisma.usuario_perfil_avaliador.findFirst({
+      const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
         where: {
           id: id,
           empresa_id: empresa_id,
@@ -922,7 +1041,7 @@ export class AvaliadorService {
 
       if (avaliador.status_cadastro === 0) return avaliador;
 
-      const avalaidorRet = await this.prisma.usuario_perfil_avaliador.update({
+      const avalaidorRet = await this.prisma.usuarioPerfilAvaliador.update({
         where: { id: avaliador.id },
         data: { status_cadastro: 0 },
       });

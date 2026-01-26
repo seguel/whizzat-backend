@@ -24,7 +24,7 @@ import { diskStorage } from 'multer';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { Request, Express } from 'express'; // importante: tipar Request e Express
-import { empresa } from '@prisma/client';
+import { Empresa } from '@prisma/client';
 
 const uploadDir = process.env.UPLOADS_PATH || join(process.cwd(), 'uploads');
 if (!existsSync(uploadDir)) {
@@ -202,7 +202,7 @@ export class EmpresaController {
     @Req() req: Request & { user: JwtPayload },
   ): Promise<{
     usuario_id: number;
-    empresas: empresa[];
+    empresas: Empresa[];
   }> {
     const usuarioId = req.user?.sub;
     return this.empresaService.getEmpresasRecrutador(recrutadorId, usuarioId);
@@ -217,7 +217,7 @@ export class EmpresaController {
     @Req() req: Request & { user: JwtPayload },
   ): Promise<{
     usuario_id: number;
-    empresas: empresa[];
+    empresas: Empresa[];
   }> {
     const usuarioId = req.user?.sub;
     const lang = req.user?.lang ?? 'pt';
@@ -227,7 +227,7 @@ export class EmpresaController {
   @UseGuards(JwtAuthGuard)
   @Get('filtro-ativas-all')
   getEmpresasAtivasAll(@Req() req: Request & { user: JwtPayload }): Promise<{
-    empresas: empresa[];
+    empresas: Empresa[];
   }> {
     const lang = req.user?.lang ?? 'pt';
     return this.empresaService.getEmpresasAtivasAll(lang);
@@ -253,7 +253,7 @@ export class EmpresaController {
   @UseGuards(JwtAuthGuard)
   @Get()
   getEmpresas(@Req() req: Request & { user: JwtPayload }): Promise<{
-    empresas: empresa[];
+    empresas: Empresa[];
   }> {
     const lang = req.user?.lang ?? 'pt';
     return this.empresaService.getEmpresas(lang);

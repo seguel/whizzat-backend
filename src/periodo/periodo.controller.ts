@@ -11,7 +11,7 @@ import { PeriodoService } from './periodo.service';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { periodo_trabalho } from '@prisma/client';
+import { PeriodoTrabalho } from '@prisma/client';
 
 @Controller('Periodos')
 export class PeriodoController {
@@ -21,7 +21,7 @@ export class PeriodoController {
   @Get(':id')
   getPeriodo(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<periodo_trabalho | null> {
+  ): Promise<PeriodoTrabalho | null> {
     return this.periodoService.getPeriodo(id);
   }
 
@@ -29,7 +29,7 @@ export class PeriodoController {
   @Get()
   getPeriodos(
     @Req() req: Request & { user: JwtPayload },
-  ): Promise<periodo_trabalho[]> {
+  ): Promise<PeriodoTrabalho[]> {
     const lang = req.user?.lang ?? 'pt';
     return this.periodoService.getPeriodos(lang);
   }

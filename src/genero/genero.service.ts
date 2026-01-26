@@ -6,7 +6,7 @@ export class GeneroService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getGeneros(language: string) {
-    return this.prisma.genero.findMany({
+    return await this.prisma.genero.findMany({
       where: { ativo: true, linguagem: language },
       orderBy: {
         genero: 'asc', // ou 'desc'
@@ -15,7 +15,7 @@ export class GeneroService {
   }
 
   async getGenero(id: number) {
-    return this.prisma.genero.findUnique({
+    return await this.prisma.genero.findUnique({
       where: { id: id },
     });
   }

@@ -85,7 +85,7 @@ export class EmpresaService {
 
     //Valida se o recrutador_id corresponde ao usuario/perfil
     const validaRecrutador =
-      await this.prisma.usuario_perfil_recrutador.findFirst({
+      await this.prisma.usuarioPerfilRecrutador.findFirst({
         where: {
           usuario_id: data.usuario_id,
           perfil_id: data.perfil_id,
@@ -97,7 +97,7 @@ export class EmpresaService {
       throw new BadRequestException(`Dados do recrutador inválidos.`);
     }
 
-    const createData: Prisma.empresaCreateInput = {
+    const createData: Prisma.EmpresaCreateInput = {
       recrutador: {
         connect: { id: data.recrutador_id },
       },
@@ -194,7 +194,7 @@ export class EmpresaService {
       }
     }
 
-    const updateData: Prisma.empresaUpdateInput = {
+    const updateData: Prisma.EmpresaUpdateInput = {
       nome_empresa: data.nome_empresa,
       website: data.website,
       email: data.email,
@@ -334,7 +334,7 @@ export class EmpresaService {
   }
 
   async getListaVagasAtivasEmpresa(empresaId: number) {
-    const vagas = await this.prisma.empresa_vaga.findMany({
+    const vagas = await this.prisma.empresaVaga.findMany({
       where: {
         empresa_id: empresaId,
       },

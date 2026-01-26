@@ -1,7 +1,40 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, empresa } from '@prisma/client';
+import { Prisma, Empresa } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
+
+export interface CheckPerfil {
+  id: number | null;
+  usuario_id: number;
+  redirect_to: string;
+}
+
+export interface CheckPerfilCadastro {
+  id: number | null;
+  usuario_id: number;
+  nome_user: string;
+}
+
+export interface RecrutadorDto {
+  id: number;
+  telefone: string;
+  localizacao: string | null;
+  apresentacao: string;
+  logo?: string;
+  meio_notificacao: string;
+  ativo: boolean;
+  primeiro_nome: string;
+  ultimo_nome: string;
+  nome_social: string;
+  data_nascimento: string | null;
+  genero_id: number;
+  genero: string;
+  cidade_id: number;
+  cidade: string;
+  estado_id: number | null;
+  estado: string;
+  linguagem: string;
+}
 
 @Injectable()
 export class RecrutadorService {
@@ -13,8 +46,8 @@ export class RecrutadorService {
   async getCheckHasPerfil(
     usuarioId: number,
     perfilId: number,
-  ): Promise<{ id: number | null; usuario_id: number; redirect_to: string }> {
-    const registro = await this.prisma.usuario_perfil_recrutador.findUnique({
+  ): Promise<CheckPerfil> {
+    const registro = await this.prisma.usuarioPerfilRecrutador.findUnique({
       where: {
         ativo: true,
         usuario_id_perfil_id: {
@@ -42,8 +75,8 @@ export class RecrutadorService {
     usuarioId: number,
     perfilId: number,
     nomeUser: string,
-  ): Promise<{ id: number | null; usuario_id: number; nome_user: string }> {
-    const registro = await this.prisma.usuario_perfil_recrutador.findUnique({
+  ): Promise<CheckPerfilCadastro> {
+    const registro = await this.prisma.usuarioPerfilRecrutador.findUnique({
       where: {
         usuario_id_perfil_id: {
           // <-- chave composta
@@ -62,7 +95,7 @@ export class RecrutadorService {
   }
 
   async hasPerfilInEmpresa(recrutadorId: number): Promise<boolean> {
-    const vinculo: empresa | null = await this.prisma.empresa.findFirst({
+    const vinculo: Empresa | null = await this.prisma.empresa.findFirst({
       where: {
         recrutador_id: recrutadorId,
       },
@@ -81,7 +114,7 @@ export class RecrutadorService {
     logo: string;
     language: string;
   }) {
-    const createData: Prisma.usuario_perfil_recrutadorCreateInput = {
+    const createData: Prisma.UsuarioPerfilRecrutadorCreateInput = {
       usuario: {
         connect: { id: data.usuario_id },
       },
@@ -97,7 +130,7 @@ export class RecrutadorService {
     };
 
     // --- Criação ---
-    return this.prisma.usuario_perfil_recrutador.create({
+    return this.prisma.usuarioPerfilRecrutador.create({
       data: createData,
     });
   }
@@ -111,7 +144,7 @@ export class RecrutadorService {
     logo?: string;
     ativo: boolean;
   }) {
-    const updateData: Prisma.usuario_perfil_recrutadorUpdateInput = {
+    const updateData: Prisma.UsuarioPerfilRecrutadorUpdateInput = {
       telefone: data.telefone,
       localizacao: data.localizacao,
       apresentacao: data.apresentacao,
@@ -122,7 +155,7 @@ export class RecrutadorService {
     // adiciona só se existir
     if (data.logo) updateData.logo = data.logo;
 
-    return this.prisma.usuario_perfil_recrutador.update({
+    return this.prisma.usuarioPerfilRecrutador.update({
       where: {
         id: data.id,
       },
@@ -135,8 +168,8 @@ export class RecrutadorService {
     usuarioId: number,
     perfilId: number,
     lang: string,
-  ) {
-    const recrutador = await this.prisma.usuario_perfil_recrutador.findFirst({
+  ): Promise<RecrutadorDto | null> {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
       where: {
         id,
         usuario_id: usuarioId,
@@ -173,7 +206,7 @@ export class RecrutadorService {
     });
 
     if (!recrutador) {
-      return { recrutadorPlano: null };
+      return null;
     }
 
     const usr = recrutador.usuario;
