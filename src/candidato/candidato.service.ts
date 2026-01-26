@@ -355,7 +355,7 @@ export class CandidatoService {
   async createCandidatoFormacao(
     formacoes: Prisma.CandidatoFormacaoAcademicaCreateManyInput[],
   ) {
-    return this.prisma.candidatoFormacaoAcademica.createMany({
+    return await this.prisma.candidatoFormacaoAcademica.createMany({
       data: formacoes,
     });
   }
@@ -410,7 +410,7 @@ export class CandidatoService {
   async createCandidatoCertificacoes(
     certificacoes: Prisma.CandidatoCertificacoesCreateManyInput[],
   ) {
-    return this.prisma.candidatoCertificacoes.createMany({
+    return await this.prisma.candidatoCertificacoes.createMany({
       data: certificacoes,
     });
   }

@@ -52,7 +52,7 @@ export class SkillService {
     language: string,
     tipoSkill: number,
   ): Promise<Skill> {
-    return this.prisma.skill.create({
+    return await this.prisma.skill.create({
       data: {
         skill: data.nome.trim(),
         ativo: true,
@@ -67,7 +67,7 @@ export class SkillService {
     language: string,
     tipoSkill: number,
   ): Promise<Skill> {
-    return this.prisma.skill.upsert({
+    return await this.prisma.skill.upsert({
       where: { skill: nome.trim() },
       update: {}, // não atualiza nada se já existir
       create: {

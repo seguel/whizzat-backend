@@ -30,7 +30,7 @@ export class VagaService {
     data_cadastro: Date;
     cidade_id: number;
   }) {
-    return this.prisma.empresaVaga.create({
+    return await this.prisma.empresaVaga.create({
       data,
     });
   }
@@ -52,7 +52,7 @@ export class VagaService {
     ativo: boolean;
     cidade_id: number;
   }) {
-    return this.prisma.empresaVaga.update({
+    return await this.prisma.empresaVaga.update({
       where: {
         vaga_id: data.vaga_id,
         empresa_id: data.empresa_id,
@@ -76,7 +76,7 @@ export class VagaService {
   }
 
   async createVagaSkills(skills: Prisma.EmpresaVagaSkillCreateManyInput[]) {
-    return this.prisma.empresaVagaSkill.createMany({
+    return await this.prisma.empresaVagaSkill.createMany({
       data: skills,
     });
   }
