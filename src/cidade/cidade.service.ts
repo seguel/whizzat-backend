@@ -6,7 +6,7 @@ export class CidadeService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getCidades(estado_id: number) {
-    return this.prisma.estado_cidade.findMany({
+    return await this.prisma.estadoCidade.findMany({
       where: { estado_id: estado_id },
       orderBy: {
         cidade: 'asc', // ou 'desc'
@@ -15,7 +15,7 @@ export class CidadeService {
   }
 
   async getCidade(id: number) {
-    return this.prisma.estado_cidade.findUnique({
+    return await this.prisma.estadoCidade.findUnique({
       where: { id: id },
     });
   }

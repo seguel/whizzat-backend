@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { plano } from '@prisma/client';
 
 export type ValidaPlanoRetorno =
   | { status: 'OK'; plano: string; vencimento: Date }
@@ -76,8 +75,8 @@ export class PlanoService {
     return planos;
   }
 
-  async getPlano(id: number): Promise<plano | null> {
-    return this.prisma.plano.findUnique({
+  async getPlano(id: number) {
+    return await this.prisma.plano.findUnique({
       where: { id },
     });
   }
@@ -92,7 +91,7 @@ export class PlanoService {
     const pagamentoConfirmado = Boolean(token_pagto);
 
     // 1) Criar ou obter usuario_perfil
-    const usuarioPerfil = await this.prisma.usuario_perfil.upsert({
+    const usuarioPerfil = await this.prisma.usuarioPerfil.upsert({
       where: {
         usuario_id_perfil_id: {
           usuario_id: userId,
@@ -107,7 +106,7 @@ export class PlanoService {
     });
 
     // 2) Criar OU atualizar um plano já existente para esse usuario_perfil
-    const planoUsuario = await this.prisma.usuario_perfil_plano.upsert({
+    const planoUsuario = await this.prisma.usuarioPerfilPlano.upsert({
       where: {
         usuario_perfil_id: usuarioPerfil.id,
       },
@@ -126,7 +125,7 @@ export class PlanoService {
     });
 
     // 4) Buscar dados do período (validade dias)
-    const planoPeriodo = await this.prisma.plano_periodo.findUnique({
+    const planoPeriodo = await this.prisma.planoPeriodo.findUnique({
       where: { id: planoPeriodoId },
       include: {
         plano: {
@@ -144,7 +143,7 @@ export class PlanoService {
     });
 
     if (token_pagto) {
-      await this.prisma.plano_pagto_log.create({
+      await this.prisma.planoPagtoLog.create({
         data: {
           usuario_perfil_plano_id: planoUsuario.id,
           transacao_id: token_pagto,
@@ -175,7 +174,7 @@ export class PlanoService {
     perfilId: number,
   ): Promise<ValidaPlanoRetorno> {
     // 1) Buscar o registro usuario_perfil
-    const usuarioPerfil = await this.prisma.usuario_perfil.findUnique({
+    const usuarioPerfil = await this.prisma.usuarioPerfil.findUnique({
       where: {
         usuario_id_perfil_id: { usuario_id: usuarioId, perfil_id: perfilId },
       },
@@ -186,7 +185,7 @@ export class PlanoService {
     }
 
     // 2) Buscar plano ativo desse usuario_perfil
-    const planoUsuario = await this.prisma.usuario_perfil_plano.findFirst({
+    const planoUsuario = await this.prisma.usuarioPerfilPlano.findFirst({
       where: {
         usuario_perfil_id: usuarioPerfil.id,
         ativo: true,

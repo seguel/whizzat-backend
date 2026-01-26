@@ -2,6 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
+export interface VagaSkillDto {
+  skill_id: number;
+  peso: number;
+  avaliador_proprio: boolean;
+  skill: string;
+  tipo_skill_id: number;
+}
+
 @Injectable()
 export class VagaService {
   constructor(private readonly prisma: PrismaService) {}
@@ -22,7 +30,7 @@ export class VagaService {
     data_cadastro: Date;
     cidade_id: number;
   }) {
-    return this.prisma.empresa_vaga.create({
+    return this.prisma.empresaVaga.create({
       data,
     });
   }
@@ -44,7 +52,7 @@ export class VagaService {
     ativo: boolean;
     cidade_id: number;
   }) {
-    return this.prisma.empresa_vaga.update({
+    return this.prisma.empresaVaga.update({
       where: {
         vaga_id: data.vaga_id,
         empresa_id: data.empresa_id,
@@ -67,8 +75,8 @@ export class VagaService {
     });
   }
 
-  async createVagaSkills(skills: Prisma.empresa_vaga_skillCreateManyInput[]) {
-    return this.prisma.empresa_vaga_skill.createMany({
+  async createVagaSkills(skills: Prisma.EmpresaVagaSkillCreateManyInput[]) {
+    return this.prisma.empresaVagaSkill.createMany({
       data: skills,
     });
   }
@@ -83,7 +91,7 @@ export class VagaService {
     }[],
   ) {
     // Busca skills atuais do vaga
-    const existentes = await this.prisma.empresa_vaga_skill.findMany({
+    const existentes = await this.prisma.empresaVagaSkill.findMany({
       where: { vaga_id },
     });
 
@@ -93,7 +101,7 @@ export class VagaService {
     // 🔹 Remove apenas as skills que não estão mais no novo array
     const paraRemover = idsExistentes.filter((id) => !idsNovos.includes(id));
     if (paraRemover.length > 0) {
-      await this.prisma.empresa_vaga_skill.deleteMany({
+      await this.prisma.empresaVagaSkill.deleteMany({
         where: { vaga_id, skill_id: { in: paraRemover } },
       });
     }
@@ -108,7 +116,7 @@ export class VagaService {
           existente.avaliador_proprio !== s.avaliador_proprio;
 
         if (precisaAtualizar) {
-          await this.prisma.empresa_vaga_skill.updateMany({
+          await this.prisma.empresaVagaSkill.updateMany({
             where: { vaga_id, skill_id: s.skill_id },
             data: {
               peso: s.peso,
@@ -118,7 +126,7 @@ export class VagaService {
         }
       } else {
         // Cria nova
-        await this.prisma.empresa_vaga_skill.create({ data: s });
+        await this.prisma.empresaVagaSkill.create({ data: s });
       }
     }
   }
@@ -126,7 +134,7 @@ export class VagaService {
   async getVagasRecrutador(
     empresaId: number,
   ): Promise<{ empresa_id: number; vagas: any[] }> {
-    const vagas = await this.prisma.empresa_vaga.findMany({
+    const vagas = await this.prisma.empresaVaga.findMany({
       where: {
         empresa_id: empresaId,
         ativo: true,
@@ -185,7 +193,7 @@ export class VagaService {
     empresa_id: number;
     lang: string;
   }) {
-    const vaga = await this.prisma.empresa_vaga.findFirst({
+    const vaga = await this.prisma.empresaVaga.findFirst({
       where: {
         vaga_id,
         empresa_id,
@@ -236,7 +244,7 @@ export class VagaService {
     prazoDate.setDate(prazoDate.getDate() + vaga.qtde_dias_aberta);
 
     // 🔹 Achatar as skills
-    const skills = vaga.skills.map((s) => ({
+    const skills: VagaSkillDto[] = vaga.skills.map((s) => ({
       skill_id: s.skill_id,
       peso: s.peso,
       avaliador_proprio: s.avaliador_proprio,
@@ -264,7 +272,7 @@ export class VagaService {
     skill?: string,
   ) {
     // Tipagem segura do where
-    const whereEmpresa: Prisma.empresaWhereInput = {
+    const whereEmpresa: Prisma.EmpresaWhereInput = {
       recrutador_id: recrutadorId,
       ativo: true,
     };
@@ -384,7 +392,7 @@ export class VagaService {
 
   async getVagas(lang: string, modalidadeId?: string, skill?: string) {
     // Tipagem segura do where
-    const whereEmpresa: Prisma.empresaWhereInput = {
+    const whereEmpresa: Prisma.EmpresaWhereInput = {
       linguagem: lang,
       ativo: true,
     };

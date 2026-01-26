@@ -1,80 +1,72 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
+model Usuario {
+  id              Int @id @default(autoincrement())
+  primeiro_nome   String
+  ultimo_nome     String
+  email           String @unique
+  senha           String
+  id_perfil       Int?
+  ativo           Boolean @default(false)
+  createdAt       DateTime @default(now())
+  linguagem       String
+  data_nascimento DateTime
+  genero_id       Int
+  nome_social     String?
+  cidade_id       Int
 
+  avaliador  UsuarioPerfilAvaliador[]
+  recrutador UsuarioPerfilRecrutador[]
+  candidato  UsuarioPerfilCandidato[]
+  genero     Genero       @relation(fields: [genero_id], references: [id])
+  cidade     EstadoCidade @relation(fields: [cidade_id], references: [id])
 
-model usuario {
-  id                     Int                      @id @default(autoincrement())
-  primeiro_nome          String
-  ultimo_nome            String
-  email                  String                   @unique
-  senha                  String
-  id_perfil              Int?
-  ativo                  Boolean                  @default(false)
-  createdAt              DateTime                 @default(now())
-  linguagem              String
-  data_nascimento        DateTime
-  genero_id              Int
-  nome_social            String?
-  cidade_id              Int
-
-  //usuario_perfil_empresa usuario_perfil_empresa[]
-  avaliador   usuario_perfil_avaliador []
-  recrutador  usuario_perfil_recrutador[]
-  candidato   usuario_perfil_candidato[]
-  genero      genero @relation(fields: [genero_id], references: [id])
-  cidade      estado_cidade @relation(fields: [cidade_id], references: [id])
+  @@map("usuario")
 }
 
-model perfil {
-  id                     Int                      @id @default(autoincrement())
-  perfil                 String
-  descricao              String
-  ativo                  Boolean                  @default(true)
+model Perfil {
+  id        Int @id @default(autoincrement())
+  perfil    String
+  descricao String
+  ativo     Boolean @default(true)
 
-  //usuario_perfil_empresa usuario_perfil_empresa[]
-  avaliador   usuario_perfil_avaliador []
-  recrutador  usuario_perfil_recrutador[]
-  candidato   usuario_perfil_candidato[]
-  usuario_perfil usuario_perfil[]
+  avaliador UsuarioPerfilAvaliador[]
+  recrutador UsuarioPerfilRecrutador[]
+  candidato UsuarioPerfilCandidato[]
+  usuario_perfil UsuarioPerfil[]
 
+  @@map("perfil")
 }
 
-model usuario_perfil_recrutador {
-  id                Int     @id @default(autoincrement())
-  usuario_id        Int
-  perfil_id         Int
-  telefone          String
-  localizacao       String?
-  apresentacao      String
-  logo              String
-  meio_notificacao  String
-  data_cadastro     DateTime  @default(now())
-  ativo             Boolean   @default(true)
-  linguagem         String
+model UsuarioPerfilRecrutador {
+  id               Int @id @default(autoincrement())
+  usuario_id       Int
+  perfil_id        Int
+  telefone         String
+  localizacao      String?
+  apresentacao     String
+  logo             String
+  meio_notificacao String
+  data_cadastro    DateTime @default(now())
+  ativo            Boolean @default(true)
+  linguagem        String
 
-  usuario       usuario @relation(fields: [usuario_id], references: [id])
-  perfil        perfil  @relation(fields: [perfil_id], references: [id])
-  empresas      empresa[]
-  // perfil_plano  usuario_perfil[]
+  usuario  Usuario @relation(fields: [usuario_id], references: [id])
+  perfil   Perfil  @relation(fields: [perfil_id], references: [id])
+  empresas Empresa[]
 
   @@unique([usuario_id, perfil_id])
+  @@map("usuario_perfil_recrutador")
 }
 
-model usuario_perfil_avaliador {
-  id                Int       @id @default(autoincrement())
+model UsuarioPerfilAvaliador {
+  id                Int @id @default(autoincrement())
   usuario_id        Int
   perfil_id         Int
   empresa_id        Int?
@@ -82,374 +74,387 @@ model usuario_perfil_avaliador {
   localizacao       String?
   apresentacao      String
   logo              String
-  avaliar_todos     Boolean   @default(false)
+  avaliar_todos     Boolean @default(false)
   meio_notificacao  String
-  data_cadastro     DateTime  @default(now())
-  ativo             Boolean   @default(true)
-  status_cadastro   Int       @default(-1)
-  data_envio_link   DateTime  @default(now())
+  data_cadastro     DateTime @default(now())
+  ativo             Boolean @default(true)
+  status_cadastro   Int @default(-1)
+  data_envio_link   DateTime @default(now())
   linguagem         String
 
-  // Relações
-  usuario          usuario     @relation(fields: [usuario_id], references: [id])
-  perfil           perfil      @relation(fields: [perfil_id], references: [id])
-  empresa          empresa?    @relation(fields: [empresa_id], references: [id])
-  skills           avaliador_skill[]
-  formacao         avaliador_formacao_academica[]
-  certificacoes    avaliador_certificacoes[]
-  // perfil_plano     usuario_perfil[]
+  usuario       Usuario @relation(fields: [usuario_id], references: [id])
+  perfil        Perfil  @relation(fields: [perfil_id], references: [id])
+  empresa       Empresa? @relation(fields: [empresa_id], references: [id])
+  skills        AvaliadorSkill[]
+  formacao      AvaliadorFormacaoAcademica[]
+  certificacoes AvaliadorCertificacoes[]
 
-
-  // Garante que um mesmo usuário não tenha duplicidade de perfil
   @@unique([usuario_id, perfil_id])
+  @@map("usuario_perfil_avaliador")
 }
 
-model avaliador_skill {
-  id             Int      @id @default(autoincrement())
+model AvaliadorSkill {
+  id             Int @id @default(autoincrement())
   avaliador_id   Int
   skill_id       Int
   peso           Int
   favorito       Boolean
   tempo_favorito String
 
-  // Relações
-  avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
-  skill          skill                    @relation(fields: [skill_id], references: [skill_id])
+  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
+
+  @@map("avaliador_skill")
 }
 
-model avaliador_formacao_academica {
-  id                Int      @id @default(autoincrement())
-  avaliador_id      Int
-  graduacao_id      Int
-  formacao          String
-  certificado_file  String
+model AvaliadorFormacaoAcademica {
+  id               Int @id @default(autoincrement())
+  avaliador_id     Int
+  graduacao_id     Int
+  formacao         String
+  certificado_file String
 
-  // Relações
-  avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
-  graduacao      graduacao                @relation(fields: [graduacao_id], references: [id])
+  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  graduacao Graduacao               @relation(fields: [graduacao_id], references: [id])
+
+  @@map("avaliador_formacao_academica")
 }
 
-model avaliador_certificacoes {
-  id                Int      @id @default(autoincrement())
-  avaliador_id      Int
-  certificacao_id   Int
-  certificado_file  String
+model AvaliadorCertificacoes {
+  id               Int @id @default(autoincrement())
+  avaliador_id     Int
+  certificacao_id  Int
+  certificado_file String
 
-  // Relações
-  avaliador      usuario_perfil_avaliador @relation(fields: [avaliador_id], references: [id])
-  certificacoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
+  avaliador     UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  certificacoes Certificacoes           @relation(fields: [certificacao_id], references: [id])
+
+  @@map("avaliador_certificacoes")
 }
 
-model usuario_perfil_candidato {
-  id                Int       @id @default(autoincrement())
-  usuario_id        Int
-  perfil_id         Int
-  telefone          String
-  localizacao       String?
-  apresentacao      String
-  logo              String
-  meio_notificacao  String
-  data_cadastro     DateTime  @default(now())
-  ativo             Boolean   @default(true)
-  linguagem         String
+model UsuarioPerfilCandidato {
+  id               Int @id @default(autoincrement())
+  usuario_id       Int
+  perfil_id        Int
+  telefone         String
+  localizacao      String?
+  apresentacao     String
+  logo             String
+  meio_notificacao String
+  data_cadastro    DateTime @default(now())
+  ativo            Boolean @default(true)
+  linguagem        String
 
-  // Relações
-  usuario          usuario     @relation(fields: [usuario_id], references: [id])
-  perfil           perfil      @relation(fields: [perfil_id], references: [id])
-  skills           candidato_skill[]
-  formacao         candidato_formacao_academica[]
-  certificacoes    candidato_certificacoes[]
-  // perfil_plano     usuario_perfil[]
+  usuario       Usuario @relation(fields: [usuario_id], references: [id])
+  perfil        Perfil  @relation(fields: [perfil_id], references: [id])
+  skills        CandidatoSkill[]
+  formacao      CandidatoFormacaoAcademica[]
+  certificacoes CandidatoCertificacoes[]
 
-  // Garante que um mesmo usuário não tenha duplicidade de perfil
   @@unique([usuario_id, perfil_id])
+  @@map("usuario_perfil_candidato")
 }
 
-model candidato_skill {
-  id             Int      @id @default(autoincrement())
+model CandidatoSkill {
+  id             Int @id @default(autoincrement())
   candidato_id   Int
   skill_id       Int
   peso           Int
   favorito       Boolean
   tempo_favorito String
 
-  // Relações
-  candidato      usuario_perfil_candidato @relation(fields: [candidato_id], references: [id])
-  skill          skill                    @relation(fields: [skill_id], references: [skill_id])
+  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
+  skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
+
+  @@map("candidato_skill")
 }
 
-model candidato_formacao_academica {
-  id                Int      @id @default(autoincrement())
-  candidato_id      Int
-  graduacao_id      Int
-  formacao          String
-  certificado_file  String
+model CandidatoFormacaoAcademica {
+  id               Int @id @default(autoincrement())
+  candidato_id     Int
+  graduacao_id     Int
+  formacao         String
+  certificado_file String
 
-  // Relações
-  candidato      usuario_perfil_candidato @relation(fields: [candidato_id], references: [id])
-  graduacao      graduacao                @relation(fields: [graduacao_id], references: [id])
+  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
+  graduacao Graduacao               @relation(fields: [graduacao_id], references: [id])
+
+  @@map("candidato_formacao_academica")
 }
 
-model candidato_certificacoes {
-  id                Int      @id @default(autoincrement())
-  candidato_id      Int
-  certificacao_id   Int
-  certificado_file  String
+model CandidatoCertificacoes {
+  id               Int @id @default(autoincrement())
+  candidato_id     Int
+  certificacao_id  Int
+  certificado_file String
 
-  // Relações
-  candidato      usuario_perfil_candidato @relation(fields: [candidato_id], references: [id])
-  certificacoes   certificacoes            @relation(fields: [certificacao_id], references: [id])
+  candidato     UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
+  certificacoes Certificacoes           @relation(fields: [certificacao_id], references: [id])
+
+  @@map("candidato_certificacoes")
 }
 
-model empresa {
-  id             Int        @id @default(autoincrement())
-  recrutador_id  Int
-  nome_empresa   String
-  website        String
-  email          String
-  telefone       String
-  localizacao    String?
-  apresentacao   String
-  logo           String
-  imagem_fundo   String
-  data_cadastro  DateTime   @default(now())
-  ativo          Boolean    @default(true)
-  linguagem      String
-  cidade_id      Int
+model Empresa {
+  id            Int @id @default(autoincrement())
+  recrutador_id Int
+  nome_empresa  String
+  website       String
+  email         String
+  telefone      String
+  localizacao   String?
+  apresentacao  String
+  logo          String
+  imagem_fundo  String
+  data_cadastro DateTime @default(now())
+  ativo         Boolean @default(true)
+  linguagem     String
+  cidade_id     Int
 
-  recrutador     usuario_perfil_recrutador @relation(fields: [recrutador_id], references: [id])
-  vagas          empresa_vaga[]            @relation("EmpresaVagas") // ✅ lado inverso nomeado
-  avaliadores    usuario_perfil_avaliador[]
-  cidade         estado_cidade @relation(fields: [cidade_id], references: [id])
+  recrutador UsuarioPerfilRecrutador @relation(fields: [recrutador_id], references: [id])
+  vagas       EmpresaVaga[] @relation("EmpresaVagas")
+  avaliadores UsuarioPerfilAvaliador[]
+  cidade      EstadoCidade @relation(fields: [cidade_id], references: [id])
+
+  @@map("empresa")
 }
 
-model empresa_vaga {
-  vaga_id                  Int                     @id @default(autoincrement())
-  empresa_id               Int
-  nome_vaga                String
-  descricao                String
-  local_vaga               String?
-  modalidade_trabalho_id   Int
-  periodo_trabalho_id      Int
-  pcd                      Boolean
-  lgbtq                    Boolean @default(false)
-  mulheres                 Boolean @default(false)
-  cinquenta_mais           Boolean @default(false)
-  qtde_dias_aberta         Int
-  qtde_posicao             Int
-  data_cadastro            DateTime  @default(now())
-  ativo                    Boolean   @default(true)
-  cidade_id                Int
+model EmpresaVaga {
+  vaga_id                Int @id @default(autoincrement())
+  empresa_id             Int
+  nome_vaga              String
+  descricao              String
+  local_vaga             String?
+  modalidade_trabalho_id Int
+  periodo_trabalho_id    Int
+  pcd                    Boolean
+  lgbtq                  Boolean @default(false)
+  mulheres               Boolean @default(false)
+  cinquenta_mais         Boolean @default(false)
+  qtde_dias_aberta       Int
+  qtde_posicao           Int
+  data_cadastro          DateTime @default(now())
+  ativo                  Boolean @default(true)
+  cidade_id              Int
 
-  // Relações
-  modalidade_trabalho      modalidade_trabalho     @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
-  periodo_trabalho         periodo_trabalho        @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
-  skills                   empresa_vaga_skill[]
-  
-  cidade                   estado_cidade @relation(fields: [cidade_id], references: [id])
-  empresa                  empresa  @relation(name: "EmpresaVagas", fields: [empresa_id], references: [id]) // <- lado "um"
+  modalidade_trabalho ModalidadeTrabalho @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
+  periodo_trabalho    PeriodoTrabalho    @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
+  skills              EmpresaVagaSkill[]
+  cidade              EstadoCidade @relation(fields: [cidade_id], references: [id])
+  empresa             Empresa @relation("EmpresaVagas", fields: [empresa_id], references: [id])
+
+  @@map("empresa_vaga")
 }
 
-
-model empresa_vaga_skill {
-  id                Int          @id @default(autoincrement())
+model EmpresaVagaSkill {
+  id                Int @id @default(autoincrement())
   vaga_id           Int
   skill_id          Int
   peso              Int
   avaliador_proprio Boolean
 
-  // Relações
-  vaga              empresa_vaga @relation(fields: [vaga_id], references: [vaga_id])
-  skill             skill        @relation(fields: [skill_id], references: [skill_id])
+  vaga  EmpresaVaga @relation(fields: [vaga_id], references: [vaga_id])
+  skill Skill       @relation(fields: [skill_id], references: [skill_id])
+
+  @@map("empresa_vaga_skill")
 }
 
-model tipo_skill{
-  id          Int       @id @default(autoincrement())
-  tipo_Skill  String
+model TipoSkill {
+  id         Int @id @default(autoincrement())
+  tipo_Skill String
 
-  skills       skill[]
+  skills Skill[]
+
+  @@map("tipo_skill")
 }
 
-model skill {
-  skill_id        Int                     @id @default(autoincrement())
-  skill           String  @unique
-  tipo_skill_id   Int
-  ativo           Boolean @default(true)
-  linguagem       String
+model Skill {
+  skill_id      Int @id @default(autoincrement())
+  skill         String @unique
+  tipo_skill_id Int
+  ativo         Boolean @default(true)
+  linguagem     String
 
-  // Relações
-  vagas       empresa_vaga_skill[]
-  avaliadores avaliador_skill[]
-  candidato   candidato_skill[]
-  tipo_skill  tipo_skill @relation(fields: [tipo_skill_id], references: [id])
+  vagas       EmpresaVagaSkill[]
+  avaliadores AvaliadorSkill[]
+  candidato   CandidatoSkill[]
+  tipo_skill  TipoSkill @relation(fields: [tipo_skill_id], references: [id])
+
+  @@map("skill")
 }
 
-
-model modalidade_trabalho {
-  modalidade_trabalho_id Int              @id @default(autoincrement())
+model ModalidadeTrabalho {
+  modalidade_trabalho_id Int @id @default(autoincrement())
   modalidade             String
   ativo                  Boolean
   linguagem              String
 
-  // Relações
-  vagas                  empresa_vaga[]
+  vagas EmpresaVaga[]
+
+  @@map("modalidade_trabalho")
 }
 
-
-model periodo_trabalho {
-  periodo_trabalho_id Int              @id @default(autoincrement())
+model PeriodoTrabalho {
+  periodo_trabalho_id Int @id @default(autoincrement())
   periodo             String
   ativo               Boolean
   linguagem           String
 
-  // Relações
-  vagas               empresa_vaga[]
+  vagas EmpresaVaga[]
+
+  @@map("periodo_trabalho")
 }
 
-model certificacoes {
-  id              Int @id @default(autoincrement())
-  certificado     String  @unique
-  ativo           Boolean @default(true)
-  linguagem   String
-
-  // Relações
-  avaliadores_certificado avaliador_certificacoes[]
-  candidato_certificado   candidato_certificacoes[]
-}
-
-model graduacao {
-  id          Int     @id @default(autoincrement())
-  graduacao   String  
+model Certificacoes {
+  id          Int @id @default(autoincrement())
+  certificado String @unique
   ativo       Boolean @default(true)
   linguagem   String
 
-  // Relações
-  avaliadores_formacao avaliador_formacao_academica[]
-  candidatos_formacao  candidato_formacao_academica[]
+  avaliadores_certificado AvaliadorCertificacoes[]
+  candidato_certificado   CandidatoCertificacoes[]
+
+  @@map("certificacoes")
 }
 
-model genero {
-  id          Int     @id @default(autoincrement())
-  genero      String  
-  ativo       Boolean @default(true)
-  linguagem   String
+model Graduacao {
+  id        Int @id @default(autoincrement())
+  graduacao String
+  ativo     Boolean @default(true)
+  linguagem String
 
-  // Relações
-  usuario usuario[]
+  avaliadores_formacao AvaliadorFormacaoAcademica[]
+  candidatos_formacao  CandidatoFormacaoAcademica[]
+
+  @@map("graduacao")
 }
 
-model estado {
-  id          Int     @id @default(autoincrement())
-  estado      String  
-  sigla       String
-  linguagem   String
+model Genero {
+  id        Int @id @default(autoincrement())
+  genero    String
+  ativo     Boolean @default(true)
+  linguagem String
 
-  // Relações
-  cidade estado_cidade[]
+  usuario Usuario[]
+
+  @@map("genero")
 }
 
-model estado_cidade {
-  id          Int     @id @default(autoincrement())
-  estado_id   Int  
-  cidade      String
-  cep         String?
+model Estado {
+  id        Int @id @default(autoincrement())
+  estado    String
+  sigla     String
+  linguagem String
 
-  // Relações
+  cidade EstadoCidade[]
+
+  @@map("estado")
+}
+
+model EstadoCidade {
+  id        Int @id @default(autoincrement())
+  estado_id Int
+  cidade    String
+  cep       String?
+
+  estado  Estado @relation(fields: [estado_id], references: [id])
+  usuario Usuario[]
+  empresa Empresa[]
+  vaga    EmpresaVaga[]
+
   @@unique([estado_id, cidade])
-  estado estado @relation(fields: [estado_id], references: [id])
-  usuario usuario[]
-  empresa empresa[]
-  vaga    empresa_vaga[]
+  @@map("estado_cidade")
 }
 
-model plano {
-  id          Int     @id @default(autoincrement())
-  plano       String    
-  ativo       Boolean @default(true)
-  highlight   Boolean @default(false)
+model Plano {
+  id        Int @id @default(autoincrement())
+  plano     String
+  ativo     Boolean @default(true)
+  highlight Boolean @default(false)
 
-  // Relações
-  periodos plano_periodo[]
-  itens plano_itens[]
-  linguagem plano_linguagem[]
+  periodos  PlanoPeriodo[]
+  itens     PlanoItens[]
+  linguagem PlanoLinguagem[]
+
+  @@map("plano")
 }
 
-model plano_linguagem {
-  id          Int     @id @default(autoincrement())
-  plano_id    Int
-  plano       String  
-  descricao   String?
-  linguagem   String
+model PlanoLinguagem {
+  id        Int @id @default(autoincrement())
+  plano_id  Int
+  plano     String
+  descricao String?
+  linguagem String
 
-  // Relações
-  planos plano @relation(fields: [plano_id], references: [id])
+  planos Plano @relation(fields: [plano_id], references: [id])
+
+  @@map("plano_linguagem")
 }
 
-model plano_itens {
-  id          Int     @id @default(autoincrement())
-  plano_id    Int  
-  descricao   String 
-  ordem       Int
-  linguagem   String
+model PlanoItens {
+  id        Int @id @default(autoincrement())
+  plano_id  Int
+  descricao String
+  ordem     Int
+  linguagem String
 
-  // Relações
-  plano plano @relation(fields: [plano_id], references: [id])
+  plano Plano @relation(fields: [plano_id], references: [id])
+
+  @@map("plano_itens")
 }
 
-model plano_periodo {
-  id            Int     @id @default(autoincrement())
-  plano_id      Int  
+model PlanoPeriodo {
+  id            Int @id @default(autoincrement())
+  plano_id      Int
   periodo       String
   validade_dias Int
   valor         Decimal @db.Decimal(10,2)
   ativo         Boolean @default(true)
-  perfil_id     Int     @default(0)
+  perfil_id     Int @default(0)
   valor_old     Decimal? @db.Decimal(10,2)
   desconto      Int?
-  
 
-  // Relações
-  plano plano @relation(fields: [plano_id], references: [id])
-  usuario_plano usuario_perfil_plano[]
+  plano         Plano @relation(fields: [plano_id], references: [id])
+  usuario_plano UsuarioPerfilPlano[]
 
+  @@map("plano_periodo")
 }
 
-// tabela intermediaria para ter os ids dos perfils, e esse novo id ser a referencia na tabela de usuario_perfil_plano
-model usuario_perfil {
-  id         Int    @id @default(autoincrement())
+model UsuarioPerfil {
+  id         Int @id @default(autoincrement())
   usuario_id Int
   perfil_id  Int
 
-  // RELAÇÕES
-  perfil  perfil  @relation(fields: [perfil_id], references: [id])
+  perfil Perfil @relation(fields: [perfil_id], references: [id])
+  planos UsuarioPerfilPlano[]
 
-  planos usuario_perfil_plano[]
-
-  @@unique([usuario_id, perfil_id]) // um usuário não pode ter 2 perfis iguais
+  @@unique([usuario_id, perfil_id])
+  @@map("usuario_perfil")
 }
 
-model usuario_perfil_plano {
-  id                  Int     @id @default(autoincrement())
-  usuario_perfil_id   Int     @unique
-  plano_periodo_id    Int
-  data_inicio         DateTime @default(now())
-  ativo               Boolean @default(false)
-  pagto_pendente      Boolean @default(true)
+model UsuarioPerfilPlano {
+  id                Int @id @default(autoincrement())
+  usuario_perfil_id Int @unique
+  plano_periodo_id  Int
+  data_inicio       DateTime @default(now())
+  ativo             Boolean @default(false)
+  pagto_pendente    Boolean @default(true)
 
-  // Relações
-  usuario_perfil usuario_perfil @relation(fields: [usuario_perfil_id], references: [id])
-  periodo plano_periodo @relation(fields: [plano_periodo_id], references: [id])
-  pagto_log plano_pagto_log[]
+  usuario_perfil UsuarioPerfil @relation(fields: [usuario_perfil_id], references: [id])
+  periodo        PlanoPeriodo @relation(fields: [plano_periodo_id], references: [id])
+  pagto_log      PlanoPagtoLog[]
+
+  @@map("usuario_perfil_plano")
 }
 
-model plano_pagto_log {
-  id                        Int     @id @default(autoincrement())
-  usuario_perfil_plano_id   Int     
-  transacao_id              String  @unique
-  data_pagto                DateTime @default(now())
-  valor                     Decimal @db.Decimal(10,2)
-  status                    String
+model PlanoPagtoLog {
+  id                      Int @id @default(autoincrement())
+  usuario_perfil_plano_id Int
+  transacao_id            String @unique
+  data_pagto              DateTime @default(now())
+  valor                   Decimal @db.Decimal(10,2)
+  status                  String
 
-  // Relações
-  usuario_plano usuario_perfil_plano @relation(fields: [usuario_perfil_plano_id], references: [id])
+  usuario_plano UsuarioPerfilPlano @relation(fields: [usuario_perfil_plano_id], references: [id])
+
+  @@map("plano_pagto_log")
 }

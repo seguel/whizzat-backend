@@ -121,16 +121,19 @@ export class CandidatoController {
     // Parse seguro dos dados
     const formacoes = safeJsonParse<CreateCandidatoFormacaoDto[]>(
       body.formacoes,
+      [],
     );
     const certificados = safeJsonParse<CreateCandidatoCertificadosDto[]>(
       body.certificacoes,
+      [],
     );
     const novosCertificados = safeJsonParse<
       CreateNovoCertificadoCandidatoDto[]
-    >(body.novas_certificacoes);
-    const skills = safeJsonParse<CreateCandidatoSkillDto[]>(body.skills);
+    >(body.novas_certificacoes, []);
+    const skills = safeJsonParse<CreateCandidatoSkillDto[]>(body.skills, []);
     const novasSkills = safeJsonParse<CreateNovaSkillCandidatoDto[]>(
       body.novas_skills,
+      [],
     );
 
     // Cria o candidato
@@ -332,16 +335,19 @@ export class CandidatoController {
     // Parse seguro dos dados
     const formacoes = safeJsonParse<CreateCandidatoFormacaoDto[]>(
       body.formacoes,
+      [],
     );
     const certificados = safeJsonParse<CreateCandidatoCertificadosDto[]>(
       body.certificacoes,
+      [],
     );
     const novosCertificados = safeJsonParse<
       CreateNovoCertificadoCandidatoDto[]
-    >(body.novas_certificacoes);
-    const skills = safeJsonParse<CreateCandidatoSkillDto[]>(body.skills);
+    >(body.novas_certificacoes, []);
+    const skills = safeJsonParse<CreateCandidatoSkillDto[]>(body.skills, []);
     const novasSkills = safeJsonParse<CreateNovaSkillCandidatoDto[]>(
       body.novas_skills,
+      [],
     );
 
     const candidatoAtual = await this.candidatoService.getCandidato(
