@@ -17,7 +17,7 @@ import { UpdateVagaDto } from './dto/update-vaga.dto';
 import { CreateNovaSkillDto } from './dto/create-nova-skill.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { empresa } from '@prisma/client';
+import { Empresa } from '@prisma/client';
 
 @Controller('vagas')
 export class VagaController {
@@ -210,7 +210,7 @@ export class VagaController {
     @Param('empresaId', ParseIntPipe) empresaId: number,
   ): Promise<{
     empresa_id: number;
-    vagas: empresa[];
+    vagas: Empresa[];
   }> {
     return this.vagaService.getVagasRecrutador(empresaId);
   }

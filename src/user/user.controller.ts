@@ -13,7 +13,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { usuario } from '@prisma/client';
+import { Usuario } from '@prisma/client';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -26,8 +26,8 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Post()
-  async createUser(@Body() data: RegisterDto): Promise<usuario> {
-    const prismaData: Prisma.usuarioCreateInput = {
+  async createUser(@Body() data: RegisterDto): Promise<Usuario> {
+    const prismaData: Prisma.UsuarioCreateInput = {
       primeiro_nome: data.primeiro_nome,
       ultimo_nome: data.ultimo_nome,
       email: data.email,
@@ -45,13 +45,13 @@ export class UserController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getUsers(): Promise<usuario[]> {
+  getUsers(): Promise<Usuario[]> {
     return this.userService.getUsers();
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getUser(@Param('id', ParseIntPipe) id: number): Promise<usuario | null> {
+  getUser(@Param('id', ParseIntPipe) id: number): Promise<Usuario | null> {
     return this.userService.getUser(id);
   }
 
@@ -59,8 +59,8 @@ export class UserController {
   @Put(':id')
   updateUser(
     @Param('id', ParseIntPipe) id: number,
-    @Body() data: Partial<usuario>,
-  ): Promise<usuario> {
+    @Body() data: Partial<Usuario>,
+  ): Promise<Usuario> {
     return this.userService.updateUser(id, data);
   }
 

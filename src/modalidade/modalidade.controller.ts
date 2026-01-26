@@ -11,7 +11,7 @@ import { ModalidadeService } from './modalidade.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { modalidade_trabalho } from '@prisma/client';
+import { ModalidadeTrabalho } from '@prisma/client';
 
 @Controller('modalidades')
 export class ModalidadeController {
@@ -21,7 +21,7 @@ export class ModalidadeController {
   @Get(':id')
   getModalidade(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<modalidade_trabalho | null> {
+  ): Promise<ModalidadeTrabalho | null> {
     return this.modalidadeService.getModalidade(id);
   }
 
@@ -29,7 +29,7 @@ export class ModalidadeController {
   @Get()
   getModalidades(
     @Req() req: Request & { user: JwtPayload },
-  ): Promise<modalidade_trabalho[]> {
+  ): Promise<ModalidadeTrabalho[]> {
     const lang = req.user?.lang ?? 'pt';
     return this.modalidadeService.getModalidades(lang);
   }

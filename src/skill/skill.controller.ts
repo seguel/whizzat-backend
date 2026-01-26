@@ -10,7 +10,7 @@ import {
 import { SkillService } from './skill.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { skill } from '@prisma/client';
+import { Skill } from '@prisma/client';
 
 @Controller('Skills')
 export class SkillController {
@@ -20,20 +20,20 @@ export class SkillController {
   @Get('filtro')
   getSkillsFiltro(
     @Req() req: Request & { user: JwtPayload },
-  ): Promise<skill[]> {
+  ): Promise<Skill[]> {
     const lang = req.user?.lang ?? 'pt';
     return this.skillService.getSkillsFiltro(lang);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getSkill(@Param('id', ParseIntPipe) id: number): Promise<skill | null> {
+  getSkill(@Param('id', ParseIntPipe) id: number): Promise<Skill | null> {
     return this.skillService.getSkill(id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  getSkills(@Req() req: Request & { user: JwtPayload }): Promise<skill[]> {
+  getSkills(@Req() req: Request & { user: JwtPayload }): Promise<Skill[]> {
     const lang = req.user?.lang ?? 'pt';
     return this.skillService.getSkills(lang);
   }
