@@ -37,7 +37,23 @@
     "avaliador_reject_segunda_linha": "Thank you for your interest in acting as an <strong>evaluator</strong> at the company ",
     "avaliador_reject_terceira_linha": "After review, unfortunately your registration request <strong>was not approved</strong> by the company at this time.",
     "avaliador_reject_quarta_linha": "You may apply again in the future if new opportunities arise.",
-    "avaliador_reject_equipe_whizzat": "Sincerely,<br/>Whizzat Team"
+    "avaliador_reject_equipe_whizzat": "Sincerely,<br/>Whizzat Team",
+    "resumo_notificacoes": {
+      "assunto_prefixo": "Action required: you have",
+      "assunto_sufixo": "evaluations available",
+      "titulo": "You have new pending evaluations",
+      "saudacao": "Hello",
+      "introducao": "You have been invited by the Whizzat platform to evaluate candidate skills.",
+      "voce_possui_1": "At the moment, you have ",
+      "voce_possui_2": " pending skills for evaluation.",
+      "skills_pendentes": "Pending skills",
+      "prazo_titulo": "Response deadline:",
+      "prazo_texto": "The invitation expires in 72 hours. If not accepted within this period, it will be automatically assigned to another specialist.",
+      "regra_concorrencia": "If another specialist accepts first, the request will be removed from your queue and will no longer appear in your dashboard.",
+      "btn_acessar": "Access dashboard",
+      "rodape": "Whizzat Team",
+      "prazo_resumido": "Invitation valid for 72 hours. After this period it may be reassigned."
+    }
   },
   "auth": {
     "campo_obrigatorio": "All fields are required",
