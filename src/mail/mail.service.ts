@@ -454,4 +454,102 @@ export class MailService {
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }
+
+  async enviarResumoNotificacoes(
+    email: string,
+    nome: string,
+    language: string,
+    quantidade: number,
+    dashboardLink: string,
+  ) {
+    const subjectPrefixo = this.i18n.translate(
+      'common.mail.resumo_notificacoes.assunto_prefixo',
+      { lang: language },
+    );
+
+    const subjectSufixo = this.i18n.translate(
+      'common.mail.resumo_notificacoes.assunto_sufixo',
+      { lang: language },
+    );
+
+    const subject = `${subjectPrefixo} ${quantidade} ${subjectSufixo}`;
+
+    const { error } = await this.resend.emails.send({
+      from: '"Whizzat" <no-reply@whizzat.com.br>',
+      to: email,
+      subject: subject,
+      html: `
+<div style="width: 100%; background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 35px; border: 1px solid #e5e7eb;">
+    
+    <div style="text-align: center; margin-bottom: 30px;">
+      <img src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png" 
+           alt="Whizzat" 
+           style="width: 170px; height: auto;" />
+    </div>
+
+    <h2 style="font-size: 22px; color: #111827; text-align: center; margin-bottom: 25px;">
+      ${this.i18n.translate('common.mail.resumo_notificacoes.titulo', { lang: language })}
+    </h2>
+
+    <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+      ${this.i18n.translate('common.mail.resumo_notificacoes.saudacao', { lang: language })} <strong>${nome}</strong>,
+    </p>
+
+    <p style="font-size: 15px; color: #4b5563; margin-bottom: 20px;">
+      ${this.i18n.translate('common.mail.resumo_notificacoes.introducao', { lang: language })}
+    </p>
+
+    <!-- BLOCO PRINCIPAL -->
+    <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+                padding: 25px; border-radius: 10px; margin-bottom: 30px; text-align: center; border: 1px solid #bbf7d0;">
+      
+      <div style="font-size: 36px; font-weight: bold; color: #16a34a; margin-bottom: 5px;">
+        ${quantidade}
+      </div>
+
+      <div style="font-size: 15px; color: #065f46; font-weight: 600;">
+        ${this.i18n.translate('common.mail.resumo_notificacoes.skills_pendentes', { lang: language })}
+      </div>
+
+      <div style="margin-top: 12px; font-size: 13px; color: #047857;">
+        ⏳ ${this.i18n.translate('common.mail.resumo_notificacoes.prazo_resumido', { lang: language })}
+      </div>
+    </div>
+
+    <!-- TEXTO DE REGRAS -->
+    <p style="font-size: 14px; color: #6b7280; margin-bottom: 25px; line-height: 1.6;">
+      ${this.i18n.translate('common.mail.resumo_notificacoes.regra_concorrencia', { lang: language })}
+    </p>
+
+    <!-- CTA -->
+    <div style="text-align: center; margin-bottom: 35px;">
+      <a href="${dashboardLink}"
+         style="background-color: #16a34a; 
+                color: #ffffff; 
+                padding: 14px 28px; 
+                text-decoration: none; 
+                border-radius: 8px; 
+                font-weight: bold; 
+                font-size: 15px;
+                display: inline-block;">
+         ${this.i18n.translate('common.mail.resumo_notificacoes.btn_acessar', { lang: language })}
+      </a>
+    </div>
+
+    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;" />
+
+    <p style="font-size: 13px; color: #9ca3af; text-align: center;">
+      ${this.i18n.translate('common.mail.resumo_notificacoes.rodape', { lang: language })}
+    </p>
+
+  </div>
+</div>
+`,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
 }

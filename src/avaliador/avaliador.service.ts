@@ -381,6 +381,7 @@ export class AvaliadorService {
       meio_notificacao: data.meio_notificacao,
       status_cadastro: data.status_cadastro, // -1: aguardando confirmacao / 1: confirmado / 0: rejeitado
       linguagem: data.language,
+      pontos: 0,
     };
 
     const avaliador = await this.prisma.usuarioPerfilAvaliador.create({
