@@ -37,7 +37,23 @@
     "avaliador_reject_segunda_linha": "Agradecemos pelo seu interesse em atuar como <strong>avaliador</strong> na empresa ",
     "avaliador_reject_terceira_linha": "Após análise, infelizmente o seu pedido de cadastro <strong>não foi aprovado</strong> pela empresa neste momento.",
     "avaliador_reject_quarta_linha": "Você poderá se candidatar novamente futuramente, caso haja novas oportunidades.",
-    "avaliador_reject_equipe_whizzat": "Atenciosamente,<br/>Equipe Whizzat"
+    "avaliador_reject_equipe_whizzat": "Atenciosamente,<br/>Equipe Whizzat",
+    "resumo_notificacoes": {
+      "assunto_prefixo": "Ação necessária: você possui",
+      "assunto_sufixo": "avaliações disponíveis",
+      "titulo": "Você tem convite para novas avaliações!",
+      "saudacao": "Olá",
+      "introducao": "Você foi convidado pela plataforma Whizzat para realizar a avaliação de habilidades de candidatos.",
+      "voce_possui_1": "No momento, você possui ",
+      "voce_possui_2": " skills pendentes de avaliação.",
+      "skills_pendentes": "Skills pendentes",
+      "prazo_titulo": "Prazo de resposta:",
+      "prazo_texto": "O convite expira em 72 horas. Caso não seja aceito dentro desse período, ele será automaticamente direcionado a outro especialista.",
+      "regra_concorrencia": "Caso outro especialista aceite antes, a solicitação será removida da sua fila e deixará de aparecer no seu painel.",
+      "btn_acessar": "Acessar painel",
+      "rodape": "Equipe Whizzat",
+      "prazo_resumido": "Convite válido por 72 horas. Após esse período poderá ser redirecionado."
+    }
   },
   "auth": {
     "campo_obrigatorio": "Todos os campos são obrigatórios",
