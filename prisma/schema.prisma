@@ -6,6 +6,18 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum PerfilTipo {
+  CANDIDATO
+  RECRUTADOR
+  AVALIADOR
+}
+
+enum TipoNotificacao {
+  NOVA_SKILL
+  NOVA_MENSAGEM
+  NOVA_AVALIACAO
+}
+
 model Usuario {
   id              Int @id @default(autoincrement())
   primeiro_nome   String
@@ -26,6 +38,7 @@ model Usuario {
   candidato  UsuarioPerfilCandidato[]
   genero     Genero       @relation(fields: [genero_id], references: [id])
   cidade     EstadoCidade @relation(fields: [cidade_id], references: [id])
+  notificacao Notificacao[]
 
   @@map("usuario")
 }
@@ -81,15 +94,21 @@ model UsuarioPerfilAvaliador {
   status_cadastro   Int @default(-1)
   data_envio_link   DateTime @default(now())
   linguagem         String
+  pontos            Int @default(10)
+  liberado_avaliar  Boolean @default(false)
 
-  usuario       Usuario @relation(fields: [usuario_id], references: [id])
-  perfil        Perfil  @relation(fields: [perfil_id], references: [id])
-  empresa       Empresa? @relation(fields: [empresa_id], references: [id])
-  skills        AvaliadorSkill[]
-  formacao      AvaliadorFormacaoAcademica[]
-  certificacoes AvaliadorCertificacoes[]
+  usuario             Usuario @relation(fields: [usuario_id], references: [id])
+  perfil              Perfil  @relation(fields: [perfil_id], references: [id])
+  empresa             Empresa? @relation(fields: [empresa_id], references: [id])
+  skills              AvaliadorSkill[]
+  formacao            AvaliadorFormacaoAcademica[]
+  certificacoes       AvaliadorCertificacoes[]
+  avaliacoesCandidato CandidatoAvaliacaoSkill[]
+  avaliadorRanking    AvaliadorRankingAvaliacao[]
+  avaliacaoSkill      AvaliadorAvaliacaoSkill[]
 
   @@unique([usuario_id, perfil_id])
+  @@index([ativo, avaliar_todos, liberado_avaliar, linguagem])
   @@map("usuario_perfil_avaliador")
 }
 
@@ -104,6 +123,7 @@ model AvaliadorSkill {
   avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
   skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
 
+  @@index([skill_id])
   @@map("avaliador_skill")
 }
 
@@ -162,9 +182,12 @@ model CandidatoSkill {
   peso           Int
   favorito       Boolean
   tempo_favorito String
+  data_ultima_avaliacao DateTime?
+  peso_avaliador Int?
 
   candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
   skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
+  avaliacoes CandidatoAvaliacaoSkill[]
 
   @@map("candidato_skill")
 }
@@ -457,4 +480,87 @@ model PlanoPagtoLog {
   usuario_plano UsuarioPerfilPlano @relation(fields: [usuario_perfil_plano_id], references: [id])
 
   @@map("plano_pagto_log")
+}
+
+model CandidatoAvaliacaoSkill {
+  id                    Int @id @default(autoincrement())
+  candidato_skill_id    Int
+  data_avaliacao        DateTime?
+  avaliacao_pendente    Boolean @default(true)
+  prioridade_ordem      Int
+  reavaliar             Boolean @default(false)
+  data_pedido_reavaliar DateTime?
+  avaliador_id          Int?
+  linguagem             String
+
+  candidatoSkill   CandidatoSkill @relation(fields: [candidato_skill_id], references: [id])
+  avaliador         UsuarioPerfilAvaliador? @relation(fields: [avaliador_id], references: [id])
+  avaliadorRanking AvaliadorRankingAvaliacao[]
+  avaliacaoSkill   AvaliadorAvaliacaoSkill[]
+
+  @@map("candidato_avaliacao_skill")
+}
+
+model AvaliadorRankingAvaliacao {
+  id                 Int @id @default(autoincrement())
+  avaliador_id       Int
+  avaliacao_skill_id Int
+  data_convite       DateTime @default(now())
+  data_expiracao     DateTime
+  aceite             Boolean? 
+  data_aceite_recusa DateTime?
+  
+
+  candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id])
+  avaliador       UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+
+  @@unique([avaliador_id, avaliacao_skill_id])
+  @@index([avaliacao_skill_id])
+  @@index([avaliador_id])
+  @@index([aceite])
+  @@index([data_expiracao])
+
+  @@map("avaliador_ranking_avaliacao")
+}
+
+model AvaliadorAvaliacaoSkill {
+  id                 Int @id @default(autoincrement())
+  avaliador_id       Int
+  avaliacao_skill_id Int
+  data_avaliacao     DateTime?
+  peso               Int? 
+  comentario         String?
+  data_aceite        DateTime @default(now())
+
+  candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id])
+  avaliador       UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+
+  @@map("avaliador_avaliacao_skill")
+}
+
+model Notificacao {
+  id              Int      @id @default(autoincrement())
+  
+  usuario_id      Int
+  perfil_tipo     PerfilTipo
+  perfil_id       Int
+  
+  tipo            TipoNotificacao
+  referencia_id   Int?
+  
+  titulo          String
+  mensagem        String
+  
+  lida            Boolean  @default(false)
+  enviada_email   Boolean  @default(false)
+  
+  criado_em       DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuario_id], references: [id])
+
+  @@index([usuario_id, perfil_tipo])
+  @@index([usuario_id, lida])
+  @@index([enviada_email])
+  @@unique([perfil_tipo, perfil_id, tipo, referencia_id])
+  @@map("notificacao")
 }
