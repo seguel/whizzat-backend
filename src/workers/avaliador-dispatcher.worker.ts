@@ -1,20 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import {
-  CandidatoAvaliacaoSkill,
-  CandidatoSkill,
-  AvaliadorRankingAvaliacao,
-} from '@prisma/client';
-
-type AvaliacaoComRelacoes = CandidatoAvaliacaoSkill & {
-  candidatoSkill: CandidatoSkill;
-  avaliadorRanking: AvaliadorRankingAvaliacao[];
-};
 
 const MAX_AVALIADORES_POR_SKILL = 3;
-const HORAS_EXPIRACAO_CONVITE = 48;
-// const BATCH_SIZE = 10;
+const HORAS_EXPIRACAO_CONVITE = 72;
 
 @Injectable()
 export class AvaliadorDispatcherWorker {
@@ -22,13 +12,18 @@ export class AvaliadorDispatcherWorker {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  @Cron(process.env.AVALIADOR_DISPATCHER_CRON || '*/5 * * * *')
   async executar(): Promise<void> {
     this.logger.log('Iniciando worker de dispatch de avaliadores');
 
-    await this.expirarConvites();
-    await this.criarConvitesComLock();
+    try {
+      await this.expirarConvites();
+      await this.criarConvitesComLock();
 
-    this.logger.log('Finalizando worker de dispatch de avaliadores');
+      this.logger.log('Finalizando worker de dispatch de avaliadores');
+    } catch (error) {
+      this.logger.error('Erro no AvaliadorDispatcherWorker', error);
+    }
   }
 
   /**
@@ -60,12 +55,12 @@ export class AvaliadorDispatcherWorker {
    */
   private async criarConvitesComLock(): Promise<void> {
     const BATCH_SIZE = 10;
-    const MAX_AVALIADORES_POR_SKILL = 3;
     const agora = new Date();
-    const expira = new Date(agora.getTime() + 48 * 60 * 60 * 1000);
+    const expira = new Date(
+      agora.getTime() + HORAS_EXPIRACAO_CONVITE * 60 * 60 * 1000,
+    );
 
     await this.prisma.$transaction(async (tx) => {
-      // 1️⃣ Buscar avaliações pendentes priorizando quem paga mais
       const avaliacoes = await tx.candidatoAvaliacaoSkill.findMany({
         where: {
           avaliador_id: null,
@@ -81,7 +76,6 @@ export class AvaliadorDispatcherWorker {
       for (const avaliacao of avaliacoes) {
         const skillId = avaliacao.candidatoSkill.skill_id;
 
-        // 2️⃣ Buscar avaliadores elegíveis
         const avaliadoresComSkill = await tx.avaliadorSkill.findMany({
           where: {
             skill_id: skillId,
@@ -112,21 +106,17 @@ export class AvaliadorDispatcherWorker {
           },
         });
 
-        // 3️⃣ Filtrar quem tem menos de 3 avaliações abertas
         const avaliadoresDisponiveis = avaliadoresComSkill
           .filter((a) => a.avaliador._count.avaliadorRanking < 3)
-          // 4️⃣ Ordenar por:
-          //    1º menor carga
-          //    2º maior pontuação
           .sort((a, b) => {
             const cargaA = a.avaliador._count.avaliadorRanking;
             const cargaB = b.avaliador._count.avaliadorRanking;
 
             if (cargaA !== cargaB) {
-              return cargaA - cargaB; // menor carga primeiro
+              return cargaA - cargaB;
             }
 
-            return b.avaliador.pontos - a.avaliador.pontos; // maior pontuação primeiro
+            return b.avaliador.pontos - a.avaliador.pontos;
           })
           .slice(0, MAX_AVALIADORES_POR_SKILL);
 
@@ -137,7 +127,6 @@ export class AvaliadorDispatcherWorker {
           continue;
         }
 
-        // 5️⃣ Criar convites
         for (const avaliador of avaliadoresDisponiveis) {
           try {
             await tx.avaliadorRankingAvaliacao.create({
@@ -157,7 +146,7 @@ export class AvaliadorDispatcherWorker {
                 tipo: 'NOVA_SKILL',
                 referencia_id: avaliacao.id,
                 titulo: 'Nova skill disponível para avaliação',
-                mensagem: `Você recebeu uma nova skill para avaliar.`,
+                mensagem: 'Você recebeu uma nova skill para avaliar.',
               },
             });
 
@@ -180,85 +169,5 @@ export class AvaliadorDispatcherWorker {
         }
       }
     });
-  }
-
-  /**
-   * Processa uma avaliação específica (já lockada)
-   */
-  private async processarAvaliacaoComTx(
-    tx: Prisma.TransactionClient,
-    avaliacao: AvaliacaoComRelacoes,
-  ): Promise<void> {
-    const convitesAtivos = avaliacao.avaliadorRanking.filter(
-      (c) => c.aceite === null,
-    );
-
-    if (convitesAtivos.length >= MAX_AVALIADORES_POR_SKILL) {
-      return;
-    }
-
-    const avaliadoresIgnorados = avaliacao.avaliadorRanking.map(
-      (c) => c.avaliador_id,
-    );
-
-    const avaliadores = await tx.avaliadorSkill.findMany({
-      where: {
-        skill_id: avaliacao.candidatoSkill.skill_id,
-        avaliador_id: {
-          notIn: avaliadoresIgnorados,
-        },
-        avaliador: {
-          ativo: true,
-          avaliar_todos: true,
-          liberado_avaliar: true,
-        },
-      },
-      take: MAX_AVALIADORES_POR_SKILL - convitesAtivos.length,
-    });
-
-    if (avaliadores.length === 0) {
-      this.logger.log(
-        `Nenhum avaliador encontrado | avaliacaoSkill=${avaliacao.id}`,
-      );
-      return;
-    }
-
-    for (const avaliador of avaliadores) {
-      await this.criarConviteComTx(tx, avaliacao.id, avaliador.avaliador_id);
-    }
-  }
-
-  /**
-   * Cria convite dentro da transação
-   */
-  private async criarConviteComTx(
-    tx: Prisma.TransactionClient,
-    avaliacaoSkillId: number,
-    avaliadorId: number,
-  ): Promise<void> {
-    const agora = new Date();
-    const expira = new Date(
-      agora.getTime() + HORAS_EXPIRACAO_CONVITE * 60 * 60 * 1000,
-    );
-
-    try {
-      await tx.avaliadorRankingAvaliacao.create({
-        data: {
-          avaliador_id: avaliadorId,
-          avaliacao_skill_id: avaliacaoSkillId,
-          data_convite: agora,
-          data_expiracao: expira,
-        },
-      });
-
-      this.logger.log(
-        `Convite criado | avaliador=${avaliadorId} avaliacaoSkill=${avaliacaoSkillId}`,
-      );
-    } catch {
-      // Pode acontecer por concorrência (@@unique)
-      this.logger.warn(
-        `Convite ignorado (duplicado) | avaliador=${avaliadorId} avaliacaoSkill=${avaliacaoSkillId}`,
-      );
-    }
   }
 }
