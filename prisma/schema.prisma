@@ -539,26 +539,22 @@ model AvaliadorAvaliacaoSkill {
 }
 
 model Notificacao {
-  id              Int      @id @default(autoincrement())
-  
+  id              Int      @id @default(autoincrement())  
   usuario_id      Int
   perfil_tipo     PerfilTipo
-  perfil_id       Int
-  
+  perfil_id       Int  
   tipo            TipoNotificacao
-  referencia_id   Int?
-  
+  referencia_id   Int?  
   titulo          String
-  mensagem        String
-  
+  mensagem        String  
   lida            Boolean  @default(false)
-  enviada_email   Boolean  @default(false)
-  
+  enviada_email   Boolean  @default(false)  
   criado_em       DateTime @default(now())
 
   usuario Usuario @relation(fields: [usuario_id], references: [id])
 
   @@index([usuario_id, perfil_tipo])
+  @@index([usuario_id, perfil_tipo, lida])
   @@index([usuario_id, lida])
   @@index([enviada_email])
   @@unique([perfil_tipo, perfil_id, tipo, referencia_id])
