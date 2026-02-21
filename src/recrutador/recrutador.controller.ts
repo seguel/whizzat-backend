@@ -275,4 +275,13 @@ export class RecrutadorController {
 
     return this.recrutadorService.getUser(usuarioId, lang);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notificacoes/unread-count')
+  async getUnreadCount(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+
+    const count = await this.recrutadorService.getNotificacoesCount(usuarioId);
+    return { count };
+  }
 }

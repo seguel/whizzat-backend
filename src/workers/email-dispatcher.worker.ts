@@ -17,14 +17,38 @@ interface GrupoNotificacao {
 @Injectable()
 export class EmailResumoSkillWorker {
   private readonly logger = new Logger(EmailResumoSkillWorker.name);
+  private readonly LOCK_ID = 1003;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
   ) {}
 
-  @Cron(process.env.EMAIL_RESUMO_SKILL_CRON || '*/10 * * * *')
+  // 🔐 MÉTODOS DE LOCK
+  private async acquireLock(): Promise<boolean> {
+    const result = await this.prisma.$queryRawUnsafe<
+      { pg_try_advisory_lock: boolean }[]
+    >(`SELECT pg_try_advisory_lock(${this.LOCK_ID})`);
+
+    return result[0]?.pg_try_advisory_lock ?? false;
+  }
+
+  private async releaseLock(): Promise<void> {
+    await this.prisma.$queryRawUnsafe(
+      `SELECT pg_advisory_unlock(${this.LOCK_ID})`,
+    );
+  }
+
+  @Cron(process.env.CANDIDATO_SKILL_CRON || '*/5 * * * *')
   async executar(): Promise<void> {
+    // 👇 TENTA PEGAR O LOCK
+    const locked = await this.acquireLock();
+
+    if (!locked) {
+      this.logger.warn('Worker já está rodando em outra instância.');
+      return;
+    }
+
     this.logger.log('Iniciando EmailResumoSkillWorker');
 
     try {
@@ -74,7 +98,9 @@ export class EmailResumoSkillWorker {
 
           const quantidade = grupo.notificacoes.length;
 
-          const nomeCompleto = `${grupo.usuario.primeiro_nome} ${grupo.usuario.ultimo_nome}`;
+          const nomeCompleto = grupo.usuario.nome_social?.trim()
+            ? `${grupo.usuario.nome_social}`
+            : `${grupo.usuario.primeiro_nome} ${grupo.usuario.ultimo_nome}`;
 
           await this.mailService.enviarResumoNotificacoes(
             grupo.usuario.email,
@@ -109,6 +135,9 @@ export class EmailResumoSkillWorker {
       this.logger.log('Finalizando EmailResumoSkillWorker');
     } catch (error) {
       this.logger.error('Erro geral no EmailResumoSkillWorker', error);
+    } finally {
+      // 👇 GARANTE LIBERAÇÃO DO LOCK
+      await this.releaseLock();
     }
   }
 
