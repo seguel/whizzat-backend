@@ -10,10 +10,34 @@ const HORAS_EXPIRACAO_CONVITE = 72;
 export class AvaliadorDispatcherWorker {
   private readonly logger = new Logger(AvaliadorDispatcherWorker.name);
 
+  private readonly LOCK_ID = 1002; // 👈 ID único desse worker
+
   constructor(private readonly prisma: PrismaService) {}
 
-  @Cron(process.env.AVALIADOR_DISPATCHER_CRON || '*/5 * * * *')
+  // 🔐 MÉTODOS DE LOCK
+  private async acquireLock(): Promise<boolean> {
+    const result = await this.prisma.$queryRawUnsafe<
+      { pg_try_advisory_lock: boolean }[]
+    >(`SELECT pg_try_advisory_lock(${this.LOCK_ID})`);
+
+    return result[0]?.pg_try_advisory_lock ?? false;
+  }
+
+  private async releaseLock(): Promise<void> {
+    await this.prisma.$queryRawUnsafe(
+      `SELECT pg_advisory_unlock(${this.LOCK_ID})`,
+    );
+  }
+
+  @Cron(process.env.CANDIDATO_SKILL_CRON || '*/5 * * * *')
   async executar(): Promise<void> {
+    // 👇 TENTA PEGAR O LOCK
+    const locked = await this.acquireLock();
+
+    if (!locked) {
+      this.logger.warn('Worker já está rodando em outra instância.');
+      return;
+    }
     this.logger.log('Iniciando worker de dispatch de avaliadores');
 
     try {
@@ -23,6 +47,9 @@ export class AvaliadorDispatcherWorker {
       this.logger.log('Finalizando worker de dispatch de avaliadores');
     } catch (error) {
       this.logger.error('Erro no AvaliadorDispatcherWorker', error);
+    } finally {
+      // 👇 GARANTE LIBERAÇÃO DO LOCK
+      await this.releaseLock();
     }
   }
 
@@ -79,6 +106,7 @@ export class AvaliadorDispatcherWorker {
         const avaliadoresComSkill = await tx.avaliadorSkill.findMany({
           where: {
             skill_id: skillId,
+            favorito: true, //favorito indica qual skill ele quer ser um avaliador
             avaliador: {
               ativo: true,
               avaliar_todos: true,
@@ -107,7 +135,7 @@ export class AvaliadorDispatcherWorker {
         });
 
         const avaliadoresDisponiveis = avaliadoresComSkill
-          .filter((a) => a.avaliador._count.avaliadorRanking < 3)
+          .filter((a) => a.avaliador._count.avaliadorRanking <= 5)
           .sort((a, b) => {
             const cargaA = a.avaliador._count.avaliadorRanking;
             const cargaB = b.avaliador._count.avaliadorRanking;
@@ -142,7 +170,7 @@ export class AvaliadorDispatcherWorker {
               data: {
                 usuario_id: avaliador.avaliador.usuario_id,
                 perfil_tipo: 'AVALIADOR',
-                perfil_id: avaliador.avaliador.id,
+                perfil_id: 3,
                 tipo: 'NOVA_SKILL',
                 referencia_id: avaliacao.id,
                 titulo: 'Nova skill disponível para avaliação',

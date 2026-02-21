@@ -562,4 +562,13 @@ export class CandidatoController {
 
     return this.candidatoService.getUser(usuarioId, lang);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notificacoes/unread-count')
+  async getUnreadCount(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+
+    const count = await this.candidatoService.getNotificacoesCount(usuarioId);
+    return { count };
+  }
 }
