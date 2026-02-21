@@ -12,6 +12,9 @@ import {
   UploadedFiles,
   Headers,
   BadRequestException,
+  Patch,
+  Delete,
+  Query,
 } from '@nestjs/common';
 import { AvaliadorService } from './avaliador.service';
 import { SkillService } from '../skill/skill.service';
@@ -702,5 +705,63 @@ export class AvaliadorController {
     const lang = req.user?.lang ?? 'pt';
 
     return this.avaliadorService.getUser(usuarioId, lang);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notificacoes/unread-count')
+  async getUnreadCount(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user?.sub;
+
+    const count = await this.avaliadorService.getNotificacoesCount(usuarioId);
+    return { count };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notificacoes')
+  async getNotificacoes(
+    @Req() req: Request & { user: JwtPayload },
+    @Query('page') page = '1',
+    @Query('naoLidas') naoLidas?: string,
+  ) {
+    const usuarioId = req.user.sub; // 👈 remove o ?
+
+    return this.avaliadorService.getNotificacoes(
+      usuarioId,
+      Number(page),
+      naoLidas === 'true',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notificacoes/:id/marcar-lida')
+  async marcarComoLida(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.avaliadorService.marcarComoLida(Number(id), usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notificacoes/marcar-todas-lidas')
+  async marcarTodasComoLidas(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.avaliadorService.marcarTodasComoLidas(usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('notificacoes/:id')
+  async deletarNotificacao(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.avaliadorService.deletarNotificacao(Number(id), usuarioId);
   }
 }

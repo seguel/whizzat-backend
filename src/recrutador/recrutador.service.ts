@@ -311,4 +311,14 @@ export class RecrutadorService {
       estado: usr.cidade.estado.estado,
     };
   }
+
+  async getNotificacoesCount(usuarioId: number) {
+    return this.prisma.notificacao.count({
+      where: {
+        usuario_id: usuarioId,
+        perfil_tipo: 'RECRUTADOR', // usar enum se estiver tipado
+        lida: false,
+      },
+    });
+  }
 }

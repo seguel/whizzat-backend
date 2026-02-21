@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, PerfilTipo } from '@prisma/client';
 import { generateActivationToken72 } from '../lib/util';
 import { I18nService } from 'nestjs-i18n';
 import { MailService } from '../mail/mail.service';
@@ -1131,5 +1131,118 @@ export class AvaliadorService {
       estado_id: usr.cidade?.estado_id ?? null,
       estado: usr.cidade.estado.estado,
     };
+  }
+
+  async getNotificacoesCount(usuarioId: number) {
+    return this.prisma.notificacao.count({
+      where: {
+        usuario_id: usuarioId,
+        perfil_tipo: 'AVALIADOR', // usar enum se estiver tipado
+        lida: false,
+      },
+    });
+  }
+
+  async getNotificacoes(
+    usuarioId: number,
+    page: number,
+    apenasNaoLidas?: boolean,
+  ) {
+    const take = 20;
+    const skip = (page - 1) * take;
+
+    const where: Prisma.NotificacaoWhereInput = {
+      usuario_id: usuarioId,
+      perfil_tipo: PerfilTipo.AVALIADOR,
+      ...(apenasNaoLidas ? { lida: false } : {}),
+    };
+
+    const notificacoes = await this.prisma.notificacao.findMany({
+      where,
+      orderBy: [{ lida: 'asc' }, { criado_em: 'desc' }],
+      skip,
+      take,
+    });
+
+    const notificacoesComContexto = await Promise.all(
+      notificacoes.map(async (n) => {
+        let skillNome: string | null = null;
+
+        if (n.referencia_id) {
+          const ranking = await this.prisma.avaliadorRankingAvaliacao.findFirst(
+            {
+              where: {
+                avaliacao_skill_id: n.referencia_id,
+              },
+              include: {
+                candidatoSkill: {
+                  include: {
+                    candidatoSkill: {
+                      include: {
+                        skill: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          );
+
+          skillNome =
+            ranking?.candidatoSkill?.candidatoSkill?.skill?.skill ?? null;
+        }
+
+        return {
+          id: n.id,
+          titulo: n.titulo,
+          mensagem: n.mensagem,
+          lida: n.lida,
+          criado_em: n.criado_em,
+          tipo: n.tipo,
+          referencia_id: n.referencia_id,
+          contexto: {
+            skill: skillNome,
+          },
+        };
+      }),
+    );
+
+    return notificacoesComContexto;
+  }
+
+  async marcarComoLida(id: number, usuarioId: number) {
+    return this.prisma.notificacao.updateMany({
+      where: {
+        id,
+        usuario_id: usuarioId, // segurança
+        perfil_tipo: PerfilTipo.AVALIADOR,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  async marcarTodasComoLidas(usuarioId: number) {
+    return this.prisma.notificacao.updateMany({
+      where: {
+        usuario_id: usuarioId,
+        perfil_tipo: PerfilTipo.AVALIADOR,
+        lida: false,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  async deletarNotificacao(id: number, usuarioId: number) {
+    return this.prisma.notificacao.deleteMany({
+      where: {
+        id,
+        usuario_id: usuarioId,
+        perfil_tipo: PerfilTipo.AVALIADOR,
+      },
+    });
   }
 }
