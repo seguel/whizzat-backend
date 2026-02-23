@@ -59,22 +59,47 @@ export class AvaliadorDispatcherWorker {
   private async expirarConvites(): Promise<void> {
     const agora = new Date();
 
-    const result = await this.prisma.avaliadorRankingAvaliacao.updateMany({
-      where: {
-        aceite: null,
-        data_expiracao: {
-          lt: agora,
+    await this.prisma.$transaction(async (tx) => {
+      // 1️⃣ Buscar convites expirados
+      const convitesExpirados = await tx.avaliadorRankingAvaliacao.findMany({
+        where: {
+          aceite: null,
+          data_expiracao: {
+            lt: agora,
+          },
         },
-      },
-      data: {
-        aceite: false,
-        data_aceite_recusa: agora,
-      },
-    });
+        select: {
+          id: true,
+        },
+      });
 
-    if (result.count > 0) {
-      this.logger.log(`Convites expirados: ${result.count}`);
-    }
+      if (convitesExpirados.length === 0) {
+        return;
+      }
+
+      const ids = convitesExpirados.map((c) => c.id);
+
+      // 2️⃣ Excluir notificações relacionadas
+      await tx.notificacao.deleteMany({
+        where: {
+          referencia_id: {
+            in: ids,
+          },
+          tipo: 'NOVA_SKILL',
+        },
+      });
+
+      // 3️⃣ Excluir convites
+      const result = await tx.avaliadorRankingAvaliacao.deleteMany({
+        where: {
+          id: {
+            in: ids,
+          },
+        },
+      });
+
+      this.logger.log(`Convites expirados removidos: ${result.count}`);
+    });
   }
 
   /**
