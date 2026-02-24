@@ -131,6 +131,18 @@ export interface CertificacaoInput {
   certificado_file: string;
 } */
 
+function getNomeExibicao(usuario: {
+  nome_social?: string | null;
+  primeiro_nome: string;
+  ultimo_nome: string;
+}) {
+  if (usuario.nome_social?.trim()) {
+    return usuario.nome_social;
+  }
+
+  return `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+}
+
 @Injectable()
 export class AvaliadorService {
   constructor(
@@ -1164,48 +1176,76 @@ export class AvaliadorService {
       take,
     });
 
-    const notificacoesComContexto = await Promise.all(
-      notificacoes.map(async (n) => {
-        let skillNome: string | null = null;
+    // 🔥 1️⃣ Pegar todos referencia_id válidos
+    const referenciaIds = notificacoes
+      .filter((n) => n.referencia_id)
+      .map((n) => n.referencia_id as number);
 
-        if (n.referencia_id) {
-          const ranking = await this.prisma.avaliadorRankingAvaliacao.findFirst(
-            {
-              where: {
-                id: n.referencia_id,
-              },
+    // 🔥 2️⃣ Buscar todos rankings de uma vez
+    const rankings = await this.prisma.avaliadorRankingAvaliacao.findMany({
+      where: {
+        id: { in: referenciaIds },
+      },
+      include: {
+        candidatoSkill: {
+          include: {
+            candidatoSkill: {
               include: {
-                candidatoSkill: {
+                skill: true,
+                candidato: {
                   include: {
-                    candidatoSkill: {
-                      include: {
-                        skill: true,
+                    usuario: {
+                      select: {
+                        nome_social: true,
+                        primeiro_nome: true,
+                        ultimo_nome: true,
                       },
                     },
                   },
                 },
               },
             },
-          );
+          },
+        },
+      },
+    });
 
-          skillNome =
-            ranking?.candidatoSkill?.candidatoSkill?.skill?.skill ?? null;
+    // 🔥 3️⃣ Criar Map para lookup rápido
+    const rankingMap = new Map(rankings.map((r) => [r.id, r]));
+
+    // 🔥 4️⃣ Montar resposta final
+    const notificacoesComContexto = notificacoes.map((n) => {
+      let skillNome: string | null = null;
+      let nomeExibicao: string | null = null;
+
+      if (n.referencia_id) {
+        const ranking = rankingMap.get(n.referencia_id);
+
+        const usuario =
+          ranking?.candidatoSkill?.candidatoSkill?.candidato?.usuario;
+
+        if (usuario) {
+          nomeExibicao = getNomeExibicao(usuario);
         }
 
-        return {
-          id: n.id,
-          titulo: n.titulo,
-          mensagem: n.mensagem,
-          lida: n.lida,
-          criado_em: n.criado_em,
-          tipo: n.tipo,
-          referencia_id: n.referencia_id,
-          contexto: {
-            skill: skillNome,
-          },
-        };
-      }),
-    );
+        skillNome =
+          ranking?.candidatoSkill?.candidatoSkill?.skill?.skill ?? null;
+      }
+
+      return {
+        id: n.id,
+        titulo: n.titulo,
+        mensagem: n.mensagem,
+        lida: n.lida,
+        criado_em: n.criado_em,
+        tipo: n.tipo,
+        referencia_id: n.referencia_id,
+        contexto: {
+          skill: skillNome,
+          nome: nomeExibicao,
+        },
+      };
+    });
 
     return notificacoesComContexto;
   }
