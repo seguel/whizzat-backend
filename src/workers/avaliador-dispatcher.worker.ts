@@ -182,7 +182,7 @@ export class AvaliadorDispatcherWorker {
 
         for (const avaliador of avaliadoresDisponiveis) {
           try {
-            await tx.avaliadorRankingAvaliacao.create({
+            const avaliadorRank = await tx.avaliadorRankingAvaliacao.create({
               data: {
                 avaliador_id: avaliador.avaliador_id,
                 avaliacao_skill_id: avaliacao.id,
@@ -197,7 +197,7 @@ export class AvaliadorDispatcherWorker {
                 perfil_tipo: 'AVALIADOR',
                 perfil_id: 3,
                 tipo: 'NOVA_SKILL',
-                referencia_id: avaliacao.id,
+                referencia_id: avaliadorRank.id,
                 titulo: 'Nova skill disponível para avaliação',
                 mensagem: 'Você recebeu uma nova skill para avaliar.',
               },
