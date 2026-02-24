@@ -1172,7 +1172,7 @@ export class AvaliadorService {
           const ranking = await this.prisma.avaliadorRankingAvaliacao.findFirst(
             {
               where: {
-                avaliacao_skill_id: n.referencia_id,
+                id: n.referencia_id,
               },
               include: {
                 candidatoSkill: {
