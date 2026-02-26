@@ -16,6 +16,7 @@ enum TipoNotificacao {
   NOVA_SKILL
   NOVA_MENSAGEM
   NOVA_AVALIACAO
+  CADASTRO_AVALIADOR
 }
 
 model Usuario {
