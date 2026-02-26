@@ -1000,6 +1000,18 @@ export class AvaliadorService {
         language,
       );
 
+      await this.prisma.notificacao.create({
+        data: {
+          usuario_id: avaliador?.usuario_id,
+          perfil_tipo: 'AVALIADOR',
+          perfil_id: 3,
+          tipo: 'CADASTRO_AVALIADOR',
+          referencia_id: null,
+          titulo: 'Cadastro Efetivado!',
+          mensagem: `Seu cadastro junto a ${avaliador?.empresa?.nome_empresa ?? ''}, foi APROVADO!`,
+        },
+      });
+
       return avalaidorRet;
     } catch (err) {
       let messageRetorno = '';
@@ -1065,6 +1077,18 @@ export class AvaliadorService {
         avaliador?.empresa?.nome_empresa ?? '',
         language,
       );
+
+      await this.prisma.notificacao.create({
+        data: {
+          usuario_id: avaliador?.usuario_id,
+          perfil_tipo: 'AVALIADOR',
+          perfil_id: 3,
+          tipo: 'CADASTRO_AVALIADOR',
+          referencia_id: null,
+          titulo: 'Cadastro Rejeitado!',
+          mensagem: `Seu cadastro junto a ${avaliador?.empresa?.nome_empresa ?? ''}, foi REJEITADO!`,
+        },
+      });
 
       return avalaidorRet;
     } catch (err) {
