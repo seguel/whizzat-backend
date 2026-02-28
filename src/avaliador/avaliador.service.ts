@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, PerfilTipo } from '@prisma/client';
 import { generateActivationToken72 } from '../lib/util';
@@ -75,73 +79,6 @@ export interface AvaliadorDto {
   certificacoes: AvaliadorCertificacaoDto[];
   usuario: UsuarioDto;
 }
-/* 
-export interface EmpresaDto {
-  id: number;
-  nome_empresa: string;
-}
-
-export interface AvaliadorCreateInput {
-  usuario_id: number;
-  perfil_id: number;
-  empresa_id: number | null;
-  telefone: string;
-  localizacao: string;
-  apresentacao: string;
-  avaliar_todos: boolean;
-  logo?: string;
-  meio_notificacao: string;
-  status_cadastro: number;
-  language: string;
-}
-
-export interface AvaliadorUpdateInput {
-  avaliador_id: number;
-  usuario_id: number;
-  perfil_id: number;
-  empresa_id: number | null;
-  telefone: string;
-  localizacao: string;
-  apresentacao: string;
-  avaliar_todos: boolean;
-  logo?: string;
-  meio_notificacao: string;
-  ativo: boolean;
-  language: string;
-}
-
-export interface SkillInput {
-  avaliador_id: number;
-  skill_id: number;
-  peso: number;
-  favorito: boolean;
-  tempo_favorito: string;
-}
-
-export interface FormacaoInput {
-  avaliador_id: number;
-  graduacao_id: number;
-  formacao: string;
-  certificado_file: string;
-}
-
-export interface CertificacaoInput {
-  avaliador_id: number;
-  certificacao_id: number;
-  certificado_file: string;
-} */
-
-function getNomeExibicao(usuario: {
-  nome_social?: string | null;
-  primeiro_nome: string;
-  ultimo_nome: string;
-}) {
-  if (usuario.nome_social?.trim()) {
-    return usuario.nome_social;
-  }
-
-  return `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
-}
 
 @Injectable()
 export class AvaliadorService {
@@ -152,6 +89,18 @@ export class AvaliadorService {
     private readonly i18n: I18nService,
     private readonly authService: AuthService,
   ) {}
+
+  private getNomeExibicao(usuario: {
+    nome_social?: string | null;
+    primeiro_nome: string;
+    ultimo_nome: string;
+  }) {
+    if (usuario.nome_social?.trim()) {
+      return usuario.nome_social;
+    }
+
+    return `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+  }
 
   async getCheckHasPerfil(
     usuarioId: number,
@@ -1249,7 +1198,7 @@ export class AvaliadorService {
           ranking?.candidatoSkill?.candidatoSkill?.candidato?.usuario;
 
         if (usuario) {
-          nomeExibicao = getNomeExibicao(usuario);
+          nomeExibicao = this.getNomeExibicao(usuario);
         }
 
         skillNome =
@@ -1309,4 +1258,355 @@ export class AvaliadorService {
       },
     });
   }
+
+  private static conviteInclude =
+    Prisma.validator<Prisma.AvaliadorRankingAvaliacaoInclude>()({
+      candidatoSkill: {
+        include: {
+          candidatoSkill: {
+            include: {
+              skill: true,
+              candidato: {
+                include: {
+                  usuario: {
+                    select: {
+                      nome_social: true,
+                      primeiro_nome: true,
+                      ultimo_nome: true,
+                      cidade: {
+                        select: {
+                          cidade: true,
+                          estado: {
+                            select: {
+                              sigla: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+  private typeConvite!: Prisma.AvaliadorRankingAvaliacaoGetPayload<{
+    include: typeof AvaliadorService.conviteInclude;
+  }>;
+
+  async listarConvites(usuarioId: number) {
+    const agora = new Date();
+
+    // 1️⃣ Buscar o perfil avaliador pelo usuario_id
+    const perfilAvaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!perfilAvaliador) {
+      return {
+        pendentes: [],
+        aceitos: [],
+        agendados: [],
+      };
+    }
+
+    // 2️⃣ Buscar convites usando o ID correto da tabela UsuarioPerfilAvaliador
+    const convites = await this.prisma.avaliadorRankingAvaliacao.findMany({
+      where: {
+        avaliador_id: perfilAvaliador.id, // 👈 agora correto
+      },
+      include: AvaliadorService.conviteInclude,
+      orderBy: {
+        data_convite: 'desc',
+      },
+    });
+
+    const pendentes = convites.filter(
+      (c) => c.aceite === null && c.data_expiracao > agora,
+    );
+
+    const aceitos = convites.filter((c) => c.aceite === true);
+
+    const agendados: typeof convites = [];
+
+    return {
+      pendentes: pendentes.map((c) => this.mapConvite(c)),
+      aceitos: aceitos.map((c) => this.mapConvite(c)),
+      agendados,
+    };
+  }
+
+  async aceitarConvite(id: number, usuarioId: number) {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1️⃣ Buscar perfil do avaliador
+      const perfilAvaliador = await tx.usuarioPerfilAvaliador.findFirst({
+        where: {
+          usuario_id: usuarioId,
+          ativo: true,
+        },
+        select: { id: true },
+      });
+
+      if (!perfilAvaliador) {
+        throw new NotFoundException('Perfil de avaliador não encontrado');
+      }
+
+      // 2️⃣ Buscar convite
+      const convite = await tx.avaliadorRankingAvaliacao.findFirst({
+        where: {
+          id,
+          avaliador_id: perfilAvaliador.id,
+        },
+      });
+
+      if (!convite) {
+        throw new NotFoundException('Convite não encontrado');
+      }
+
+      if (convite.aceite !== null) {
+        throw new BadRequestException('Convite já processado');
+      }
+
+      if (convite.data_expiracao < new Date()) {
+        throw new BadRequestException('Convite expirado');
+      }
+
+      // 3️⃣ Marcar aceite
+      await tx.avaliadorRankingAvaliacao.update({
+        where: { id },
+        data: {
+          aceite: true,
+          data_aceite_recusa: new Date(),
+        },
+      });
+
+      // 4️⃣ Criar vínculo avaliador x skill
+      await tx.avaliadorAvaliacaoSkill.create({
+        data: {
+          avaliador_id: perfilAvaliador.id,
+          avaliacao_skill_id: convite.avaliacao_skill_id,
+        },
+      });
+
+      // 5️⃣ 🔥 Atualizar candidatoAvaliacaoSkill
+      await tx.candidatoAvaliacaoSkill.update({
+        where: {
+          id: convite.avaliacao_skill_id,
+          avaliador_id: null,
+        },
+        data: {
+          avaliador_id: perfilAvaliador.id,
+        },
+      });
+
+      // 6️⃣ Marcar notificação como lida
+      await tx.notificacao.updateMany({
+        where: {
+          referencia_id: id,
+          usuario_id: usuarioId,
+        },
+        data: {
+          lida: true,
+        },
+      });
+
+      return { success: true };
+    });
+  }
+
+  async recusarConvite(id: number, usuarioId: number) {
+    return await this.prisma.$transaction(async (tx) => {
+      const perfilAvaliador = await tx.usuarioPerfilAvaliador.findFirst({
+        where: {
+          usuario_id: usuarioId,
+          ativo: true,
+        },
+        select: { id: true },
+      });
+
+      if (!perfilAvaliador) {
+        throw new NotFoundException('Perfil de avaliador não encontrado');
+      }
+
+      const convite = await tx.avaliadorRankingAvaliacao.findFirst({
+        where: {
+          id,
+          avaliador_id: perfilAvaliador.id,
+        },
+      });
+
+      if (!convite) {
+        throw new NotFoundException('Convite não encontrado');
+      }
+
+      if (convite.aceite !== null) {
+        throw new BadRequestException('Convite já processado');
+      }
+
+      await tx.avaliadorRankingAvaliacao.update({
+        where: { id },
+        data: {
+          aceite: false,
+          data_aceite_recusa: new Date(),
+        },
+      });
+
+      // ✅ Marcar notificação como lida
+      await tx.notificacao.updateMany({
+        where: {
+          referencia_id: id,
+          usuario_id: usuarioId,
+        },
+        data: {
+          lida: true,
+        },
+      });
+
+      return { success: true };
+    });
+  }
+
+  private mapConvite = (
+    convite: Prisma.AvaliadorRankingAvaliacaoGetPayload<{
+      include: typeof AvaliadorService.conviteInclude;
+    }>,
+  ) => {
+    const usuario = convite.candidatoSkill.candidatoSkill.candidato.usuario;
+
+    const skill = convite.candidatoSkill.candidatoSkill.skill;
+
+    const nome = this.getNomeExibicao(usuario);
+
+    const cidade = usuario.cidade?.cidade;
+    const sigla = usuario.cidade?.estado?.sigla;
+
+    return {
+      id: convite.id,
+      candidato_nome: nome,
+      localizacao: cidade && sigla ? `${cidade}/${sigla}` : null,
+      logo: convite.candidatoSkill.candidatoSkill.candidato.logo ?? null,
+      skill: skill.skill,
+      criado_em: convite.data_convite,
+      status:
+        convite.aceite === null
+          ? 'PENDENTE'
+          : convite.aceite === true
+            ? 'ACEITO'
+            : 'RECUSADO',
+    };
+  };
+
+  private static avaliacaoInclude =
+    Prisma.validator<Prisma.AvaliadorAvaliacaoSkillInclude>()({
+      candidatoSkill: {
+        include: {
+          candidatoSkill: {
+            include: {
+              skill: true,
+              candidato: {
+                include: {
+                  usuario: {
+                    select: {
+                      nome_social: true,
+                      primeiro_nome: true,
+                      ultimo_nome: true,
+                      cidade: {
+                        select: {
+                          cidade: true,
+                          estado: {
+                            select: {
+                              sigla: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+  async listarAvaliacoesDoAvaliador(usuarioId: number) {
+    // 1️⃣ Buscar perfil do avaliador
+    const perfilAvaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: { id: true },
+    });
+
+    if (!perfilAvaliador) {
+      return {
+        aguardando_agendamento: [],
+        agendadas: [],
+      };
+    }
+
+    // 2️⃣ Buscar avaliações vinculadas
+    const avaliacoes = await this.prisma.avaliadorAvaliacaoSkill.findMany({
+      where: {
+        avaliador_id: perfilAvaliador.id,
+      },
+      include: AvaliadorService.avaliacaoInclude,
+      orderBy: {
+        data_aceite: 'desc',
+      },
+    });
+
+    // 3️⃣ Separar colunas
+    const aguardando_agendamento = avaliacoes.filter((a) => !a.data_avaliacao);
+
+    const agendadas = avaliacoes.filter((a) => a.data_avaliacao);
+
+    return {
+      aguardando_agendamento: aguardando_agendamento.map((a) =>
+        this.mapAvaliacao(a),
+      ),
+      agendadas: agendadas.map((a) => this.mapAvaliacao(a)),
+    };
+  }
+
+  private mapAvaliacao = (
+    avaliacao: Prisma.AvaliadorAvaliacaoSkillGetPayload<{
+      include: typeof AvaliadorService.avaliacaoInclude;
+    }>,
+  ) => {
+    const candidato = avaliacao.candidatoSkill.candidatoSkill.candidato;
+
+    const usuario = candidato.usuario;
+
+    const skill = avaliacao.candidatoSkill.candidatoSkill.skill;
+
+    const peso = avaliacao.candidatoSkill.candidatoSkill.peso;
+
+    const nome = this.getNomeExibicao(usuario);
+
+    const cidade = usuario.cidade?.cidade;
+    const sigla = usuario.cidade?.estado?.sigla;
+
+    return {
+      id: avaliacao.id,
+      candidato_nome: nome,
+      localizacao: cidade && sigla ? `${cidade}/${sigla}` : null,
+      logo: candidato.logo ?? null,
+      skill: skill.skill,
+      peso,
+      criado_em: avaliacao.data_aceite,
+      data_agenda: avaliacao.candidatoSkill.data_avaliacao ?? null,
+    };
+  };
 }

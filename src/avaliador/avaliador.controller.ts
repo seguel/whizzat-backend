@@ -764,4 +764,36 @@ export class AvaliadorController {
 
     return this.avaliadorService.deletarNotificacao(Number(id), usuarioId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('convites')
+  async listar(@Req() req: Request & { user: JwtPayload }) {
+    return this.avaliadorService.listarConvites(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('convites/:id/aceitar')
+  async aceitar(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.avaliadorService.aceitarConvite(Number(id), req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('convites/:id/recusar')
+  async recusar(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.avaliadorService.recusarConvite(Number(id), req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('avaliacoes')
+  async listarAvaliacoes(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user.sub; // 👈 usuario_id
+
+    return this.avaliadorService.listarAvaliacoesDoAvaliador(usuarioId);
+  }
 }
