@@ -1372,33 +1372,83 @@ export class AvaliadorService {
         throw new NotFoundException('Convite não encontrado');
       }
 
-      if (convite.aceite !== null) {
-        throw new BadRequestException('Convite já processado');
-      }
-
       if (convite.data_expiracao < new Date()) {
         throw new BadRequestException('Convite expirado');
       }
 
-      // 3️⃣ Marcar aceite
-      await tx.avaliadorRankingAvaliacao.update({
-        where: { id },
+      // 🔒 3️⃣ UPDATE SEGURO (ANTI-RACE CONDITION)
+      const updateResult = await tx.avaliadorRankingAvaliacao.updateMany({
+        where: {
+          id,
+          avaliador_id: perfilAvaliador.id,
+          aceite: null, // garante que ainda não foi processado
+          data_aceite_recusa: null,
+        },
         data: {
           aceite: true,
           data_aceite_recusa: new Date(),
         },
       });
 
-      // 4️⃣ Criar vínculo avaliador x skill
-      await tx.avaliadorAvaliacaoSkill.create({
-        data: {
-          avaliador_id: perfilAvaliador.id,
+      if (updateResult.count === 0) {
+        throw new BadRequestException(
+          'Convite já foi aceito ou processado por outro avaliador',
+        );
+      }
+
+      // 🔥 4️⃣ Cancelar outros convites concorrentes
+      const outrosConvites = await tx.avaliadorRankingAvaliacao.findMany({
+        where: {
           avaliacao_skill_id: convite.avaliacao_skill_id,
+          avaliador_id: { not: convite.avaliador_id },
+          aceite: null,
+          data_aceite_recusa: null,
+        },
+        select: {
+          id: true,
+          avaliador: {
+            select: {
+              usuario_id: true,
+            },
+          },
         },
       });
 
-      // 5️⃣ 🔥 Atualizar candidatoAvaliacaoSkill
-      await tx.candidatoAvaliacaoSkill.update({
+      if (outrosConvites.length > 0) {
+        const outrosIds = outrosConvites.map((c) => c.id);
+        const outrosUsuariosIds = outrosConvites.map(
+          (c) => c.avaliador.usuario_id,
+        );
+
+        // 🔥 4.1️⃣ Excluir notificações dos outros avaliadores
+        await tx.notificacao.deleteMany({
+          where: {
+            referencia_id: { in: outrosIds },
+            usuario_id: { in: outrosUsuariosIds },
+          },
+        });
+
+        // 🔥 4.2️⃣ Excluir convites pendentes
+        await tx.avaliadorRankingAvaliacao.deleteMany({
+          where: {
+            id: { in: outrosIds },
+          },
+        });
+      }
+
+      // 5️⃣ Criar vínculo avaliador x skill (evita duplicado)
+      await tx.avaliadorAvaliacaoSkill.createMany({
+        data: [
+          {
+            avaliador_id: perfilAvaliador.id,
+            avaliacao_skill_id: convite.avaliacao_skill_id,
+          },
+        ],
+        skipDuplicates: true,
+      });
+
+      // 6️⃣ Atualizar candidatoAvaliacaoSkill (proteção extra)
+      const candidatoUpdate = await tx.candidatoAvaliacaoSkill.updateMany({
         where: {
           id: convite.avaliacao_skill_id,
           avaliador_id: null,
@@ -1408,7 +1458,11 @@ export class AvaliadorService {
         },
       });
 
-      // 6️⃣ Marcar notificação como lida
+      if (candidatoUpdate.count === 0) {
+        throw new BadRequestException('Skill já vinculada a outro avaliador');
+      }
+
+      // 7️⃣ Marcar notificação como lida
       await tx.notificacao.updateMany({
         where: {
           referencia_id: id,
