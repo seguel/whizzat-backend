@@ -140,7 +140,14 @@ export class CandidatoSkillAvaliarWorker {
         { data_ultima_avaliacao: null },
         { data_ultima_avaliacao: { lt: umAnoAtras } },
       ],
-      avaliacoes: { none: {} },
+
+      // 🔥 NÃO pode existir avaliação pendente
+      avaliacoes: {
+        none: {
+          data_avaliacao: null,
+        },
+      },
+
       candidato: {
         data_cadastro: {
           lt: subDays(new Date(), 3),
