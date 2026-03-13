@@ -1473,6 +1473,19 @@ export class AvaliadorService {
         },
       });
 
+      const agora = new Date();
+
+      const pontos = this.calcularPontos(convite.data_convite, agora, 'ACEITE');
+
+      await tx.usuarioPerfilAvaliador.update({
+        where: { id: perfilAvaliador.id },
+        data: {
+          pontos: {
+            increment: pontos,
+          },
+        },
+      });
+
       return { success: true };
     });
   }
@@ -1506,13 +1519,22 @@ export class AvaliadorService {
         throw new BadRequestException('Convite já processado');
       }
 
-      await tx.avaliadorRankingAvaliacao.update({
-        where: { id },
+      const updateResult = await tx.avaliadorRankingAvaliacao.updateMany({
+        where: {
+          id,
+          avaliador_id: perfilAvaliador.id,
+          aceite: null,
+          data_aceite_recusa: null,
+        },
         data: {
           aceite: false,
           data_aceite_recusa: new Date(),
         },
       });
+
+      if (updateResult.count === 0) {
+        throw new BadRequestException('Convite já processado');
+      }
 
       // ✅ Marcar notificação como lida
       await tx.notificacao.updateMany({
@@ -1522,6 +1544,19 @@ export class AvaliadorService {
         },
         data: {
           lida: true,
+        },
+      });
+
+      const agora = new Date();
+
+      const pontos = this.calcularPontos(convite.data_convite, agora, 'RECUSA');
+
+      await tx.usuarioPerfilAvaliador.update({
+        where: { id: perfilAvaliador.id },
+        data: {
+          pontos: {
+            increment: pontos,
+          },
         },
       });
 
@@ -1663,4 +1698,28 @@ export class AvaliadorService {
       data_agenda: avaliacao.candidatoSkill.data_avaliacao ?? null,
     };
   };
+
+  private calcularPontos(
+    dataConvite: Date,
+    dataResposta: Date,
+    tipo: 'ACEITE' | 'RECUSA',
+  ): number {
+    const diffMs = dataResposta.getTime() - dataConvite.getTime();
+    const diffMin = diffMs / 1000 / 60;
+
+    if (tipo === 'ACEITE') {
+      if (diffMin <= 60) return 5;
+      if (diffMin <= 180) return 4;
+      if (diffMin <= 480) return 3;
+      return 2;
+    }
+
+    if (tipo === 'RECUSA') {
+      if (diffMin <= 60) return 1;
+      if (diffMin <= 180) return 0;
+      return -1;
+    }
+
+    return 0;
+  }
 }
