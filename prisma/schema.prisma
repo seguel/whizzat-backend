@@ -19,6 +19,19 @@ enum TipoNotificacao {
   CADASTRO_AVALIADOR
 }
 
+enum TipoPergunta {
+  CAIXA_TEXTO
+  ALTERNATIVA
+  MULTIPLA_ESCOLHA
+}
+
+enum AgendaStatus {
+  PENDENTE
+  ACEITO
+  REALIZADO
+  CANCELADO
+}
+
 model Usuario {
   id              Int @id @default(autoincrement())
   primeiro_nome   String
@@ -107,10 +120,12 @@ model UsuarioPerfilAvaliador {
   avaliacoesCandidato CandidatoAvaliacaoSkill[]
   avaliadorRanking    AvaliadorRankingAvaliacao[]
   avaliacaoSkill      AvaliadorAvaliacaoSkill[]
+  avaliadorQuestionarios AvaliadorQuestionario[]
 
   @@unique([usuario_id, perfil_id])
   @@index([ativo, avaliar_todos, liberado_avaliar, linguagem])
   @@map("usuario_perfil_avaliador")
+  
 }
 
 model AvaliadorSkill {
@@ -138,6 +153,7 @@ model AvaliadorFormacaoAcademica {
   avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
   graduacao Graduacao               @relation(fields: [graduacao_id], references: [id])
 
+  @@index([avaliador_id])
   @@map("avaliador_formacao_academica")
 }
 
@@ -150,6 +166,7 @@ model AvaliadorCertificacoes {
   avaliador     UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
   certificacoes Certificacoes           @relation(fields: [certificacao_id], references: [id])
 
+  @@index([avaliador_id])
   @@map("avaliador_certificacoes")
 }
 
@@ -190,6 +207,7 @@ model CandidatoSkill {
   skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
   avaliacoes CandidatoAvaliacaoSkill[]
 
+  @@index([candidato_id])
   @@map("candidato_skill")
 }
 
@@ -203,6 +221,7 @@ model CandidatoFormacaoAcademica {
   candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
   graduacao Graduacao               @relation(fields: [graduacao_id], references: [id])
 
+  @@index([candidato_id])
   @@map("candidato_formacao_academica")
 }
 
@@ -215,6 +234,7 @@ model CandidatoCertificacoes {
   candidato     UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
   certificacoes Certificacoes           @relation(fields: [certificacao_id], references: [id])
 
+  @@index([candidato_id])
   @@map("candidato_certificacoes")
 }
 
@@ -239,6 +259,7 @@ model Empresa {
   avaliadores UsuarioPerfilAvaliador[]
   cidade      EstadoCidade @relation(fields: [cidade_id], references: [id])
 
+  @@index([id,recrutador_id])
   @@map("empresa")
 }
 
@@ -266,6 +287,7 @@ model EmpresaVaga {
   cidade              EstadoCidade @relation(fields: [cidade_id], references: [id])
   empresa             Empresa @relation("EmpresaVagas", fields: [empresa_id], references: [id])
 
+  @@index([empresa_id])
   @@map("empresa_vaga")
 }
 
@@ -279,6 +301,7 @@ model EmpresaVagaSkill {
   vaga  EmpresaVaga @relation(fields: [vaga_id], references: [vaga_id])
   skill Skill       @relation(fields: [skill_id], references: [skill_id])
 
+  @@index([vaga_id])
   @@map("empresa_vaga_skill")
 }
 
@@ -288,6 +311,7 @@ model TipoSkill {
 
   skills Skill[]
 
+  @@index([id])
   @@map("tipo_skill")
 }
 
@@ -303,6 +327,7 @@ model Skill {
   candidato   CandidatoSkill[]
   tipo_skill  TipoSkill @relation(fields: [tipo_skill_id], references: [id])
 
+  @@index([skill_id])
   @@map("skill")
 }
 
@@ -314,6 +339,7 @@ model ModalidadeTrabalho {
 
   vagas EmpresaVaga[]
 
+  @@index([modalidade_trabalho_id])
   @@map("modalidade_trabalho")
 }
 
@@ -325,6 +351,7 @@ model PeriodoTrabalho {
 
   vagas EmpresaVaga[]
 
+  @@index([periodo_trabalho_id])
   @@map("periodo_trabalho")
 }
 
@@ -337,6 +364,7 @@ model Certificacoes {
   avaliadores_certificado AvaliadorCertificacoes[]
   candidato_certificado   CandidatoCertificacoes[]
 
+  @@index([id])
   @@map("certificacoes")
 }
 
@@ -349,6 +377,7 @@ model Graduacao {
   avaliadores_formacao AvaliadorFormacaoAcademica[]
   candidatos_formacao  CandidatoFormacaoAcademica[]
 
+  @@index([id])
   @@map("graduacao")
 }
 
@@ -360,6 +389,7 @@ model Genero {
 
   usuario Usuario[]
 
+  @@index([id])
   @@map("genero")
 }
 
@@ -371,6 +401,7 @@ model Estado {
 
   cidade EstadoCidade[]
 
+  @@index([id])
   @@map("estado")
 }
 
@@ -399,6 +430,7 @@ model Plano {
   itens     PlanoItens[]
   linguagem PlanoLinguagem[]
 
+  @@index([id])
   @@map("plano")
 }
 
@@ -411,6 +443,8 @@ model PlanoLinguagem {
 
   planos Plano @relation(fields: [plano_id], references: [id])
 
+  @@index([id])
+  @@index([plano_id])
   @@map("plano_linguagem")
 }
 
@@ -423,6 +457,7 @@ model PlanoItens {
 
   plano Plano @relation(fields: [plano_id], references: [id])
 
+  @@index([plano_id])
   @@map("plano_itens")
 }
 
@@ -440,6 +475,8 @@ model PlanoPeriodo {
   plano         Plano @relation(fields: [plano_id], references: [id])
   usuario_plano UsuarioPerfilPlano[]
 
+  @@index([plano_id])
+  @@index([plano_id,perfil_id])
   @@map("plano_periodo")
 }
 
@@ -451,6 +488,7 @@ model UsuarioPerfil {
   perfil Perfil @relation(fields: [perfil_id], references: [id])
   planos UsuarioPerfilPlano[]
 
+  @@index([usuario_id])
   @@unique([usuario_id, perfil_id])
   @@map("usuario_perfil")
 }
@@ -467,6 +505,7 @@ model UsuarioPerfilPlano {
   periodo        PlanoPeriodo @relation(fields: [plano_periodo_id], references: [id])
   pagto_log      PlanoPagtoLog[]
 
+  @@index([usuario_perfil_id])
   @@map("usuario_perfil_plano")
 }
 
@@ -480,6 +519,7 @@ model PlanoPagtoLog {
 
   usuario_plano UsuarioPerfilPlano @relation(fields: [usuario_perfil_plano_id], references: [id])
 
+  @@index([usuario_perfil_plano_id])
   @@map("plano_pagto_log")
 }
 
@@ -499,6 +539,8 @@ model CandidatoAvaliacaoSkill {
   avaliadorRanking AvaliadorRankingAvaliacao[]
   avaliacaoSkill   AvaliadorAvaliacaoSkill[]
 
+  @@index([avaliador_id])
+  @@index([candidato_skill_id])
   @@map("candidato_avaliacao_skill")
 }
 
@@ -520,22 +562,33 @@ model AvaliadorRankingAvaliacao {
   @@index([avaliador_id])
   @@index([aceite])
   @@index([data_expiracao])
+  @@index([avaliador_id, aceite])
 
   @@map("avaliador_ranking_avaliacao")
 }
 
 model AvaliadorAvaliacaoSkill {
-  id                 Int @id @default(autoincrement())
-  avaliador_id       Int
-  avaliacao_skill_id Int
-  data_avaliacao     DateTime?
-  peso               Int? 
-  comentario         String?
-  data_aceite        DateTime @default(now())
+  id                          Int @id @default(autoincrement())
+  avaliador_id                Int
+  avaliacao_skill_id          Int
+  data_avaliacao              DateTime?
+  peso                        Int? 
+  comentario                  String?
+  data_aceite                 DateTime @default(now())
+  questionario_id             Int?
+  data_resposta_questionario  DateTime?
 
-  candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id])
-  avaliador       UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id], onDelete: Cascade)
+  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id], onDelete: Cascade)
+  questionario AvaliadorQuestionario? @relation(fields: [questionario_id], references: [id], onDelete: SetNull)
+  agenda          AvaliadorAvaliacaoSkillAgenda[]
+  resposta        AvaliadorAvaliacaoSkillResposta[]
 
+  @@unique([avaliador_id, avaliacao_skill_id])
+  @@index([avaliador_id])
+  @@index([avaliacao_skill_id])
+  @@index([avaliador_id, data_avaliacao])
+  @@index([questionario_id])
   @@map("avaliador_avaliacao_skill")
 }
 
@@ -560,4 +613,67 @@ model Notificacao {
   @@index([enviada_email])
   @@unique([perfil_tipo, usuario_id, tipo, referencia_id])
   @@map("notificacao")
+}
+
+model AvaliadorQuestionario {
+  id              Int      @id @default(autoincrement())  
+  avaliador_id    Int
+  titulo          String
+  comentario      String?
+  ativo           Boolean  @default(true)
+  data_criacao    DateTime @default(now())
+
+  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  pergunta AvaliadorQuestionarioPergunta[]
+  avaliacao AvaliadorAvaliacaoSkill[]
+
+  @@index([avaliador_id,ativo])  
+  @@unique([avaliador_id, titulo])
+  @@map("avaliador_questionario")
+}
+
+model AvaliadorQuestionarioPergunta {
+  id              Int      @id @default(autoincrement())  
+  questionario_id Int
+  pergunta        String
+  resposta_base   String?  
+  tipo_pergunta   TipoPergunta @default(CAIXA_TEXTO)
+  ativo           Boolean  @default(true)
+  ordem           Int
+
+  questionario AvaliadorQuestionario @relation(fields: [questionario_id], references: [id], onDelete: Cascade)
+  resposta AvaliadorAvaliacaoSkillResposta[]
+
+  @@index([questionario_id, ativo])  
+  @@index([questionario_id, ordem])
+  @@map("avaliador_questionario_pergunta")
+}
+
+model AvaliadorAvaliacaoSkillResposta {
+  id                      Int      @id @default(autoincrement())  
+  avaliador_avaliacao_id  Int
+  questionario_pergunta_id Int
+  resposta                String  
+
+  avaliacao AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
+  pergunta  AvaliadorQuestionarioPergunta @relation(fields: [questionario_pergunta_id], references: [id], onDelete: Restrict)
+
+  @@index([avaliador_avaliacao_id,questionario_pergunta_id])  
+  @@unique([avaliador_avaliacao_id, questionario_pergunta_id])
+  @@map("avaliador_avaliacao_skill_resposta")
+}
+
+model AvaliadorAvaliacaoSkillAgenda {
+  id                      Int      @id @default(autoincrement())  
+  avaliador_avaliacao_id  Int
+  data_hora_agenda        DateTime
+  status                  AgendaStatus @default(PENDENTE)
+  data_criacao            DateTime @default(now()) 
+
+  avaliacao AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
+
+  @@index([avaliador_avaliacao_id])
+  @@index([data_hora_agenda])  
+  @@unique([avaliador_avaliacao_id])
+  @@map("avaliador_avaliacao_skill_agenda")
 }
