@@ -81,11 +81,7 @@ export class QuestionarioService {
       include: {
         _count: {
           select: {
-            pergunta: {
-              where: {
-                ativo: true,
-              },
-            },
+            pergunta: true,
           },
         },
       },
