@@ -236,6 +236,14 @@ export class AuthController {
     return { redirect_to: url };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@Req() req: Request & { user: JwtPayload }) {
+    return {
+      nome: req.user?.nome,
+    };
+  }
+
   /* @Get('test-msg')
   getTestMsg(@I18nLang() lang: string) {
     return this.i18n.translate('validation.senha_tamanho', { lang });
