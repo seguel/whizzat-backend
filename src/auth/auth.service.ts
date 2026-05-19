@@ -99,10 +99,13 @@ export class AuthService {
       throw new UnauthorizedException(messageRetorno);
     }
 
+    const nome_user =
+      user.nome_social || `${user.primeiro_nome} ${user.ultimo_nome}`;
+
     const payload = {
       sub: user.id,
       email: user.email,
-      nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+      nome: nome_user,
       perfil: user.id_perfil,
       lang: user.linguagem,
     };
@@ -132,7 +135,7 @@ export class AuthService {
               user: {
                 id: user.id,
                 email: user.email,
-                nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+                nome: nome_user,
                 lang: user.linguagem,
               },
               plano: {
@@ -149,7 +152,7 @@ export class AuthService {
               user: {
                 id: user.id,
                 email: user.email,
-                nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+                nome: nome_user,
                 lang: user.linguagem,
               },
               plano: {
@@ -166,7 +169,7 @@ export class AuthService {
               user: {
                 id: user.id,
                 email: user.email,
-                nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+                nome: nome_user,
                 lang: user.linguagem,
               },
               plano: {
@@ -187,7 +190,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        nome: `${user.primeiro_nome} ${user.ultimo_nome}`,
+        nome: nome_user,
         lang: user.linguagem,
       },
 

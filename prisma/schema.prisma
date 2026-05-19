@@ -17,6 +17,9 @@ enum TipoNotificacao {
   NOVA_MENSAGEM
   NOVA_AVALIACAO
   CADASTRO_AVALIADOR
+  NOVA_MENSAGEM_AGENDA
+  NOVA_MENSAGEM_ENTREVISTA
+  NOVA_MENSAGEM_FORMULARIO
 }
 
 enum TipoPergunta {
@@ -27,9 +30,19 @@ enum TipoPergunta {
 
 enum AgendaStatus {
   PENDENTE
+  RECUSADO
   ACEITO
   REALIZADO
   CANCELADO
+}
+
+enum StatusAvaliacao {
+  CONVITE_ACEITO
+  QUESTIONARIO_ENVIADO
+  AGENDA_ENVIADA
+  AGENDADO
+  ENTREVISTA_REALIZADA
+  FINALIZADO
 }
 
 model Usuario {
@@ -577,11 +590,13 @@ model AvaliadorAvaliacaoSkill {
   data_aceite                 DateTime @default(now())
   questionario_id             Int?
   data_resposta_questionario  DateTime?
+  status                      StatusAvaliacao @default(CONVITE_ACEITO)
+  data_envio_formulario       DateTime?
 
   candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id], onDelete: Cascade)
   avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id], onDelete: Cascade)
   questionario AvaliadorQuestionario? @relation(fields: [questionario_id], references: [id], onDelete: SetNull)
-  agenda          AvaliadorAvaliacaoSkillAgenda[]
+  agenda AvaliadorAvaliacaoSkillAgenda?
   resposta        AvaliadorAvaliacaoSkillResposta[]
 
   @@unique([avaliador_id, avaliacao_skill_id])
