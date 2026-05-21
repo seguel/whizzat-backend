@@ -240,7 +240,9 @@ export class AuthController {
   @Get('me')
   me(@Req() req: Request & { user: JwtPayload }) {
     return {
+      id: req.user?.sub,
       nome: req.user?.nome,
+      email: req.user?.email,
     };
   }
 
