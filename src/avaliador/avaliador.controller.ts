@@ -867,16 +867,19 @@ export class AvaliadorController {
     @Body()
     body: {
       avaliacao_id: number;
+      avaliadorId: number;
       peso: number;
       comentario?: string;
     },
     @Req() req: Request & { user: JwtPayload },
   ) {
+    const usuarioId = req.user.sub;
     return this.avaliadorService.finalizarAvaliacao(
       body.avaliacao_id,
+      body.avaliadorId,
       body.peso,
       body.comentario,
-      req.user.sub,
+      usuarioId,
     );
   }
 }

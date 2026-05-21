@@ -20,6 +20,7 @@ enum TipoNotificacao {
   NOVA_MENSAGEM_AGENDA
   NOVA_MENSAGEM_ENTREVISTA
   NOVA_MENSAGEM_FORMULARIO
+  NOVA_MENSAGEM_FINALIZADA
 }
 
 enum TipoPergunta {
@@ -626,7 +627,7 @@ model Notificacao {
   @@index([usuario_id, perfil_tipo, lida])
   @@index([usuario_id, lida])
   @@index([enviada_email])
-  @@unique([perfil_tipo, usuario_id, tipo, referencia_id])
+  @@unique([perfil_tipo, usuario_id, tipo, referencia_id, titulo])
   @@map("notificacao")
 }
 

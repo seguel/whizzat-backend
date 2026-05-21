@@ -1693,15 +1693,24 @@ export class AvaliadorService {
     });
 
     // 3️⃣ Separar colunas
-    const aguardando_agendamento = avaliacoes.filter((a) => !a.data_avaliacao);
+    const aguardando_agendamento = avaliacoes.filter(
+      (a) => a.status === StatusAvaliacao.CONVITE_ACEITO,
+    );
 
-    const agendadas = avaliacoes.filter((a) => a.data_avaliacao);
+    const agendadas = avaliacoes.filter(
+      (a) => a.status === StatusAvaliacao.AGENDADO,
+    );
+
+    const finalizadas = avaliacoes.filter(
+      (a) => a.status === StatusAvaliacao.FINALIZADO,
+    );
 
     return {
       aguardando_agendamento: aguardando_agendamento.map((a) =>
         this.mapAvaliacao(a),
       ),
       agendadas: agendadas.map((a) => this.mapAvaliacao(a)),
+      finalizadas: finalizadas.map((a) => this.mapAvaliacao(a)),
     };
   }
 
@@ -1853,9 +1862,13 @@ export class AvaliadorService {
       ultima_avaliacao:
         avaliacao.candidatoSkill.candidatoSkill.data_ultima_avaliacao,
 
-      peso_avaliador: avaliacao.candidatoSkill.candidatoSkill.peso_avaliador
+      ultimo_peso_avaliador: avaliacao.candidatoSkill.candidatoSkill
+        .peso_avaliador
         ? avaliacao.candidatoSkill.candidatoSkill.peso_avaliador / 10
         : 0,
+
+      peso_avaliador: avaliacao.peso ? avaliacao.peso / 10 : 0,
+      comentario: avaliacao.comentario,
 
       status: avaliacao.status,
 
@@ -1923,10 +1936,9 @@ export class AvaliadorService {
     if (usuarioCandidatoId) {
       await this.prisma.notificacao.create({
         data: {
-          usuario_id: usuarioCandidatoId,
+          usuario_id: usuarioId,
           perfil_tipo: PerfilTipo.CANDIDATO,
-          perfil_id:
-            avaliacao.candidatoSkill?.candidatoSkill?.candidato_id ?? 1,
+          perfil_id: 1,
           referencia_id: avaliacaoId,
           titulo: 'Avaliação de Skill',
           mensagem:
@@ -2047,9 +2059,9 @@ export class AvaliadorService {
     // 👇 cria nova notificação
     await this.prisma.notificacao.create({
       data: {
-        usuario_id: candidatoId,
+        usuario_id: usuarioId,
         perfil_tipo: PerfilTipo.CANDIDATO,
-        perfil_id: candidatoId,
+        perfil_id: 1,
         referencia_id: agenda.id,
         titulo: agendaExistente
           ? 'Nova proposta de entrevista'
@@ -2149,43 +2161,41 @@ export class AvaliadorService {
 
   async finalizarAvaliacao(
     avaliacaoId: number,
+    avaliadorId: number,
     peso: number,
     comentario: string | undefined,
     usuarioId: number,
   ) {
     // 🔍 Buscar avaliação completa
-    const avaliacao = (await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
       where: {
         id: avaliacaoId,
+        avaliador_id: avaliadorId,
         status: {
           in: [StatusAvaliacao.AGENDADO],
         },
-        avaliador: {
-          usuario_id: usuarioId,
-        },
       },
-    })) as Prisma.AvaliadorAvaliacaoSkillGetPayload<{
+
       include: {
         candidatoSkill: {
           include: {
-            candidatoSkill: true;
-          };
-        };
-        agenda: true;
-      };
-    }>;
+            candidatoSkill: true,
+          },
+        },
+
+        agenda: true,
+      },
+    });
 
     if (!avaliacao) {
       throw new BadRequestException('Avaliação não encontrada');
     }
 
-    const candidatoSkill = avaliacao.candidatoSkill?.candidatoSkill;
+    const candidatoId = avaliacao.candidatoSkill?.candidatoSkill?.candidato_id;
 
-    if (!candidatoSkill) {
+    if (!candidatoId) {
       throw new BadRequestException('Candidato não encontrado');
     }
-
-    const candidatoId = candidatoSkill.candidato_id;
 
     // 🚨 REGRA IMPORTANTE: só pode finalizar se já teve agenda aceita
     const agendaAceita = avaliacao.agenda?.status === AgendaStatus.ACEITO;
@@ -2197,9 +2207,13 @@ export class AvaliadorService {
     }
 
     // 🚨 validação de peso
-    if (peso < 0 || peso > 10) {
+    if (peso < 10 || peso > 100) {
       throw new BadRequestException('Peso inválido');
     }
+
+    const hoje = new Date();
+
+    hoje.setHours(0, 0, 0, 0);
 
     // 🧾 Atualiza avaliação do avaliador
     const updated = await this.prisma.avaliadorAvaliacaoSkill.update({
@@ -2207,7 +2221,7 @@ export class AvaliadorService {
       data: {
         peso,
         comentario: comentario ?? '',
-        data_avaliacao: new Date(),
+        data_avaliacao: hoje,
         status: StatusAvaliacao.FINALIZADO,
       },
     });
@@ -2218,50 +2232,32 @@ export class AvaliadorService {
         id: avaliacao.avaliacao_skill_id,
       },
       data: {
-        data_avaliacao: new Date(),
+        data_avaliacao: hoje,
         avaliacao_pendente: false,
       },
     });
 
-    // 📊 Atualiza peso_avaliador (estratégia simples: média)
-    /*const avaliacoesFinalizadas =
-      await this.prisma.avaliadorAvaliacaoSkill.findMany({
-        where: {
-          avaliacao_skill_id: avaliacao.avaliacao_skill_id,
-          status: 'FINALIZADO',
-          peso: {
-            not: null,
-          },
-        },
-        select: {
-          peso: true,
-        },
-      });
-
-     const media =
-      avaliacoesFinalizadas.reduce((acc, a) => acc + (a.peso || 0), 0) /
-      avaliacoesFinalizadas.length; */
-
     await this.prisma.candidatoSkill.update({
       where: {
-        id: candidatoSkill.id,
+        id: avaliacao.candidatoSkill.candidato_skill_id,
+        candidato_id: candidatoId,
       },
       data: {
         peso_avaliador: peso,
-        data_ultima_avaliacao: new Date(),
+        data_ultima_avaliacao: hoje,
       },
     });
 
     // 🔔 Notificação para o candidato
     await this.prisma.notificacao.create({
       data: {
-        usuario_id: candidatoId,
+        usuario_id: usuarioId,
         perfil_tipo: PerfilTipo.CANDIDATO,
-        perfil_id: candidatoId,
+        perfil_id: 1,
         referencia_id: avaliacaoId,
         titulo: 'Avaliação concluída',
         mensagem: 'Sua avaliação foi concluída. Confira o resultado.',
-        tipo: TipoNotificacao.NOVA_MENSAGEM,
+        tipo: TipoNotificacao.NOVA_MENSAGEM_FINALIZADA,
       },
     });
 
