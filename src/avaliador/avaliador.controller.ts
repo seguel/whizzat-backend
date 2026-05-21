@@ -30,6 +30,7 @@ import { CreateNovaSkillAvaliadorDto } from './dto/create-nova-skill.dto';
 import { CreateAvaliadorFormacaoDto } from './dto/create-avaliador-formacao.dto';
 import { CreateAvaliadorCertificadosDto } from './dto/create-avaliador-certificados.dto';
 import { CreateNovoCertificadoAvaliadorDto } from './dto/create-novo-certificado.dto';
+import { SendQuestionarioDto } from './dto/send-questionario.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
@@ -795,5 +796,90 @@ export class AvaliadorController {
     const usuarioId = req.user.sub; // 👈 usuario_id
 
     return this.avaliadorService.listarAvaliacoesDoAvaliador(usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('avaliacao/:id')
+  async getAvaliacaoDetalhe(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.avaliadorService.getAvaliacaoDetalhe(id, req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('avaliacoes/enviar-questionario')
+  async enviarQuestionario(
+    @Body() body: SendQuestionarioDto,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user.sub;
+
+    return this.avaliadorService.enviarQuestionario(
+      body.avaliacao_id,
+      usuarioId,
+      body.questionario_id,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('questionarios/:avaliadorId')
+  async listarQuestionarios(
+    @Param('avaliadorId', ParseIntPipe) avaliadorId: number,
+  ) {
+    // const usuarioId = req.user.sub;
+
+    return this.avaliadorService.listarQuestionarios(avaliadorId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('avaliacoes/agendar')
+  async agendar(
+    @Body() body: { avaliacao_id: number; data: string },
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.avaliadorService.agendar(
+      body.avaliacao_id,
+      new Date(body.data),
+      req.user.sub,
+    );
+  }
+
+  @Patch('avaliacoes/agenda/:id/aceitar')
+  async aceitarAgenda(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.avaliadorService.aceitarAgenda(Number(id), req.user.sub);
+  }
+
+  @Patch('avaliacoes/agenda/:id/recusar')
+  async recusarAgenda(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.avaliadorService.recusarAgenda(Number(id), req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('avaliacoes/finalizar')
+  async finalizar(
+    @Body()
+    body: {
+      avaliacao_id: number;
+      avaliadorId: number;
+      peso: number;
+      comentario?: string;
+    },
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user.sub;
+    return this.avaliadorService.finalizarAvaliacao(
+      body.avaliacao_id,
+      body.avaliadorId,
+      body.peso,
+      body.comentario,
+      usuarioId,
+    );
   }
 }
