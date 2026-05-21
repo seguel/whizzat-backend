@@ -39,7 +39,7 @@ export class EmailResumoSkillWorker {
     );
   }
 
-  @Cron(process.env.CANDIDATO_SKILL_CRON || '*/5 * * * *')
+  @Cron(process.env.EMAIL_RESUMO_SKILL_CRON || '*/5 * * * *')
   async executar(): Promise<void> {
     // 👇 TENTA PEGAR O LOCK
     const locked = await this.acquireLock();
@@ -56,7 +56,7 @@ export class EmailResumoSkillWorker {
         await this.prisma.notificacao.findMany({
           where: {
             enviada_email: false,
-            tipo: TipoNotificacao.NOVA_SKILL,
+            // tipo: TipoNotificacao.NOVA_SKILL,
           },
           include: {
             usuario: true,
@@ -73,7 +73,7 @@ export class EmailResumoSkillWorker {
 
       const agrupado = notificacoes.reduce(
         (acc, notif) => {
-          const key = `${notif.usuario_id}_${notif.perfil_id}`;
+          const key = `${notif.usuario_id}_${notif.perfil_id}_${notif.tipo}`;
 
           if (!acc[key]) {
             acc[key] = {
@@ -102,24 +102,55 @@ export class EmailResumoSkillWorker {
             ? `${grupo.usuario.nome_social}`
             : `${grupo.usuario.primeiro_nome} ${grupo.usuario.ultimo_nome}`;
 
-          await this.mailService.enviarResumoNotificacoes(
-            grupo.usuario.email,
-            nomeCompleto,
-            grupo.usuario.linguagem ?? 'pt',
-            quantidade,
-            dashboardLink,
-          );
+          const tipo = grupo.notificacoes[0].tipo;
 
-          await this.prisma.notificacao.updateMany({
-            where: {
-              id: {
-                in: grupo.notificacoes.map((n) => n.id),
+          let emailEnviado = false;
+
+          if (tipo === TipoNotificacao.NOVA_SKILL) {
+            await this.mailService.enviarResumoNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              quantidade,
+              dashboardLink,
+            );
+
+            emailEnviado = true;
+          } else if (tipo === TipoNotificacao.NOVA_MENSAGEM) {
+            await this.mailService.enviarQuestionarioNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              quantidade,
+              dashboardLink,
+            );
+
+            emailEnviado = true;
+          }
+
+          if (emailEnviado) {
+            await this.prisma.notificacao.updateMany({
+              where: {
+                id: {
+                  in: grupo.notificacoes.map((n) => n.id),
+                },
               },
-            },
-            data: {
-              enviada_email: true,
-            },
-          });
+              data: {
+                enviada_email: true,
+              },
+            });
+          }
+
+          // await this.prisma.notificacao.updateMany({
+          //   where: {
+          //     id: {
+          //       in: grupo.notificacoes.map((n) => n.id),
+          //     },
+          //   },
+          //   data: {
+          //     enviada_email: true,
+          //   },
+          // });
 
           this.logger.log(
             `Email enviado usuario=${grupo.usuario.id} (${quantidade} notificações)`,

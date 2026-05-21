@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PerfilTipo, Prisma, TipoNotificacao } from '@prisma/client';
 
 const MAX_AVALIADORES_POR_SKILL = 3;
 const HORAS_EXPIRACAO_CONVITE = 72;
@@ -85,7 +85,7 @@ export class AvaliadorDispatcherWorker {
           referencia_id: {
             in: ids,
           },
-          tipo: 'NOVA_SKILL',
+          tipo: TipoNotificacao.NOVA_SKILL,
         },
       });
 
@@ -195,9 +195,9 @@ export class AvaliadorDispatcherWorker {
           await tx.notificacao.create({
             data: {
               usuario_id: avaliador.avaliador.usuario_id,
-              perfil_tipo: 'AVALIADOR',
+              perfil_tipo: PerfilTipo.AVALIADOR,
               perfil_id: 3,
-              tipo: 'NOVA_SKILL',
+              tipo: TipoNotificacao.NOVA_SKILL,
               referencia_id: avaliadorRank.id,
               titulo: 'Nova skill disponível para avaliação',
               mensagem: 'Você recebeu uma nova skill para avaliar.',
