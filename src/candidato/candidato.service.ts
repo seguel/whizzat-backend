@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import {
+  Prisma,
+  PerfilTipo,
+  AgendaStatus,
+  StatusAvaliacao,
+} from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
 /* import * as jwt from 'jsonwebtoken';
@@ -64,6 +69,18 @@ export class CandidatoService {
     private jwtService: JwtService,
     private readonly authService: AuthService,
   ) {}
+
+  private getNomeExibicao(usuario: {
+    nome_social?: string | null;
+    primeiro_nome: string;
+    ultimo_nome: string;
+  }) {
+    if (usuario.nome_social?.trim()) {
+      return usuario.nome_social;
+    }
+
+    return `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+  }
 
   async getCheckHasPerfil(
     usuarioId: number,
@@ -528,5 +545,370 @@ export class CandidatoService {
         lida: false,
       },
     });
+  }
+
+  async getNotificacoes(
+    usuarioId: number,
+    page: number,
+    apenasNaoLidas?: boolean,
+  ) {
+    const take = 20;
+    const skip = (page - 1) * take;
+
+    const where: Prisma.NotificacaoWhereInput = {
+      usuario_id: usuarioId,
+      perfil_tipo: PerfilTipo.CANDIDATO,
+      ...(apenasNaoLidas ? { lida: false } : {}),
+    };
+
+    const notificacoes = await this.prisma.notificacao.findMany({
+      where,
+      orderBy: [{ lida: 'asc' }, { criado_em: 'desc' }],
+      skip,
+      take,
+    });
+
+    // 🔥 1️⃣ Pegar todos referencia_id válidos
+    const referenciaIds = notificacoes
+      .filter((n) => n.referencia_id)
+      .map((n) => n.referencia_id as number);
+
+    // 🔥 2️⃣ Buscar todos rankings de uma vez
+    const rankings = await this.prisma.avaliadorRankingAvaliacao.findMany({
+      where: {
+        id: { in: referenciaIds },
+      },
+      include: {
+        candidatoSkill: {
+          include: {
+            candidatoSkill: {
+              include: {
+                skill: true,
+                candidato: {
+                  include: {
+                    usuario: {
+                      select: {
+                        nome_social: true,
+                        primeiro_nome: true,
+                        ultimo_nome: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // 🔥 3️⃣ Criar Map para lookup rápido
+    const rankingMap = new Map(rankings.map((r) => [r.id, r]));
+
+    // 🔥 4️⃣ Montar resposta final
+    const notificacoesComContexto = notificacoes.map((n) => {
+      let skillNome: string | null = null;
+      let nomeExibicao: string | null = null;
+
+      if (n.referencia_id) {
+        const ranking = rankingMap.get(n.referencia_id);
+
+        const usuario =
+          ranking?.candidatoSkill?.candidatoSkill?.candidato?.usuario;
+
+        if (usuario) {
+          nomeExibicao = this.getNomeExibicao(usuario);
+        }
+
+        skillNome =
+          ranking?.candidatoSkill?.candidatoSkill?.skill?.skill ?? null;
+      }
+
+      return {
+        id: n.id,
+        titulo: n.titulo,
+        mensagem: n.mensagem,
+        lida: n.lida,
+        criado_em: n.criado_em,
+        tipo: n.tipo,
+        referencia_id: n.referencia_id,
+        contexto: {
+          skill: skillNome,
+          nome: nomeExibicao,
+        },
+      };
+    });
+
+    return notificacoesComContexto;
+  }
+
+  async marcarComoLida(id: number, usuarioId: number) {
+    return this.prisma.notificacao.updateMany({
+      where: {
+        id,
+        usuario_id: usuarioId, // segurança
+        perfil_tipo: PerfilTipo.CANDIDATO,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  async marcarTodasComoLidas(usuarioId: number) {
+    return this.prisma.notificacao.updateMany({
+      where: {
+        usuario_id: usuarioId,
+        perfil_tipo: PerfilTipo.CANDIDATO,
+        lida: false,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  async deletarNotificacao(id: number, usuarioId: number) {
+    return this.prisma.notificacao.deleteMany({
+      where: {
+        id,
+        usuario_id: usuarioId,
+        perfil_tipo: PerfilTipo.CANDIDATO,
+      },
+    });
+  }
+
+  async listarAvaliacoesCandidato(usuarioId: number) {
+    // 1️⃣ Buscar perfil candidato
+    const perfilCandidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!perfilCandidato) {
+      return {
+        aguardando_questionario: [],
+        agendadas: [],
+        finalizadas: [],
+      };
+    }
+
+    // 2️⃣ Buscar avaliações vinculadas ao candidato
+    const avaliacoes = await this.prisma.candidatoAvaliacaoSkill.findMany({
+      where: {
+        candidatoSkill: {
+          candidato_id: perfilCandidato.id,
+        },
+
+        avaliador_id: {
+          not: null,
+        },
+      },
+
+      include: {
+        candidatoSkill: {
+          include: {
+            skill: true,
+          },
+        },
+
+        avaliador: {
+          include: {
+            usuario: {
+              include: {
+                cidade: {
+                  include: {
+                    estado: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        avaliacaoSkill: {
+          include: {
+            agenda: true,
+            questionario: true,
+          },
+        },
+      },
+
+      orderBy: {
+        data_avaliacao: 'desc',
+      },
+    });
+
+    // =====================================================
+    // COLUNAS
+    // =====================================================
+
+    // 📋 aguardando responder questionário
+    const aguardando_questionario = avaliacoes.filter(
+      (a) =>
+        a.avaliacaoSkill.length > 0 &&
+        a.avaliacaoSkill.some(
+          (av) => av.questionario_id && !av.data_resposta_questionario,
+        ),
+    );
+
+    // 📅 agenda enviada
+    const agendadas = avaliacoes.filter((a) =>
+      a.avaliacaoSkill.some(
+        (av) =>
+          av.status === StatusAvaliacao.AGENDA_ENVIADA ||
+          av.status === StatusAvaliacao.AGENDADO,
+      ),
+    );
+
+    // ✅ finalizadas
+    const finalizadas = avaliacoes.filter((a) =>
+      a.avaliacaoSkill.some((av) => av.status === StatusAvaliacao.FINALIZADO),
+    );
+
+    return {
+      aguardando_questionario: aguardando_questionario.map((a) =>
+        this.mapAvaliacaoCandidato(a),
+      ),
+
+      agendadas: agendadas.map((a) => this.mapAvaliacaoCandidato(a)),
+
+      finalizadas: finalizadas.map((a) => this.mapAvaliacaoCandidato(a)),
+    };
+  }
+
+  private mapAvaliacaoCandidato(
+    avaliacao: Prisma.CandidatoAvaliacaoSkillGetPayload<{
+      include: {
+        candidatoSkill: {
+          include: {
+            skill: true;
+          };
+        };
+
+        avaliador: {
+          include: {
+            usuario: {
+              include: {
+                cidade: {
+                  include: {
+                    estado: true;
+                  };
+                };
+              };
+            };
+          };
+        };
+
+        avaliacaoSkill: {
+          include: {
+            agenda: true;
+            questionario: true;
+          };
+        };
+      };
+    }>,
+  ) {
+    // Como existe apenas uma avaliação por avaliador/skill,
+    // pegamos a primeira posição.
+    const avaliacaoSkill = avaliacao.avaliacaoSkill[0];
+
+    const avaliadorUsuario = avaliacao.avaliador?.usuario;
+
+    const cidade = avaliadorUsuario?.cidade?.cidade;
+    const sigla = avaliadorUsuario?.cidade?.estado?.sigla;
+
+    return {
+      id: avaliacao.id,
+
+      avaliador_nome: avaliadorUsuario
+        ? this.getNomeExibicao(avaliadorUsuario)
+        : null,
+
+      localizacao: cidade && sigla ? `${cidade}/${sigla}` : null,
+
+      logo: null,
+
+      skill: avaliacao.candidatoSkill.skill.skill,
+
+      peso: avaliacao.candidatoSkill.peso,
+      peso_avaliador: avaliacaoSkill.peso,
+
+      criado_em: avaliacaoSkill?.data_aceite ?? null,
+
+      questionario_id: avaliacaoSkill?.questionario_id ?? null,
+
+      data_envio_formulario: avaliacaoSkill?.data_envio_formulario ?? null,
+
+      data_resposta_questionario:
+        avaliacaoSkill?.data_resposta_questionario ?? null,
+
+      data_agenda: avaliacaoSkill?.agenda?.data_hora_agenda ?? null,
+
+      agenda_status: avaliacaoSkill?.agenda?.status ?? null,
+
+      status: avaliacaoSkill?.status ?? null,
+
+      comentario: avaliacaoSkill?.comentario ?? null,
+
+      avaliador_id: avaliacaoSkill?.avaliador_id ?? null,
+
+      avaliacao_id: avaliacaoSkill?.id ?? null,
+
+      data_avaliacao: avaliacaoSkill?.data_avaliacao,
+      data_agenda_criacao: avaliacaoSkill.agenda?.data_criacao ?? null,
+    };
+  }
+
+  async aceitarAgenda(agendaId: number) {
+    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findFirst({
+      where: {
+        id: agendaId,
+      },
+    });
+
+    if (!agenda) {
+      throw new BadRequestException('Agenda inválida');
+    }
+
+    await this.prisma.avaliadorAvaliacaoSkillAgenda.update({
+      where: { id: agendaId },
+      data: {
+        status: AgendaStatus.ACEITO,
+      },
+    });
+
+    await this.prisma.avaliadorAvaliacaoSkill.update({
+      where: { id: agenda.avaliador_avaliacao_id },
+      data: {
+        status: StatusAvaliacao.AGENDADO,
+      },
+    });
+
+    return { success: true };
+  }
+
+  async recusarAgenda(agendaId: number) {
+    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findFirst({
+      where: { id: agendaId },
+    });
+
+    if (!agenda) {
+      throw new BadRequestException('Agenda inválida');
+    }
+
+    await this.prisma.avaliadorAvaliacaoSkillAgenda.update({
+      where: { id: agendaId },
+      data: {
+        status: AgendaStatus.RECUSADO,
+      },
+    });
+
+    return { success: true };
   }
 }
