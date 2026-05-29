@@ -845,22 +845,6 @@ export class AvaliadorController {
     );
   }
 
-  @Patch('avaliacoes/agenda/:id/aceitar')
-  async aceitarAgenda(
-    @Param('id') id: string,
-    @Req() req: Request & { user: JwtPayload },
-  ) {
-    return this.avaliadorService.aceitarAgenda(Number(id), req.user.sub);
-  }
-
-  @Patch('avaliacoes/agenda/:id/recusar')
-  async recusarAgenda(
-    @Param('id') id: string,
-    @Req() req: Request & { user: JwtPayload },
-  ) {
-    return this.avaliadorService.recusarAgenda(Number(id), req.user.sub);
-  }
-
   @UseGuards(JwtAuthGuard)
   @Post('avaliacoes/finalizar')
   async finalizar(

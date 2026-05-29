@@ -9,6 +9,9 @@ import {
   Body,
   UseInterceptors,
   UploadedFiles,
+  Patch,
+  Query,
+  Delete,
 } from '@nestjs/common';
 import { CandidatoService } from './candidato.service';
 import { SkillService } from '../skill/skill.service';
@@ -570,5 +573,80 @@ export class CandidatoController {
 
     const count = await this.candidatoService.getNotificacoesCount(usuarioId);
     return { count };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notificacoes')
+  async getNotificacoes(
+    @Req() req: Request & { user: JwtPayload },
+    @Query('page') page = '1',
+    @Query('naoLidas') naoLidas?: string,
+  ) {
+    const usuarioId = req.user.sub; // 👈 remove o ?
+
+    return this.candidatoService.getNotificacoes(
+      usuarioId,
+      Number(page),
+      naoLidas === 'true',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notificacoes/:id/marcar-lida')
+  async marcarComoLida(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.candidatoService.marcarComoLida(Number(id), usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notificacoes/marcar-todas-lidas')
+  async marcarTodasComoLidas(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.candidatoService.marcarTodasComoLidas(usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('notificacoes/:id')
+  async deletarNotificacao(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.candidatoService.deletarNotificacao(Number(id), usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('avaliacoes')
+  async listarAvaliacoes(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user.sub; // 👈 usuario_id
+
+    return this.candidatoService.listarAvaliacoesCandidato(usuarioId);
+  }
+
+  @Patch('agenda/:id/aceitar')
+  async aceitarAgenda(
+    @Param('id') id: string,
+    // @Req() req: Request & { user: JwtPayload },
+  ) {
+    // const usuarioId = req.user?.sub;
+    return this.candidatoService.aceitarAgenda(Number(id));
+  }
+
+  @Patch('agenda/:id/recusar')
+  async recusarAgenda(
+    @Param('id') id: string,
+    // @Req() req: Request & { user: JwtPayload },
+  ) {
+    // const usuarioId = req.user?.sub;
+    return this.candidatoService.recusarAgenda(Number(id));
   }
 }

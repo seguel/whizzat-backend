@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, Empresa } from '@prisma/client';
+import { Prisma, Empresa, PerfilTipo } from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 
 export interface CheckPerfil {
@@ -42,6 +42,18 @@ export class RecrutadorService {
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
   ) {}
+
+  private getNomeExibicao(usuario: {
+    nome_social?: string | null;
+    primeiro_nome: string;
+    ultimo_nome: string;
+  }) {
+    if (usuario.nome_social?.trim()) {
+      return usuario.nome_social;
+    }
+
+    return `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+  }
 
   async getCheckHasPerfil(
     usuarioId: number,
@@ -316,8 +328,139 @@ export class RecrutadorService {
     return this.prisma.notificacao.count({
       where: {
         usuario_id: usuarioId,
-        perfil_tipo: 'RECRUTADOR', // usar enum se estiver tipado
+        perfil_tipo: PerfilTipo.RECRUTADOR, // usar enum se estiver tipado
         lida: false,
+      },
+    });
+  }
+
+  async getNotificacoes(
+    usuarioId: number,
+    page: number,
+    apenasNaoLidas?: boolean,
+  ) {
+    const take = 20;
+    const skip = (page - 1) * take;
+
+    const where: Prisma.NotificacaoWhereInput = {
+      usuario_id: usuarioId,
+      perfil_tipo: PerfilTipo.RECRUTADOR,
+      ...(apenasNaoLidas ? { lida: false } : {}),
+    };
+
+    const notificacoes = await this.prisma.notificacao.findMany({
+      where,
+      orderBy: [{ lida: 'asc' }, { criado_em: 'desc' }],
+      skip,
+      take,
+    });
+
+    // 🔥 1️⃣ Pegar todos referencia_id válidos
+    const referenciaIds = notificacoes
+      .filter((n) => n.referencia_id)
+      .map((n) => n.referencia_id as number);
+
+    // 🔥 2️⃣ Buscar todos rankings de uma vez
+    const rankings = await this.prisma.avaliadorRankingAvaliacao.findMany({
+      where: {
+        id: { in: referenciaIds },
+      },
+      include: {
+        candidatoSkill: {
+          include: {
+            candidatoSkill: {
+              include: {
+                skill: true,
+                candidato: {
+                  include: {
+                    usuario: {
+                      select: {
+                        nome_social: true,
+                        primeiro_nome: true,
+                        ultimo_nome: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // 🔥 3️⃣ Criar Map para lookup rápido
+    const rankingMap = new Map(rankings.map((r) => [r.id, r]));
+
+    // 🔥 4️⃣ Montar resposta final
+    const notificacoesComContexto = notificacoes.map((n) => {
+      let skillNome: string | null = null;
+      let nomeExibicao: string | null = null;
+
+      if (n.referencia_id) {
+        const ranking = rankingMap.get(n.referencia_id);
+
+        const usuario =
+          ranking?.candidatoSkill?.candidatoSkill?.candidato?.usuario;
+
+        if (usuario) {
+          nomeExibicao = this.getNomeExibicao(usuario);
+        }
+
+        skillNome =
+          ranking?.candidatoSkill?.candidatoSkill?.skill?.skill ?? null;
+      }
+
+      return {
+        id: n.id,
+        titulo: n.titulo,
+        mensagem: n.mensagem,
+        lida: n.lida,
+        criado_em: n.criado_em,
+        tipo: n.tipo,
+        referencia_id: n.referencia_id,
+        contexto: {
+          skill: skillNome,
+          nome: nomeExibicao,
+        },
+      };
+    });
+
+    return notificacoesComContexto;
+  }
+
+  async marcarComoLida(id: number, usuarioId: number) {
+    return this.prisma.notificacao.updateMany({
+      where: {
+        id,
+        usuario_id: usuarioId, // segurança
+        perfil_tipo: PerfilTipo.RECRUTADOR,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  async marcarTodasComoLidas(usuarioId: number) {
+    return this.prisma.notificacao.updateMany({
+      where: {
+        usuario_id: usuarioId,
+        perfil_tipo: PerfilTipo.RECRUTADOR,
+        lida: false,
+      },
+      data: {
+        lida: true,
+      },
+    });
+  }
+
+  async deletarNotificacao(id: number, usuarioId: number) {
+    return this.prisma.notificacao.deleteMany({
+      where: {
+        id,
+        usuario_id: usuarioId,
+        perfil_tipo: PerfilTipo.RECRUTADOR,
       },
     });
   }

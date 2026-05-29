@@ -13,6 +13,9 @@ import {
   UploadedFiles,
   NotFoundException,
   BadRequestException,
+  Patch,
+  Query,
+  Delete,
 } from '@nestjs/common';
 import { CreateRecrutadorDto } from './dto/create-recrutador.dto';
 import { UpdateRecrutadorDto } from './dto/update-recrutador.dto';
@@ -283,5 +286,54 @@ export class RecrutadorController {
 
     const count = await this.recrutadorService.getNotificacoesCount(usuarioId);
     return { count };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('notificacoes')
+  async getNotificacoes(
+    @Req() req: Request & { user: JwtPayload },
+    @Query('page') page = '1',
+    @Query('naoLidas') naoLidas?: string,
+  ) {
+    const usuarioId = req.user.sub; // 👈 remove o ?
+
+    return this.recrutadorService.getNotificacoes(
+      usuarioId,
+      Number(page),
+      naoLidas === 'true',
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notificacoes/:id/marcar-lida')
+  async marcarComoLida(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.recrutadorService.marcarComoLida(Number(id), usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('notificacoes/marcar-todas-lidas')
+  async marcarTodasComoLidas(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.recrutadorService.marcarTodasComoLidas(usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('notificacoes/:id')
+  async deletarNotificacao(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.recrutadorService.deletarNotificacao(Number(id), usuarioId);
   }
 }
