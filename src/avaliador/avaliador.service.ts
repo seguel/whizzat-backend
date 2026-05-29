@@ -1662,6 +1662,7 @@ export class AvaliadorService {
           },
         },
       },
+      agenda: true,
     });
 
   async listarAvaliacoesDoAvaliador(usuarioId: number) {
@@ -1694,11 +1695,16 @@ export class AvaliadorService {
 
     // 3️⃣ Separar colunas
     const aguardando_agendamento = avaliacoes.filter(
-      (a) => a.status === StatusAvaliacao.CONVITE_ACEITO,
+      (a) =>
+        a.status === StatusAvaliacao.CONVITE_ACEITO ||
+        a.status === StatusAvaliacao.QUESTIONARIO_ENVIADO,
     );
 
     const agendadas = avaliacoes.filter(
-      (a) => a.status === StatusAvaliacao.AGENDADO,
+      (a) =>
+        a.status === StatusAvaliacao.AGENDADO ||
+        a.status === StatusAvaliacao.AGENDA_ENVIADA ||
+        a.status === StatusAvaliacao.ENTREVISTA_REALIZADA,
     );
 
     const finalizadas = avaliacoes.filter(
@@ -1739,8 +1745,15 @@ export class AvaliadorService {
       logo: candidato.logo ?? null,
       skill: skill.skill,
       peso,
+      peso_avaliador: avaliacao.peso ?? null,
       criado_em: avaliacao.data_aceite,
-      data_agenda: avaliacao.candidatoSkill.data_avaliacao ?? null,
+      data_agenda: avaliacao.agenda?.data_hora_agenda ?? null,
+      data_envio_formulario: avaliacao.data_envio_formulario ?? null,
+      data_resposta_questionario: avaliacao.data_resposta_questionario ?? null,
+      data_agenda_criacao: avaliacao.agenda?.data_criacao ?? null,
+      data_avaliacao: avaliacao.data_avaliacao ?? null,
+      status: avaliacao.status,
+      status_agenda: avaliacao.agenda?.status ?? null,
     };
   };
 
@@ -1867,7 +1880,7 @@ export class AvaliadorService {
         ? avaliacao.candidatoSkill.candidatoSkill.peso_avaliador / 10
         : 0,
 
-      peso_avaliador: avaliacao.peso ? avaliacao.peso / 10 : 0,
+      peso_avaliador: avaliacao.peso ? avaliacao.peso / 10 : null,
       comentario: avaliacao.comentario,
 
       status: avaliacao.status,
@@ -2074,89 +2087,6 @@ export class AvaliadorService {
     });
 
     return agenda;
-  }
-
-  async aceitarAgenda(agendaId: number, usuarioId: number) {
-    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findFirst({
-      where: {
-        id: agendaId,
-      },
-      include: {
-        avaliacao: {
-          include: {
-            candidatoSkill: {
-              include: {
-                candidatoSkill: {
-                  include: {
-                    candidato: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const candidatoId =
-      agenda?.avaliacao?.candidatoSkill?.candidatoSkill?.candidato?.usuario_id;
-
-    if (!agenda || candidatoId !== usuarioId) {
-      throw new BadRequestException('Agenda inválida');
-    }
-
-    await this.prisma.avaliadorAvaliacaoSkillAgenda.update({
-      where: { id: agendaId },
-      data: {
-        status: AgendaStatus.ACEITO,
-      },
-    });
-
-    await this.prisma.avaliadorAvaliacaoSkill.update({
-      where: { id: agenda.avaliador_avaliacao_id },
-      data: {
-        status: StatusAvaliacao.AGENDADO,
-      },
-    });
-
-    return { success: true };
-  }
-
-  async recusarAgenda(agendaId: number, usuarioId: number) {
-    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findFirst({
-      where: { id: agendaId },
-      include: {
-        avaliacao: {
-          include: {
-            candidatoSkill: {
-              include: {
-                candidatoSkill: {
-                  include: {
-                    candidato: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const candidatoId =
-      agenda?.avaliacao?.candidatoSkill?.candidatoSkill?.candidato?.usuario_id;
-
-    if (!agenda || candidatoId !== usuarioId) {
-      throw new BadRequestException('Agenda inválida');
-    }
-
-    await this.prisma.avaliadorAvaliacaoSkillAgenda.update({
-      where: { id: agendaId },
-      data: {
-        status: AgendaStatus.RECUSADO,
-      },
-    });
-
-    return { success: true };
   }
 
   async finalizarAvaliacao(
