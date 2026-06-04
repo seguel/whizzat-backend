@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   Prisma,
@@ -8,6 +12,7 @@ import {
 } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
+import { ResponderQuestionarioDto } from './dto/responder-questionario.dto';
 /* import * as jwt from 'jsonwebtoken';
 
 interface JwtPayload {
@@ -824,7 +829,7 @@ export class CandidatoService {
     const sigla = avaliadorUsuario?.cidade?.estado?.sigla;
 
     return {
-      id: avaliacao.id,
+      id: avaliacaoSkill?.id,
 
       avaliador_nome: avaliadorUsuario
         ? this.getNomeExibicao(avaliadorUsuario)
@@ -865,10 +870,10 @@ export class CandidatoService {
     };
   }
 
-  async aceitarAgenda(agendaId: number) {
-    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findFirst({
+  async aceitarAgenda(avaliacaoId: number) {
+    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findUnique({
       where: {
-        id: agendaId,
+        avaliador_avaliacao_id: avaliacaoId,
       },
     });
 
@@ -876,26 +881,34 @@ export class CandidatoService {
       throw new BadRequestException('Agenda inválida');
     }
 
-    await this.prisma.avaliadorAvaliacaoSkillAgenda.update({
-      where: { id: agendaId },
-      data: {
-        status: AgendaStatus.ACEITO,
-      },
-    });
+    await this.prisma.$transaction([
+      this.prisma.avaliadorAvaliacaoSkillAgenda.update({
+        where: {
+          avaliador_avaliacao_id: avaliacaoId,
+        },
+        data: {
+          status: AgendaStatus.ACEITO,
+        },
+      }),
 
-    await this.prisma.avaliadorAvaliacaoSkill.update({
-      where: { id: agenda.avaliador_avaliacao_id },
-      data: {
-        status: StatusAvaliacao.AGENDADO,
-      },
-    });
+      this.prisma.avaliadorAvaliacaoSkill.update({
+        where: {
+          id: avaliacaoId,
+        },
+        data: {
+          status: StatusAvaliacao.AGENDADO,
+        },
+      }),
+    ]);
 
     return { success: true };
   }
 
-  async recusarAgenda(agendaId: number) {
-    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findFirst({
-      where: { id: agendaId },
+  async recusarAgenda(avaliacaoId: number) {
+    const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findUnique({
+      where: {
+        avaliador_avaliacao_id: avaliacaoId,
+      },
     });
 
     if (!agenda) {
@@ -903,12 +916,193 @@ export class CandidatoService {
     }
 
     await this.prisma.avaliadorAvaliacaoSkillAgenda.update({
-      where: { id: agendaId },
+      where: {
+        avaliador_avaliacao_id: avaliacaoId,
+      },
       data: {
         status: AgendaStatus.RECUSADO,
       },
     });
 
     return { success: true };
+  }
+
+  async buscarQuestionario(avaliacaoId: number, usuarioId: number) {
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+      where: {
+        id: avaliacaoId,
+
+        candidatoSkill: {
+          candidatoSkill: {
+            candidato: {
+              usuario_id: usuarioId,
+            },
+          },
+        },
+      },
+
+      select: {
+        id: true,
+
+        questionario: {
+          select: {
+            id: true,
+            titulo: true,
+            comentario: true,
+
+            pergunta: {
+              where: {
+                ativo: true,
+              },
+
+              orderBy: {
+                ordem: 'asc',
+              },
+
+              select: {
+                id: true,
+                ordem: true,
+                pergunta: true,
+                tipo_pergunta: true,
+              },
+            },
+          },
+        },
+
+        candidatoSkill: {
+          select: {
+            candidatoSkill: {
+              select: {
+                skill: {
+                  select: {
+                    skill: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!avaliacao) {
+      throw new NotFoundException('Avaliação não encontrada');
+    }
+
+    if (!avaliacao.questionario) {
+      throw new BadRequestException('Questionário não encontrado');
+    }
+
+    return {
+      avaliacaoId: avaliacao.id,
+
+      questionarioId: avaliacao.questionario.id,
+
+      skill: avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+
+      titulo: avaliacao.questionario.titulo,
+
+      comentario: avaliacao.questionario.comentario,
+
+      perguntas: avaliacao.questionario.pergunta.map((item) => ({
+        id: item.id,
+        ordem: item.ordem,
+        pergunta: item.pergunta,
+        tipo: item.tipo_pergunta,
+      })),
+    };
+  }
+
+  async responderQuestionario(
+    avaliacaoId: number,
+    usuarioId: number,
+    dto: ResponderQuestionarioDto,
+  ) {
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+      where: {
+        id: avaliacaoId,
+
+        candidatoSkill: {
+          candidatoSkill: {
+            candidato: {
+              usuario_id: usuarioId,
+            },
+          },
+        },
+      },
+
+      select: {
+        id: true,
+        status: true,
+        data_resposta_questionario: true,
+
+        questionario: {
+          select: {
+            pergunta: {
+              where: {
+                ativo: true,
+              },
+
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!avaliacao) {
+      throw new NotFoundException('Avaliação não encontrada');
+    }
+
+    if (avaliacao.status !== StatusAvaliacao.QUESTIONARIO_ENVIADO) {
+      throw new BadRequestException(
+        'Questionário não disponível para resposta',
+      );
+    }
+
+    if (avaliacao.data_resposta_questionario) {
+      throw new BadRequestException('Questionário já respondido');
+    }
+
+    const perguntasValidas = new Set(
+      avaliacao.questionario?.pergunta.map((p) => p.id) ?? [],
+    );
+
+    const respostas = dto.respostas.filter(
+      (r) => perguntasValidas.has(r.perguntaId) && r.resposta?.trim(),
+    );
+
+    if (respostas.length !== perguntasValidas.size) {
+      throw new BadRequestException('Existem perguntas sem resposta');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.avaliadorAvaliacaoSkillResposta.createMany({
+        data: respostas.map((r) => ({
+          avaliador_avaliacao_id: avaliacao.id,
+
+          questionario_pergunta_id: r.perguntaId,
+
+          resposta: r.resposta.trim(),
+        })),
+      }),
+
+      this.prisma.avaliadorAvaliacaoSkill.update({
+        where: {
+          id: avaliacao.id,
+        },
+
+        data: {
+          data_resposta_questionario: new Date(),
+        },
+      }),
+    ]);
+
+    return {
+      sucesso: true,
+      mensagem: 'Questionário respondido com sucesso',
+    };
   }
 }

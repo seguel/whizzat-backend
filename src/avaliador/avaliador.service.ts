@@ -1856,6 +1856,8 @@ export class AvaliadorService {
 
     const agenda: AvaliadorAvaliacaoSkillAgenda | null = avaliacao.agenda;
     const dataEnvioFormulario: Date | null = avaliacao.data_envio_formulario;
+    const dataRespFormulario: Date | null =
+      avaliacao.data_resposta_questionario;
 
     return {
       id: avaliacao.id,
@@ -1896,7 +1898,7 @@ export class AvaliadorService {
       // 👇 novos campos
       questionario_id: avaliacao.questionario?.id ?? null,
       questionario_titulo: avaliacao.questionario?.titulo ?? null,
-      questionario_respondido: !!avaliacao.data_resposta_questionario,
+      questionario_respondido: dataRespFormulario,
       data_envio_formulario: dataEnvioFormulario,
       agenda: agenda ?? null,
     };
@@ -2192,5 +2194,90 @@ export class AvaliadorService {
     });
 
     return updated;
+  }
+
+  async buscarRespostasQuestionario(avaliacaoId: number, avaliadorId: number) {
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+      where: {
+        id: avaliacaoId,
+        avaliador_id: avaliadorId,
+      },
+
+      select: {
+        id: true,
+
+        questionario: {
+          select: {
+            id: true,
+            titulo: true,
+          },
+        },
+
+        data_resposta_questionario: true,
+
+        candidatoSkill: {
+          select: {
+            candidatoSkill: {
+              select: {
+                skill: {
+                  select: {
+                    skill: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        resposta: {
+          orderBy: {
+            pergunta: {
+              ordem: 'asc',
+            },
+          },
+
+          select: {
+            resposta: true,
+
+            pergunta: {
+              select: {
+                id: true,
+                ordem: true,
+                pergunta: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!avaliacao) {
+      throw new NotFoundException('Avaliação não encontrada');
+    }
+
+    if (!avaliacao.questionario) {
+      throw new BadRequestException('Questionário não encontrado');
+    }
+
+    if (!avaliacao.data_resposta_questionario) {
+      throw new BadRequestException('Questionário ainda não foi respondido');
+    }
+
+    return {
+      avaliacaoId: avaliacao.id,
+
+      questionarioId: avaliacao.questionario.id,
+
+      titulo: avaliacao.questionario.titulo,
+
+      skill: avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+
+      respostas: avaliacao.resposta.map((item) => ({
+        perguntaId: item.pergunta.id,
+        ordem: item.pergunta.ordem,
+        pergunta: item.pergunta.pergunta,
+        resposta: item.resposta,
+      })),
+    };
   }
 }

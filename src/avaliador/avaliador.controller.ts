@@ -866,4 +866,16 @@ export class AvaliadorController {
       usuarioId,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('avaliacao/:id/questionario/respostas/:avaliadorId')
+  buscarRespostasQuestionario(
+    @Param('id') id: string,
+    @Param('avaliadorId') avaliadorId: number,
+  ) {
+    return this.avaliadorService.buscarRespostasQuestionario(
+      Number(id),
+      avaliadorId,
+    );
+  }
 }

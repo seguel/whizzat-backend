@@ -27,6 +27,7 @@ import { CreateNovaSkillCandidatoDto } from './dto/create-nova-skill.dto';
 import { CreateCandidatoFormacaoDto } from './dto/create-candidato-formacao.dto';
 import { CreateCandidatoCertificadosDto } from './dto/create-candidato-certificados.dto';
 import { CreateNovoCertificadoCandidatoDto } from './dto/create-novo-certificado.dto';
+import { ResponderQuestionarioDto } from './dto/responder-questionario.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
@@ -632,6 +633,7 @@ export class CandidatoController {
     return this.candidatoService.listarAvaliacoesCandidato(usuarioId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch('agenda/:id/aceitar')
   async aceitarAgenda(
     @Param('id') id: string,
@@ -641,6 +643,7 @@ export class CandidatoController {
     return this.candidatoService.aceitarAgenda(Number(id));
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch('agenda/:id/recusar')
   async recusarAgenda(
     @Param('id') id: string,
@@ -648,5 +651,28 @@ export class CandidatoController {
   ) {
     // const usuarioId = req.user?.sub;
     return this.candidatoService.recusarAgenda(Number(id));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('avaliacao/:id/questionario')
+  async buscarQuestionario(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.candidatoService.buscarQuestionario(Number(id), req.user?.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('avaliacao/:id/questionario/responder')
+  responderQuestionario(
+    @Param('id') id: string,
+    @Body() body: ResponderQuestionarioDto,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.candidatoService.responderQuestionario(
+      Number(id),
+      req.user?.sub,
+      body,
+    );
   }
 }
