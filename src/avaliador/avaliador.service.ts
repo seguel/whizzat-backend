@@ -1951,7 +1951,7 @@ export class AvaliadorService {
     if (usuarioCandidatoId) {
       await this.prisma.notificacao.create({
         data: {
-          usuario_id: usuarioId,
+          usuario_id: usuarioCandidatoId,
           perfil_tipo: PerfilTipo.CANDIDATO,
           perfil_id: 1,
           referencia_id: avaliacaoId,
@@ -2074,7 +2074,7 @@ export class AvaliadorService {
     // 👇 cria nova notificação
     await this.prisma.notificacao.create({
       data: {
-        usuario_id: usuarioId,
+        usuario_id: candidatoId,
         perfil_tipo: PerfilTipo.CANDIDATO,
         perfil_id: 1,
         referencia_id: agenda.id,
@@ -2096,22 +2096,23 @@ export class AvaliadorService {
     avaliadorId: number,
     peso: number,
     comentario: string | undefined,
-    usuarioId: number,
+    finalizarSemEntrevista: boolean,
   ) {
     // 🔍 Buscar avaliação completa
     const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
       where: {
         id: avaliacaoId,
         avaliador_id: avaliadorId,
-        status: {
-          in: [StatusAvaliacao.AGENDADO],
-        },
       },
 
       include: {
         candidatoSkill: {
           include: {
-            candidatoSkill: true,
+            candidatoSkill: {
+              include: {
+                candidato: true,
+              },
+            },
           },
         },
 
@@ -2123,7 +2124,21 @@ export class AvaliadorService {
       throw new BadRequestException('Avaliação não encontrada');
     }
 
+    // Se NÃO for finalizar sem entrevista,
+    // obrigatoriamente deve estar AGENDADO.
+    if (
+      !finalizarSemEntrevista &&
+      avaliacao.status !== StatusAvaliacao.AGENDADO
+    ) {
+      throw new BadRequestException(
+        'Avaliação precisa estar agendada para ser finalizada',
+      );
+    }
+
     const candidatoId = avaliacao.candidatoSkill?.candidatoSkill?.candidato_id;
+
+    const userId =
+      avaliacao.candidatoSkill?.candidatoSkill?.candidato.usuario_id;
 
     if (!candidatoId) {
       throw new BadRequestException('Candidato não encontrado');
@@ -2132,9 +2147,9 @@ export class AvaliadorService {
     // 🚨 REGRA IMPORTANTE: só pode finalizar se já teve agenda aceita
     const agendaAceita = avaliacao.agenda?.status === AgendaStatus.ACEITO;
 
-    if (!agendaAceita) {
+    if (!finalizarSemEntrevista && !agendaAceita) {
       throw new BadRequestException(
-        'Não é possível finalizar sem entrevista realizada',
+        'Não é possível finalizar uma avaliação sem entrevista realizada',
       );
     }
 
@@ -2147,53 +2162,65 @@ export class AvaliadorService {
 
     hoje.setHours(0, 0, 0, 0);
 
-    // 🧾 Atualiza avaliação do avaliador
-    const updated = await this.prisma.avaliadorAvaliacaoSkill.update({
-      where: { id: avaliacaoId },
-      data: {
-        peso,
-        comentario: comentario ?? '',
-        data_avaliacao: hoje,
-        status: StatusAvaliacao.FINALIZADO,
-      },
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      // 🧾 Atualiza avaliação do avaliador
+      const updated = await tx.avaliadorAvaliacaoSkill.update({
+        where: { id: avaliacaoId },
+        data: {
+          peso,
+          comentario: comentario ?? '',
+          data_avaliacao: hoje,
+          status: StatusAvaliacao.FINALIZADO,
+        },
+      });
 
-    // 🧠 Atualiza lado do candidato
-    await this.prisma.candidatoAvaliacaoSkill.update({
-      where: {
-        id: avaliacao.avaliacao_skill_id,
-      },
-      data: {
-        data_avaliacao: hoje,
-        avaliacao_pendente: false,
-      },
-    });
+      // 🧠 Atualiza lado do candidato
+      await tx.candidatoAvaliacaoSkill.update({
+        where: {
+          id: avaliacao.avaliacao_skill_id,
+        },
+        data: {
+          data_avaliacao: hoje,
+          avaliacao_pendente: false,
+        },
+      });
 
-    await this.prisma.candidatoSkill.update({
-      where: {
-        id: avaliacao.candidatoSkill.candidato_skill_id,
-        candidato_id: candidatoId,
-      },
-      data: {
-        peso_avaliador: peso,
-        data_ultima_avaliacao: hoje,
-      },
-    });
+      await tx.candidatoSkill.update({
+        where: {
+          id: avaliacao.candidatoSkill.candidato_skill_id,
+          candidato_id: candidatoId,
+        },
+        data: {
+          peso_avaliador: peso,
+          data_ultima_avaliacao: hoje,
+        },
+      });
 
-    // 🔔 Notificação para o candidato
-    await this.prisma.notificacao.create({
-      data: {
-        usuario_id: usuarioId,
-        perfil_tipo: PerfilTipo.CANDIDATO,
-        perfil_id: 1,
-        referencia_id: avaliacaoId,
-        titulo: 'Avaliação concluída',
-        mensagem: 'Sua avaliação foi concluída. Confira o resultado.',
-        tipo: TipoNotificacao.NOVA_MENSAGEM_FINALIZADA,
-      },
-    });
+      if (agendaAceita) {
+        await tx.avaliadorAvaliacaoSkillAgenda.update({
+          where: {
+            avaliador_avaliacao_id: avaliacaoId,
+          },
+          data: {
+            status: AgendaStatus.REALIZADO,
+          },
+        });
+      }
 
-    return updated;
+      await tx.notificacao.create({
+        data: {
+          usuario_id: userId,
+          perfil_tipo: PerfilTipo.CANDIDATO,
+          perfil_id: 1,
+          referencia_id: avaliacaoId,
+          titulo: 'Avaliação concluída',
+          mensagem: 'Sua avaliação foi concluída. Confira o resultado.',
+          tipo: TipoNotificacao.NOVA_MENSAGEM_FINALIZADA,
+        },
+      });
+
+      return updated;
+    });
   }
 
   async buscarRespostasQuestionario(avaliacaoId: number, avaliadorId: number) {
@@ -2205,6 +2232,8 @@ export class AvaliadorService {
 
       select: {
         id: true,
+        comentario_resposta: true,
+        status: true,
 
         questionario: {
           select: {
@@ -2248,6 +2277,8 @@ export class AvaliadorService {
             },
           },
         },
+
+        agenda: true,
       },
     });
 
@@ -2278,6 +2309,45 @@ export class AvaliadorService {
         pergunta: item.pergunta.pergunta,
         resposta: item.resposta,
       })),
+
+      comentario_resposta: avaliacao.comentario_resposta,
+      finalizarSemEntrevista:
+        avaliacao.status === 'FINALIZADO' && avaliacao.agenda === null,
+    };
+  }
+
+  async salvarComentarioResposta(
+    avaliacaoId: number,
+    usuarioId: number,
+    comentario: string,
+  ) {
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+      where: {
+        id: avaliacaoId,
+        avaliador: {
+          usuario_id: usuarioId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!avaliacao) {
+      throw new NotFoundException('Avaliação não encontrada');
+    }
+
+    await this.prisma.avaliadorAvaliacaoSkill.update({
+      where: {
+        id: avaliacaoId,
+      },
+      data: {
+        comentario_resposta: comentario,
+      },
+    });
+
+    return {
+      sucesso: true,
     };
   }
 }
