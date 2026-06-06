@@ -1,12 +1,19 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 
 export class RespostaQuestionarioDto {
   @IsInt()
   perguntaId!: number;
 
   @IsString()
-  resposta!: string;
+  @IsOptional()
+  resposta?: string;
 }
 
 export class ResponderQuestionarioDto {
