@@ -27,6 +27,8 @@ class PerguntaDto {
 
   @IsBoolean()
   ativo!: boolean;
+  @IsBoolean()
+  obrigatorio!: boolean;
 
   @IsInt()
   ordem!: number;
@@ -47,6 +49,9 @@ export class CreateQuestionarioDto {
 
   @IsBoolean()
   ativo!: boolean;
+
+  @IsBoolean()
+  obrigatorio!: boolean;
 
   @IsArray()
   @ValidateNested({ each: true })

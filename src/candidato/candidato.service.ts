@@ -9,6 +9,7 @@ import {
   PerfilTipo,
   AgendaStatus,
   StatusAvaliacao,
+  TipoNotificacao,
 } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
@@ -875,6 +876,13 @@ export class CandidatoService {
       where: {
         avaliador_avaliacao_id: avaliacaoId,
       },
+      include: {
+        avaliacao: {
+          include: {
+            avaliador: true,
+          },
+        },
+      },
     });
 
     if (!agenda) {
@@ -899,6 +907,18 @@ export class CandidatoService {
           status: StatusAvaliacao.AGENDADO,
         },
       }),
+
+      this.prisma.notificacao.create({
+        data: {
+          usuario_id: agenda.avaliacao.avaliador.usuario_id,
+          perfil_tipo: PerfilTipo.AVALIADOR,
+          perfil_id: 3,
+          referencia_id: avaliacaoId,
+          titulo: 'Agenda Aceita',
+          mensagem: 'Uma sugestão de data para agendamento foi ACEITA.',
+          tipo: TipoNotificacao.NOVA_MENSAGEM_AGENDA,
+        },
+      }),
     ]);
 
     return { success: true };
@@ -908,6 +928,13 @@ export class CandidatoService {
     const agenda = await this.prisma.avaliadorAvaliacaoSkillAgenda.findUnique({
       where: {
         avaliador_avaliacao_id: avaliacaoId,
+      },
+      include: {
+        avaliacao: {
+          include: {
+            avaliador: true,
+          },
+        },
       },
     });
 
@@ -921,6 +948,18 @@ export class CandidatoService {
       },
       data: {
         status: AgendaStatus.RECUSADO,
+      },
+    });
+
+    await this.prisma.notificacao.create({
+      data: {
+        usuario_id: agenda.avaliacao.avaliador.usuario_id,
+        perfil_tipo: PerfilTipo.AVALIADOR,
+        perfil_id: 3,
+        referencia_id: avaliacaoId,
+        titulo: 'Agenda Recusada',
+        mensagem: 'Uma sugestão de data para agendamento foi RECUSADA.',
+        tipo: TipoNotificacao.NOVA_MENSAGEM_AGENDA,
       },
     });
 
@@ -964,6 +1003,7 @@ export class CandidatoService {
                 ordem: true,
                 pergunta: true,
                 tipo_pergunta: true,
+                obrigatorio: true,
               },
             },
           },
@@ -1009,6 +1049,7 @@ export class CandidatoService {
         ordem: item.ordem,
         pergunta: item.pergunta,
         tipo: item.tipo_pergunta,
+        obrigatorio: item.obrigatorio,
       })),
     };
   }
@@ -1035,6 +1076,7 @@ export class CandidatoService {
         id: true,
         status: true,
         data_resposta_questionario: true,
+        avaliador: true,
 
         questionario: {
           select: {
@@ -1045,6 +1087,7 @@ export class CandidatoService {
 
               select: {
                 id: true,
+                obrigatorio: true,
               },
             },
           },
@@ -1066,26 +1109,40 @@ export class CandidatoService {
       throw new BadRequestException('Questionário já respondido');
     }
 
-    const perguntasValidas = new Set(
-      avaliacao.questionario?.pergunta.map((p) => p.id) ?? [],
+    const perguntas = avaliacao.questionario?.pergunta ?? [];
+
+    const perguntasValidas = new Set(perguntas.map((p) => p.id));
+
+    const perguntasObrigatorias = new Set(
+      perguntas.filter((p) => p.obrigatorio).map((p) => p.id),
     );
 
-    const respostas = dto.respostas.filter(
-      (r) => perguntasValidas.has(r.perguntaId) && r.resposta?.trim(),
+    const respostasPreenchidas = dto.respostas.filter((r) =>
+      perguntasValidas.has(r.perguntaId),
     );
 
-    if (respostas.length !== perguntasValidas.size) {
-      throw new BadRequestException('Existem perguntas sem resposta');
+    const obrigatoriasRespondidas = new Set(
+      respostasPreenchidas.map((r) => r.perguntaId),
+    );
+
+    const faltandoObrigatorias = [...perguntasObrigatorias].filter(
+      (id) => !obrigatoriasRespondidas.has(id),
+    );
+
+    if (faltandoObrigatorias.length > 0) {
+      throw new BadRequestException(
+        'Existem perguntas obrigatórias sem resposta',
+      );
     }
 
     await this.prisma.$transaction([
       this.prisma.avaliadorAvaliacaoSkillResposta.createMany({
-        data: respostas.map((r) => ({
+        data: respostasPreenchidas.map((r) => ({
           avaliador_avaliacao_id: avaliacao.id,
 
           questionario_pergunta_id: r.perguntaId,
 
-          resposta: r.resposta.trim(),
+          resposta: r.resposta?.trim(),
         })),
       }),
 
@@ -1096,6 +1153,18 @@ export class CandidatoService {
 
         data: {
           data_resposta_questionario: new Date(),
+        },
+      }),
+
+      this.prisma.notificacao.create({
+        data: {
+          usuario_id: avaliacao.avaliador.usuario_id,
+          perfil_tipo: PerfilTipo.AVALIADOR,
+          perfil_id: 3,
+          referencia_id: avaliacaoId,
+          titulo: 'Questionário Respondido',
+          mensagem: 'Um questionário enviado para avaliação foi respondido.',
+          tipo: TipoNotificacao.NOVA_MENSAGEM_FORMULARIO,
         },
       }),
     ]);

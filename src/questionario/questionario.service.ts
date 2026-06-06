@@ -46,6 +46,7 @@ export class QuestionarioService {
         pergunta: p.pergunta,
         resposta_base: p.resposta_base,
         ordem: p.ordem,
+        obrigatorio: p.obrigatorio,
       }));
 
       await tx.avaliadorQuestionarioPergunta.createMany({
@@ -202,6 +203,7 @@ export class QuestionarioService {
                 resposta_base: p.resposta_base,
                 ativo: p.ativo,
                 ordem: p.ordem,
+                obrigatorio: p.obrigatorio,
               },
             });
           } else {
@@ -212,6 +214,7 @@ export class QuestionarioService {
                 resposta_base: p.resposta_base,
                 ativo: p.ativo,
                 ordem: p.ordem,
+                obrigatorio: p.obrigatorio,
               },
             });
           }

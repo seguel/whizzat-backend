@@ -30,6 +30,7 @@ import { CreateNovaSkillAvaliadorDto } from './dto/create-nova-skill.dto';
 import { CreateAvaliadorFormacaoDto } from './dto/create-avaliador-formacao.dto';
 import { CreateAvaliadorCertificadosDto } from './dto/create-avaliador-certificados.dto';
 import { CreateNovoCertificadoAvaliadorDto } from './dto/create-novo-certificado.dto';
+import { SalvarComentarioRespostaDto } from './dto/salvarComentarioResposta.dto';
 import { SendQuestionarioDto } from './dto/send-questionario.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -854,16 +855,17 @@ export class AvaliadorController {
       avaliadorId: number;
       peso: number;
       comentario?: string;
+      finalizarSemEntrevista: boolean;
     },
-    @Req() req: Request & { user: JwtPayload },
+    // @Req() req: Request & { user: JwtPayload },
   ) {
-    const usuarioId = req.user.sub;
+    // const usuarioId = req.user.sub;
     return this.avaliadorService.finalizarAvaliacao(
       body.avaliacao_id,
       body.avaliadorId,
       body.peso,
       body.comentario,
-      usuarioId,
+      body.finalizarSemEntrevista,
     );
   }
 
@@ -876,6 +878,22 @@ export class AvaliadorController {
     return this.avaliadorService.buscarRespostasQuestionario(
       Number(id),
       avaliadorId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('avaliacoes/:id/comentario')
+  async salvarComentario(
+    @Param('id') id: string,
+    @Body() body: SalvarComentarioRespostaDto,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const usuarioId = req.user?.sub;
+
+    return this.avaliadorService.salvarComentarioResposta(
+      Number(id),
+      usuarioId,
+      body.comentario,
     );
   }
 }
