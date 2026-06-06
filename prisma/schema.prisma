@@ -593,6 +593,7 @@ model AvaliadorAvaliacaoSkill {
   data_resposta_questionario  DateTime?
   status                      StatusAvaliacao @default(CONVITE_ACEITO)
   data_envio_formulario       DateTime?
+  comentario_resposta         String?
 
   candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id], onDelete: Cascade)
   avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id], onDelete: Cascade)
@@ -656,6 +657,7 @@ model AvaliadorQuestionarioPergunta {
   tipo_pergunta   TipoPergunta @default(CAIXA_TEXTO)
   ativo           Boolean  @default(true)
   ordem           Int
+  obrigatorio     Boolean  @default(false)
 
   questionario AvaliadorQuestionario @relation(fields: [questionario_id], references: [id], onDelete: Cascade)
   resposta AvaliadorAvaliacaoSkillResposta[]
@@ -669,7 +671,7 @@ model AvaliadorAvaliacaoSkillResposta {
   id                      Int      @id @default(autoincrement())  
   avaliador_avaliacao_id  Int
   questionario_pergunta_id Int
-  resposta                String  
+  resposta                String?  
 
   avaliacao AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
   pergunta  AvaliadorQuestionarioPergunta @relation(fields: [questionario_pergunta_id], references: [id], onDelete: Restrict)
