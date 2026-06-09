@@ -675,4 +675,16 @@ export class CandidatoController {
       body,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('avaliacao/:id/detalhe')
+  buscarDetalheAvaliacao(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    return this.candidatoService.buscarDetalheAvaliacao(
+      Number(id),
+      req.user?.sub,
+    );
+  }
 }

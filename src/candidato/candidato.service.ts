@@ -1174,4 +1174,97 @@ export class CandidatoService {
       mensagem: 'Questionário respondido com sucesso',
     };
   }
+
+  async buscarDetalheAvaliacao(avaliacaoId: number, usuarioId: number) {
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+      where: {
+        id: avaliacaoId,
+
+        candidatoSkill: {
+          candidatoSkill: {
+            candidato: {
+              usuario_id: usuarioId,
+            },
+          },
+        },
+      },
+
+      select: {
+        peso: true,
+        data_avaliacao: true,
+        data_resposta_questionario: true,
+
+        agenda: {
+          select: {
+            data_hora_agenda: true,
+          },
+        },
+        questionario: {
+          select: {
+            titulo: true,
+          },
+        },
+
+        candidatoSkill: {
+          select: {
+            candidatoSkill: {
+              select: {
+                peso: true,
+
+                skill: {
+                  select: {
+                    skill: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        resposta: {
+          orderBy: {
+            pergunta: {
+              ordem: 'asc',
+            },
+          },
+
+          select: {
+            resposta: true,
+
+            pergunta: {
+              select: {
+                pergunta: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!avaliacao) {
+      throw new NotFoundException('Avaliação não encontrada');
+    }
+
+    return {
+      skill: avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+
+      // autoavaliação do candidato
+      peso: avaliacao.candidatoSkill.candidatoSkill.peso / 10,
+
+      // nota do avaliador
+      peso_avaliador: (avaliacao.peso ?? 10) / 10,
+
+      data_avaliacao: avaliacao.data_avaliacao,
+
+      data_entrevista: avaliacao.agenda?.data_hora_agenda ?? null,
+
+      data_resposta_questionario: avaliacao.data_resposta_questionario,
+      questionario_titulo: avaliacao.questionario?.titulo,
+
+      respostas: avaliacao.resposta.map((item) => ({
+        pergunta: item.pergunta.pergunta,
+        resposta: item.resposta ?? '',
+      })),
+    };
+  }
 }
