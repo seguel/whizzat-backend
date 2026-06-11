@@ -2350,4 +2350,102 @@ export class AvaliadorService {
       sucesso: true,
     };
   }
+
+  async buscarAgendaAvaliador(usuarioId: number) {
+    const agendas = await this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
+      where: {
+        status: {
+          in: [AgendaStatus.PENDENTE, AgendaStatus.ACEITO],
+        },
+
+        avaliacao: {
+          avaliador: {
+            usuario_id: usuarioId,
+          },
+        },
+      },
+
+      orderBy: {
+        data_hora_agenda: 'asc',
+      },
+
+      select: {
+        id: true,
+        status: true,
+        data_hora_agenda: true,
+
+        avaliacao: {
+          select: {
+            id: true,
+
+            candidatoSkill: {
+              select: {
+                candidatoSkill: {
+                  select: {
+                    peso: true,
+
+                    skill: {
+                      select: {
+                        skill: true,
+                      },
+                    },
+
+                    candidato: {
+                      select: {
+                        usuario: {
+                          select: {
+                            primeiro_nome: true,
+                            ultimo_nome: true,
+                            nome_social: true,
+
+                            cidade: {
+                              select: {
+                                cidade: true,
+
+                                estado: {
+                                  select: {
+                                    sigla: true,
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return agendas.map((item) => {
+      const candidato =
+        item.avaliacao.candidatoSkill.candidatoSkill.candidato.usuario;
+
+      return {
+        id: item.id,
+        avaliacaoId: item.avaliacao.id,
+
+        status: item.status,
+
+        data_hora: item.data_hora_agenda,
+
+        skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+
+        autoavaliacao: item.avaliacao.candidatoSkill.candidatoSkill.peso / 10,
+
+        nome:
+          candidato.nome_social?.trim() ||
+          `${candidato.primeiro_nome} ${candidato.ultimo_nome}`,
+
+        cidade: candidato.cidade.cidade,
+
+        estado: candidato.cidade.estado.sigla,
+      };
+    });
+  }
 }
