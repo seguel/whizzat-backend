@@ -1339,8 +1339,10 @@ export class AvaliadorService {
     // 1️⃣ Buscar o perfil avaliador pelo usuario_id
     const perfilAvaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
       where: {
-        usuario_id: usuarioId,
         ativo: true,
+        usuario: {
+          id: usuarioId,
+        },
       },
       select: {
         id: true,
