@@ -900,6 +900,7 @@ export class AvaliadorController {
   @UseGuards(JwtAuthGuard)
   @Get('agenda')
   buscarAgenda(@Req() req: Request & { user: JwtPayload }) {
-    return this.avaliadorService.buscarAgendaAvaliador(req.user?.sub);
+    const userId = req.user?.sub;
+    return this.avaliadorService.buscarAgendaAvaliador(userId);
   }
 }
