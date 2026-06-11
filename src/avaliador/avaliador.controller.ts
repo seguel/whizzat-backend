@@ -896,4 +896,10 @@ export class AvaliadorController {
       body.comentario,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('agenda')
+  buscarAgenda(@Req() req: Request & { user: JwtPayload }) {
+    return this.avaliadorService.buscarAgendaAvaliador(req.user?.sub);
+  }
 }
