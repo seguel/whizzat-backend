@@ -1267,4 +1267,69 @@ export class CandidatoService {
       })),
     };
   }
+
+  async buscarAgendaCandidato(usuarioId: number) {
+    const hoje = new Date();
+
+    hoje.setHours(0, 0, 0, 0);
+
+    const agendas = await this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
+      where: {
+        status: AgendaStatus.ACEITO,
+
+        // data_hora_agenda: {
+        //   gte: hoje,
+        // },
+
+        avaliacao: {
+          candidatoSkill: {
+            candidatoSkill: {
+              candidato: {
+                usuario_id: usuarioId,
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        data_hora_agenda: 'asc',
+      },
+
+      select: {
+        id: true,
+        data_hora_agenda: true,
+
+        avaliacao: {
+          select: {
+            id: true,
+
+            candidatoSkill: {
+              select: {
+                candidatoSkill: {
+                  select: {
+                    peso: true,
+
+                    skill: {
+                      select: {
+                        skill: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return agendas.map((item) => ({
+      id: item.id,
+      avaliacaoId: item.avaliacao.id,
+      data_hora: item.data_hora_agenda,
+      skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+      autoavaliacao: item.avaliacao.candidatoSkill.candidatoSkill.peso,
+    }));
+  }
 }

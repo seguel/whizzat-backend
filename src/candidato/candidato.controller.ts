@@ -687,4 +687,10 @@ export class CandidatoController {
       req.user?.sub,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('agenda')
+  buscarAgenda(@Req() req: Request & { user: JwtPayload }) {
+    return this.candidatoService.buscarAgendaCandidato(req.user?.sub);
+  }
 }
