@@ -38,13 +38,13 @@ export class AvaliadorDispatcherWorker {
       this.logger.warn('Worker já está rodando em outra instância.');
       return;
     }
-    this.logger.log('Iniciando worker de dispatch de avaliadores');
+    this.logger.log('Iniciando worker de avaliadores');
 
     try {
       await this.expirarConvites();
       await this.criarConvitesComLock();
 
-      this.logger.log('Finalizando worker de dispatch de avaliadores');
+      this.logger.log('Finalizando worker de avaliadores');
     } catch (error) {
       this.logger.error('Erro no AvaliadorDispatcherWorker', error);
     } finally {

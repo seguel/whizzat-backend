@@ -39,7 +39,8 @@ export class EmailResumoSkillWorker {
     );
   }
 
-  @Cron(process.env.EMAIL_RESUMO_SKILL_CRON || '*/5 * * * *')
+  @Cron(process.env.EMAIL_RESUMO_SKILL_CRON || '*/7 * * * *')
+  // @Cron('*/10 * * * * *')
   async executar(): Promise<void> {
     // 👇 TENTA PEGAR O LOCK
     const locked = await this.acquireLock();
@@ -49,7 +50,7 @@ export class EmailResumoSkillWorker {
       return;
     }
 
-    this.logger.log('Iniciando EmailResumoSkillWorker');
+    this.logger.log('Iniciando Worker Emails');
 
     try {
       const notificacoes: NotificacaoComUsuario[] =
@@ -103,6 +104,7 @@ export class EmailResumoSkillWorker {
             : `${grupo.usuario.primeiro_nome} ${grupo.usuario.ultimo_nome}`;
 
           const tipo = grupo.notificacoes[0].tipo;
+          const perfil_id = grupo.perfil_id;
 
           let emailEnviado = false;
 
@@ -116,13 +118,29 @@ export class EmailResumoSkillWorker {
             );
 
             emailEnviado = true;
-          } else if (tipo === TipoNotificacao.NOVA_MENSAGEM) {
+          } else if (tipo === TipoNotificacao.NOVA_MENSAGEM_FORMULARIO) {
             await this.mailService.enviarQuestionarioNotificacoes(
               grupo.usuario.email,
               nomeCompleto,
               grupo.usuario.linguagem ?? 'pt',
-              quantidade,
-              dashboardLink,
+              perfil_id,
+            );
+
+            emailEnviado = true;
+          } else if (tipo === TipoNotificacao.NOVA_MENSAGEM_AGENDA) {
+            await this.mailService.enviarAgendaNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              perfil_id,
+            );
+
+            emailEnviado = true;
+          } else if (tipo === TipoNotificacao.NOVA_MENSAGEM_FINALIZADA) {
+            await this.mailService.enviarFinalizadoNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
             );
 
             emailEnviado = true;
@@ -141,17 +159,6 @@ export class EmailResumoSkillWorker {
             });
           }
 
-          // await this.prisma.notificacao.updateMany({
-          //   where: {
-          //     id: {
-          //       in: grupo.notificacoes.map((n) => n.id),
-          //     },
-          //   },
-          //   data: {
-          //     enviada_email: true,
-          //   },
-          // });
-
           this.logger.log(
             `Email enviado usuario=${grupo.usuario.id} (${quantidade} notificações)`,
           );
@@ -163,7 +170,7 @@ export class EmailResumoSkillWorker {
         }
       }
 
-      this.logger.log('Finalizando EmailResumoSkillWorker');
+      this.logger.log('Finalizando Worker Emails');
     } catch (error) {
       this.logger.error('Erro geral no EmailResumoSkillWorker', error);
     } finally {

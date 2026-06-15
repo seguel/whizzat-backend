@@ -38,7 +38,7 @@ export class CandidatoSkillAvaliarWorker {
     );
   }
 
-  @Cron(process.env.CANDIDATO_SKILL_CRON || '*/5 * * * *')
+  @Cron(process.env.CANDIDATO_SKILL_CRON || '*/3 * * * *')
   async executar(): Promise<void> {
     // 👇 TENTA PEGAR O LOCK
     const locked = await this.acquireLock();
@@ -48,7 +48,7 @@ export class CandidatoSkillAvaliarWorker {
       return;
     }
 
-    this.logger.log('Iniciando ciclo do worker');
+    this.logger.log('Iniciando ciclo do worker candidato');
 
     let totalCriados = 0;
 
@@ -121,7 +121,7 @@ export class CandidatoSkillAvaliarWorker {
       }
 
       this.logger.log(
-        `Worker finalizado. Total de avaliações criadas: ${totalCriados}`,
+        `Worker candidato finalizado. Total de avaliações criadas: ${totalCriados}`,
       );
     } catch (error) {
       this.logger.error('Erro no worker CandidatoSkillAvaliar', error);
