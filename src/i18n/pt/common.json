@@ -53,6 +53,46 @@
       "btn_acessar": "Acessar painel",
       "rodape": "Equipe Whizzat",
       "prazo_resumido": "Convite válido por 72 horas. Após esse período poderá ser redirecionado."
+    },
+    "formulario_avaliador": {
+      "assunto_prefixo": "Ação necessária: Novo questionário respondido e disponível para análise",
+      "titulo": "Um questionário enviado para avaliação foi respondido e finalizado.",
+      "saudacao": "Olá",
+      "introducao": "As informações já estão disponíveis na plataforma para consulta e poderão ser utilizadas na continuidade do processo de avaliação da habilidade correspondente.",
+      "introducao_2": "Acesse a Whizzat para visualizar as respostas e dar prosseguimento às próximas etapas, caso necessário.",
+      "introducao_3": "Se você já realizou essa verificação, desconsidere esta mensagem."
+    },
+    "formulario_candidato": {
+      "assunto_prefixo": "Ação necessária: você recebeu um novo questionário para avaliação",
+      "titulo": "Você recebeu um novo questionário relacionado à avaliação de uma habilidade em seu perfil.",
+      "saudacao": "Olá",
+      "introducao": "Seu preenchimento é uma etapa importante do processo e ajudará a manter suas informações atualizadas e a destacar melhor suas competências.",
+      "introducao_2": "Acesse a plataforma para responder ao questionário assim que possível.",
+      "introducao_3": "Se você já realizou o preenchimento, desconsidere esta mensagem."
+    },
+    "agenda_avaliador": {
+      "assunto_prefixo": "Ação necessária: Data confirmada pelo candidato",
+      "titulo": "Entrevista confirmada pelo candidato.",
+      "saudacao": "Olá",
+      "introducao": "A entrevista está oficialmente agendada e poderá ser realizada conforme o planejamento definido.",
+      "introducao_2": "Acesse a plataforma para consultar os detalhes e, caso necessário, acompanhar as próximas etapas do processo.",
+      "introducao_3": "Se você já visualizou essa informação, desconsidere esta mensagem."
+    },
+    "agenda_candidato": {
+      "assunto_prefixo": "Ação necessária: Recebimento de uma sugestão de data para entrevista",
+      "titulo": "Nova sugestão de data para entrevista de avaliação.",
+      "saudacao": "Olá",
+      "introducao": "Uma nova sugestão de data e horário foi disponibilizada para a sua entrevista de avaliação de habilidade.",
+      "introducao_2": "Após a sua confirmação, a entrevista será considerada agendada. Caso o horário não seja adequado, você poderá recusá-lo para que uma nova proposta seja definida.",
+      "introducao_3": "Se você já realizou essa ação, desconsidere esta mensagem."
+    },
+    "avaliacao_finalizado": {
+      "assunto_prefixo": "Ação necessária: Sua avaliação de habilidade foi concluída",
+      "titulo": "A avaliação da sua habilidade foi concluída com sucesso.",
+      "saudacao": "Olá",
+      "introducao": "Todas as etapas do processo foram finalizadas e o resultado já está disponível na plataforma para consulta, juntamente com as informações registradas durante a avaliação.",
+      "introducao_2": "Acesse a Whizzat para visualizar os detalhes e acompanhar a evolução do seu perfil profissional.",
+      "introducao_3": "Agradecemos pela sua participação e pelo tempo dedicado a esse processo."
     }
   },
   "auth": {

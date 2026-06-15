@@ -11,13 +11,6 @@ import { AvaliadorModule } from './avaliador/avaliador.module';
 import { RecrutadorModule } from './recrutador/recrutador.module';
 // import { MailService } from './mail/mail.service';
 import { ConfigModule } from '@nestjs/config';
-// import {
-//   I18nModule,
-//   I18nJsonLoader,
-//   AcceptLanguageResolver,
-//   QueryResolver,
-//   CookieResolver,
-// } from 'nestjs-i18n';
 import { VagaModule } from './vaga/vaga.module';
 import { GraduacaoModule } from './graduacao/graduacao.module';
 import { CertificacoesModule } from './certificacoes/certificacoes.module';
@@ -26,11 +19,14 @@ import { GeneroModule } from './genero/genero.module';
 import { EstadoModule } from './estado/estado.module';
 import { CidadeModule } from './cidade/cidade.module';
 import { PlanoModule } from './plano/plano.module';
+import { MailModule } from './mail/mail.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QuestionarioModule } from './questionario/questionario.module';
 // import * as path from 'path';
 
-import { CandidatoSkillAvaliarWorker } from './workers/candidato-skill-avaliar.worker';
+// import { CandidatoSkillAvaliarWorker } from './workers/candidato-skill-avaliar.worker';
+// import { AvaliadorDispatcherWorker } from './workers/avaliador-dispatcher.worker';
+// import { EmailResumoSkillWorker } from './workers/email-dispatcher.worker';
 import { I18nGlobalModule } from './i18n/i18n.module';
 
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
@@ -62,7 +58,12 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     CidadeModule,
     PlanoModule,
     QuestionarioModule,
+    MailModule,
   ],
-  providers: [CandidatoSkillAvaliarWorker],
+  providers: [
+    // CandidatoSkillAvaliarWorker,
+    // AvaliadorDispatcherWorker,
+    // EmailResumoSkillWorker,
+  ],
 })
 export class AppModule {}
