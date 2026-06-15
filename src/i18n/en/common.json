@@ -53,6 +53,46 @@
       "btn_acessar": "Access dashboard",
       "rodape": "Whizzat Team",
       "prazo_resumido": "Invitation valid for 72 hours. After this period it may be reassigned."
+    },
+    "formulario_avaliador": {
+      "assunto_prefixo": "Action Required: A new questionnaire has been completed and is ready for review",
+      "titulo": "A questionnaire submitted for evaluation has been completed.",
+      "saudacao": "Hello",
+      "introducao": "The responses are now available on the platform and can be used to continue the evaluation process for the corresponding skill.",
+      "introducao_2": "Access Whizzat to review the responses and proceed with the next steps if necessary.",
+      "introducao_3": "If you have already reviewed this information, please disregard this message."
+    },
+    "formulario_candidato": {
+      "assunto_prefixo": "Action Required: You have received a new evaluation questionnaire",
+      "titulo": "You have received a new questionnaire related to a skill evaluation in your profile.",
+      "saudacao": "Hello",
+      "introducao": "Completing this questionnaire is an important step in the evaluation process and helps keep your profile up to date while highlighting your skills.",
+      "introducao_2": "Please access the platform and complete the questionnaire as soon as possible.",
+      "introducao_3": "If you have already completed it, please disregard this message."
+    },
+    "agenda_avaliador": {
+      "assunto_prefixo": "Action Required: Interview date confirmed by the candidate",
+      "titulo": "The interview has been confirmed by the candidate.",
+      "saudacao": "Hello",
+      "introducao": "The interview is now officially scheduled and can take place as planned.",
+      "introducao_2": "Access the platform to review the details and, if necessary, follow the next steps in the evaluation process.",
+      "introducao_3": "If you have already viewed this information, please disregard this message."
+    },
+    "agenda_candidato": {
+      "assunto_prefixo": "Action Required: New interview date suggestion received",
+      "titulo": "A new interview date and time have been suggested.",
+      "saudacao": "Hello",
+      "introducao": "A new date and time suggestion is now available for your skill evaluation interview.",
+      "introducao_2": "Once you confirm it, the interview will be officially scheduled. If the proposed time is not suitable, you may decline it so that a new suggestion can be provided.",
+      "introducao_3": "If you have already completed this action, please disregard this message."
+    },
+    "avaliacao_finalizado": {
+      "assunto_prefixo": "Action Required: Your skill evaluation has been completed",
+      "titulo": "Your skill evaluation has been successfully completed.",
+      "saudacao": "Hello",
+      "introducao": "All stages of the evaluation process have been completed, and the results are now available on the platform along with the information recorded during the evaluation.",
+      "introducao_2": "Access Whizzat to view the details and track the progress of your professional profile.",
+      "introducao_3": "Thank you for your participation and for the time you dedicated to this process."
     }
   },
   "auth": {
