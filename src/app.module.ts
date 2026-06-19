@@ -26,7 +26,7 @@ import { QuestionarioModule } from './questionario/questionario.module';
 
 // import { CandidatoSkillAvaliarWorker } from './workers/candidato-skill-avaliar.worker';
 // import { AvaliadorDispatcherWorker } from './workers/avaliador-dispatcher.worker';
-import { EmailResumoSkillWorker } from './workers/email-dispatcher.worker';
+// import { EmailResumoSkillWorker } from './workers/email-dispatcher.worker';
 import { I18nGlobalModule } from './i18n/i18n.module';
 
 const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
@@ -63,7 +63,7 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
   providers: [
     // CandidatoSkillAvaliarWorker,
     // AvaliadorDispatcherWorker,
-    EmailResumoSkillWorker,
+    // EmailResumoSkillWorker,
   ],
 })
 export class AppModule {}
