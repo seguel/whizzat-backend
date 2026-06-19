@@ -1193,6 +1193,7 @@ export class CandidatoService {
         peso: true,
         data_avaliacao: true,
         data_resposta_questionario: true,
+        comentario: true,
 
         agenda: {
           select: {
@@ -1260,6 +1261,7 @@ export class CandidatoService {
 
       data_resposta_questionario: avaliacao.data_resposta_questionario,
       questionario_titulo: avaliacao.questionario?.titulo,
+      comentario: avaliacao.comentario,
 
       respostas: avaliacao.resposta.map((item) => ({
         pergunta: item.pergunta.pergunta,
