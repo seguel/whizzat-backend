@@ -124,6 +124,7 @@ export class EmailResumoSkillWorker {
               nomeCompleto,
               grupo.usuario.linguagem ?? 'pt',
               perfil_id,
+              dashboardLink,
             );
 
             emailEnviado = true;
@@ -133,6 +134,7 @@ export class EmailResumoSkillWorker {
               nomeCompleto,
               grupo.usuario.linguagem ?? 'pt',
               perfil_id,
+              dashboardLink,
             );
 
             emailEnviado = true;
@@ -141,6 +143,7 @@ export class EmailResumoSkillWorker {
               grupo.usuario.email,
               nomeCompleto,
               grupo.usuario.linguagem ?? 'pt',
+              dashboardLink,
             );
 
             emailEnviado = true;

@@ -2082,7 +2082,7 @@ export class AvaliadorService {
         referencia_id: agenda.id,
         titulo: agendaExistente
           ? 'Nova proposta de entrevista'
-          : 'Entrevista agendada',
+          : 'Sugestão de Entrevista',
         mensagem: agendaExistente
           ? 'Você recebeu uma nova sugestão de data para entrevista'
           : 'Você recebeu uma proposta de data para entrevista',
