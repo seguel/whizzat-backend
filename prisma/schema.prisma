@@ -572,7 +572,8 @@ model AvaliadorRankingAvaliacao {
   candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id])
   avaliador       UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
 
-  @@unique([avaliador_id, avaliacao_skill_id])
+  // @@unique([avaliador_id, avaliacao_skill_id])
+  @@index([avaliador_id, avaliacao_skill_id])
   @@index([avaliacao_skill_id])
   @@index([avaliador_id])
   @@index([aceite])
