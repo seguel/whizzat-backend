@@ -107,17 +107,33 @@ export class AvaliadorDispatcherWorker {
    */
   private async criarConvitesComLock(): Promise<void> {
     const BATCH_SIZE = 10;
+    const MAX_TENTATIVAS_CONVITE = 5;
+
     const agora = new Date();
+
     const expira = new Date(
       agora.getTime() + HORAS_EXPIRACAO_CONVITE * 60 * 60 * 1000,
     );
 
-    const tx = this.prisma; // 👈 removido $transaction
+    const tx = this.prisma;
 
     const avaliacoes = await tx.candidatoAvaliacaoSkill.findMany({
       where: {
         avaliador_id: null,
         avaliacao_pendente: true,
+
+        tentativas_convite: {
+          lt: MAX_TENTATIVAS_CONVITE,
+        },
+
+        avaliadorRanking: {
+          none: {
+            aceite: null,
+            data_expiracao: {
+              gt: agora,
+            },
+          },
+        },
       },
       take: BATCH_SIZE,
       orderBy: [{ prioridade_ordem: 'asc' }, { id: 'asc' }],
@@ -129,10 +145,34 @@ export class AvaliadorDispatcherWorker {
     for (const avaliacao of avaliacoes) {
       const skillId = avaliacao.candidatoSkill.skill_id;
 
-      const avaliadoresComSkill = await tx.avaliadorSkill.findMany({
+      // Histórico da avaliação
+      const historico = await tx.avaliadorRankingAvaliacao.findMany({
+        where: {
+          avaliacao_skill_id: avaliacao.id,
+        },
+        select: {
+          avaliador_id: true,
+          aceite: true,
+        },
+      });
+
+      const idsRecusados = historico
+        .filter((x) => x.aceite === false)
+        .map((x) => x.avaliador_id);
+
+      const idsAceitos = historico
+        .filter((x) => x.aceite === true)
+        .map((x) => x.avaliador_id);
+
+      let avaliadoresComSkill = await tx.avaliadorSkill.findMany({
         where: {
           skill_id: skillId,
-          favorito: true, //favorito indica qual skill ele quer ser um avaliador
+          favorito: true,
+
+          avaliador_id: {
+            notIn: [...idsRecusados, ...idsAceitos],
+          },
+
           avaliador: {
             ativo: true,
             avaliar_todos: true,
@@ -160,6 +200,45 @@ export class AvaliadorDispatcherWorker {
         },
       });
 
+      // Todos recusaram? Faz nova rodada.
+      if (avaliadoresComSkill.length === 0 && idsRecusados.length > 0) {
+        this.logger.warn(
+          `Todos os avaliadores já recusaram. Reiniciando rodada | AvaliacaoSkill=${avaliacao.id}`,
+        );
+
+        avaliadoresComSkill = await tx.avaliadorSkill.findMany({
+          where: {
+            skill_id: skillId,
+            favorito: true,
+
+            avaliador: {
+              ativo: true,
+              avaliar_todos: true,
+              liberado_avaliar: true,
+              linguagem: avaliacao.linguagem,
+            },
+          },
+          include: {
+            avaliador: {
+              select: {
+                id: true,
+                usuario_id: true,
+                pontos: true,
+                _count: {
+                  select: {
+                    avaliadorRanking: {
+                      where: {
+                        data_aceite_recusa: null,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
       const avaliadoresDisponiveis = avaliadoresComSkill
         .filter((a) => a.avaliador._count.avaliadorRanking <= 5)
         .sort((a, b) => {
@@ -175,11 +254,31 @@ export class AvaliadorDispatcherWorker {
         .slice(0, MAX_AVALIADORES_POR_SKILL);
 
       if (avaliadoresDisponiveis.length === 0) {
-        this.logger.log(
-          `Nenhum avaliador disponível | avaliacaoSkill=${avaliacao.id}`,
+        this.logger.warn(
+          `Nenhum avaliador disponível | AvaliacaoSkill=${avaliacao.id}`,
         );
+
         continue;
       }
+
+      // Incrementa somente quando realmente vai abrir uma nova rodada
+      const skillAtualizada = await tx.candidatoAvaliacaoSkill.update({
+        where: {
+          id: avaliacao.id,
+        },
+        data: {
+          tentativas_convite: {
+            increment: 1,
+          },
+        },
+        select: {
+          tentativas_convite: true,
+        },
+      });
+
+      this.logger.log(
+        `Nova rodada de convites | AvaliacaoSkill=${avaliacao.id} Tentativa=${skillAtualizada.tentativas_convite}`,
+      );
 
       for (const avaliador of avaliadoresDisponiveis) {
         try {
@@ -205,7 +304,7 @@ export class AvaliadorDispatcherWorker {
           });
 
           this.logger.log(
-            `Convite + Notificação criada | Avaliador=${avaliador.avaliador_id} AvaliacaoSkill=${avaliacao.id}`,
+            `Convite criado | Avaliador=${avaliador.avaliador_id} AvaliacaoSkill=${avaliacao.id}`,
           );
         } catch (error) {
           if (
@@ -213,8 +312,9 @@ export class AvaliadorDispatcherWorker {
             error.code === 'P2002'
           ) {
             this.logger.warn(
-              `Convite ignorado (duplicado) | Avaliador=${avaliador.avaliador_id} AvaliacaoSkill=${avaliacao.id}`,
+              `Convite duplicado ignorado | Avaliador=${avaliador.avaliador_id} AvaliacaoSkill=${avaliacao.id}`,
             );
+
             continue;
           }
 

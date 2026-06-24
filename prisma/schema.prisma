@@ -547,6 +547,7 @@ model CandidatoAvaliacaoSkill {
   data_pedido_reavaliar DateTime?
   avaliador_id          Int?
   linguagem             String
+  tentativas_convite    Int @default(0)
 
   candidatoSkill   CandidatoSkill @relation(fields: [candidato_skill_id], references: [id])
   avaliador         UsuarioPerfilAvaliador? @relation(fields: [avaliador_id], references: [id])
