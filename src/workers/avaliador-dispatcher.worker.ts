@@ -160,9 +160,9 @@ export class AvaliadorDispatcherWorker {
         .filter((x) => x.aceite === false)
         .map((x) => x.avaliador_id);
 
-      const idsAceitos = historico
-        .filter((x) => x.aceite === true)
-        .map((x) => x.avaliador_id);
+      // const idsAceitos = historico
+      //   .filter((x) => x.aceite === true)
+      //   .map((x) => x.avaliador_id);
 
       let avaliadoresComSkill = await tx.avaliadorSkill.findMany({
         where: {
@@ -170,7 +170,8 @@ export class AvaliadorDispatcherWorker {
           favorito: true,
 
           avaliador_id: {
-            notIn: [...idsRecusados, ...idsAceitos],
+            // notIn: [...idsRecusados, ...idsAceitos],
+            notIn: [...idsRecusados],
           },
 
           avaliador: {
