@@ -245,6 +245,7 @@ export class CandidatoService {
       tempo_favorito: s.tempo_favorito,
       nome: s.skill.skill, // pega direto o texto da skill
       tipo_skill_id: s.skill.tipo_skill_id,
+      peso_avaliador: s.peso_avaliador,
     }));
 
     return {
