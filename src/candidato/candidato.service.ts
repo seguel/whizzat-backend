@@ -1335,4 +1335,195 @@ export class CandidatoService {
       autoavaliacao: item.avaliacao.candidatoSkill.candidatoSkill.peso,
     }));
   }
+
+  async getDashboardCandidato(usuarioId: number) {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      return {
+        resumo: {
+          processos_seletivos: 0,
+          entrevistas_agendadas: 0,
+          entrevistas_realizadas: 0,
+          skills_avaliadas: 0,
+        },
+        skills: [],
+        entrevistas_agendadas: [],
+      };
+    }
+
+    const agora = new Date();
+
+    const [
+      totalEntrevistasAgendadas,
+      totalEntrevistasRealizadas,
+      totalSkillsAvaliadas,
+      skills,
+      entrevistasAgendadas,
+    ] = await this.prisma.$transaction([
+      // =====================================================
+      // ENTREVISTAS AGENDADAS
+      // Inclui futuras e atrasadas ainda com status ACEITO
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkillAgenda.count({
+        where: {
+          status: AgendaStatus.ACEITO,
+
+          avaliacao: {
+            candidatoSkill: {
+              candidatoSkill: {
+                candidato_id: candidato.id,
+              },
+            },
+          },
+        },
+      }),
+
+      // =====================================================
+      // ENTREVISTAS REALIZADAS
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkillAgenda.count({
+        where: {
+          status: AgendaStatus.REALIZADO,
+
+          avaliacao: {
+            candidatoSkill: {
+              candidatoSkill: {
+                candidato_id: candidato.id,
+              },
+            },
+          },
+        },
+      }),
+
+      // =====================================================
+      // SKILLS JÁ AVALIADAS
+      // =====================================================
+      this.prisma.candidatoSkill.count({
+        where: {
+          candidato_id: candidato.id,
+
+          peso_avaliador: {
+            not: null,
+          },
+        },
+      }),
+
+      // =====================================================
+      // SKILLS PARA RADAR + BARRAS
+      // =====================================================
+      this.prisma.candidatoSkill.findMany({
+        where: {
+          candidato_id: candidato.id,
+        },
+
+        select: {
+          id: true,
+          skill_id: true,
+          peso: true,
+          peso_avaliador: true,
+
+          skill: {
+            select: {
+              skill: true,
+              tipo_skill_id: true,
+            },
+          },
+        },
+
+        orderBy: {
+          skill: {
+            skill: 'asc',
+          },
+        },
+      }),
+
+      // =====================================================
+      // ENTREVISTAS AGENDADAS
+      // ACEITO = ainda faz parte da agenda do candidato
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
+        where: {
+          status: AgendaStatus.ACEITO,
+
+          avaliacao: {
+            candidatoSkill: {
+              candidatoSkill: {
+                candidato_id: candidato.id,
+              },
+            },
+          },
+        },
+
+        orderBy: {
+          data_hora_agenda: 'asc',
+        },
+
+        select: {
+          id: true,
+          data_hora_agenda: true,
+          status: true,
+
+          avaliacao: {
+            select: {
+              id: true,
+              status: true,
+
+              candidatoSkill: {
+                select: {
+                  candidatoSkill: {
+                    select: {
+                      skill: {
+                        select: {
+                          skill: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      resumo: {
+        // ainda não temos o domínio de processo seletivo
+        processos_seletivos: 0,
+        entrevistas_agendadas: totalEntrevistasAgendadas,
+        entrevistas_realizadas: totalEntrevistasRealizadas,
+        skills_avaliadas: totalSkillsAvaliadas,
+      },
+
+      skills: skills.map((item) => ({
+        id: item.id,
+        skill_id: item.skill_id,
+        nome: item.skill.skill,
+        tipo_skill_id: item.skill.tipo_skill_id,
+        peso: item.peso,
+        peso_avaliador: item.peso_avaliador,
+      })),
+
+      entrevistas_agendadas: entrevistasAgendadas.map((item) => ({
+        id: item.id,
+        avaliacao_id: item.avaliacao.id,
+        tipo: 'AVALIACAO_SKILL',
+        skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+        data_hora: item.data_hora_agenda,
+        agenda_status: item.status,
+        status_avaliacao: item.avaliacao.status,
+        atrasada: item.data_hora_agenda < agora,
+      })),
+    };
+  }
 }

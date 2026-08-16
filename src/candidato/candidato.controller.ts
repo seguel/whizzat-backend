@@ -546,6 +546,14 @@ export class CandidatoController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('dashboard')
+  getDashboard(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user.sub;
+
+    return this.candidatoService.getDashboardCandidato(usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id/perfil/:perfilId')
   getCandidato(
     @Param('id', ParseIntPipe) id: number,
