@@ -565,6 +565,12 @@ export class AvaliadorController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('dashboard')
+  getDashboard(@Req() req: Request & { user: JwtPayload }) {
+    return this.avaliadorService.getDashboardAvaliador(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id/perfil/:perfilId')
   getAvaliador(
     @Param('id', ParseIntPipe) id: number,
