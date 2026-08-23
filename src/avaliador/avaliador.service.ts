@@ -2450,4 +2450,348 @@ export class AvaliadorService {
       };
     });
   }
+
+  async getDashboardAvaliador(usuarioId: number) {
+    const avaliador = await this.prisma.usuarioPerfilAvaliador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+        pontos: true,
+      },
+    });
+
+    if (!avaliador) {
+      return {
+        resumo: {
+          avaliacoes_pendentes: 0,
+          entrevistas_agendadas: 0,
+          skills_avaliadas: 0,
+          pontuacao: 0,
+        },
+        agendas: [],
+      };
+    }
+
+    const posicaoRanking =
+      (await this.prisma.usuarioPerfilAvaliador.count({
+        where: {
+          ativo: true,
+          liberado_avaliar: true,
+
+          pontos: {
+            gt: avaliador.pontos,
+          },
+        },
+      })) + 1;
+
+    const agora = new Date();
+
+    const [
+      avaliacoesPendentes,
+      entrevistasAgendadas,
+      skillsAvaliadas,
+      agendas,
+      pendencias,
+    ] = await this.prisma.$transaction([
+      // =====================================================
+      // AVALIAÇÕES PENDENTES
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkill.count({
+        where: {
+          avaliador_id: avaliador.id,
+          status: {
+            not: StatusAvaliacao.FINALIZADO,
+          },
+        },
+      }),
+
+      // =====================================================
+      // ENTREVISTAS AGENDADAS
+      // futuras + atrasadas
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkillAgenda.count({
+        where: {
+          status: AgendaStatus.ACEITO,
+          avaliacao: {
+            avaliador_id: avaliador.id,
+          },
+        },
+      }),
+
+      // =====================================================
+      // SKILLS AVALIADAS
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkill.count({
+        where: {
+          avaliador_id: avaliador.id,
+          status: StatusAvaliacao.FINALIZADO,
+        },
+      }),
+
+      // =====================================================
+      // AGENDA DO DASHBOARD
+      // =====================================================
+      this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
+        where: {
+          status: AgendaStatus.ACEITO,
+
+          avaliacao: {
+            avaliador_id: avaliador.id,
+          },
+        },
+
+        orderBy: {
+          data_hora_agenda: 'asc',
+        },
+
+        select: {
+          id: true,
+          data_hora_agenda: true,
+          status: true,
+
+          avaliacao: {
+            select: {
+              id: true,
+              status: true,
+
+              candidatoSkill: {
+                select: {
+                  candidatoSkill: {
+                    select: {
+                      skill: {
+                        select: {
+                          skill: true,
+                        },
+                      },
+
+                      candidato: {
+                        select: {
+                          usuario: {
+                            select: {
+                              primeiro_nome: true,
+                              ultimo_nome: true,
+                              nome_social: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      this.prisma.avaliadorAvaliacaoSkill.findMany({
+        where: {
+          avaliador_id: avaliador.id,
+
+          OR: [
+            // Convite foi aceito e o avaliador precisa iniciar o fluxo
+            {
+              status: StatusAvaliacao.CONVITE_ACEITO,
+            },
+
+            // Candidato respondeu o questionário
+            {
+              status: StatusAvaliacao.QUESTIONARIO_ENVIADO,
+              data_resposta_questionario: {
+                not: null,
+              },
+            },
+
+            // Data sugerida foi recusada pelo candidato
+            {
+              status: StatusAvaliacao.AGENDA_ENVIADA,
+              agenda: {
+                is: {
+                  status: AgendaStatus.RECUSADO,
+                },
+              },
+            },
+
+            // Entrevista realizada e falta finalizar
+            {
+              status: StatusAvaliacao.ENTREVISTA_REALIZADA,
+            },
+          ],
+        },
+
+        orderBy: {
+          data_aceite: 'asc',
+        },
+
+        select: {
+          id: true,
+          status: true,
+          data_aceite: true,
+          data_resposta_questionario: true,
+
+          agenda: {
+            select: {
+              status: true,
+              data_hora_agenda: true,
+            },
+          },
+
+          candidatoSkill: {
+            select: {
+              candidatoSkill: {
+                select: {
+                  skill: {
+                    select: {
+                      skill: true,
+                    },
+                  },
+
+                  candidato: {
+                    select: {
+                      usuario: {
+                        select: {
+                          primeiro_nome: true,
+                          ultimo_nome: true,
+                          nome_social: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    const avaliacoesFinalizadas =
+      await this.prisma.avaliadorAvaliacaoSkill.findMany({
+        where: {
+          avaliador_id: avaliador.id,
+          status: StatusAvaliacao.FINALIZADO,
+        },
+
+        select: {
+          candidatoSkill: {
+            select: {
+              candidatoSkill: {
+                select: {
+                  skill: {
+                    select: {
+                      skill_id: true,
+                      skill: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+    const skillsMap = new Map<
+      number,
+      {
+        id: number;
+        nome: string;
+        total: number;
+      }
+    >();
+
+    for (const item of avaliacoesFinalizadas) {
+      const skill = item.candidatoSkill.candidatoSkill.skill;
+
+      const existente = skillsMap.get(skill.skill_id);
+
+      if (existente) {
+        existente.total += 1;
+      } else {
+        skillsMap.set(skill.skill_id, {
+          id: skill.skill_id,
+          nome: skill.skill,
+          total: 1,
+        });
+      }
+    }
+
+    const topSkills = Array.from(skillsMap.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+
+    return {
+      resumo: {
+        avaliacoes_pendentes: avaliacoesPendentes,
+        entrevistas_agendadas: entrevistasAgendadas,
+        skills_avaliadas: skillsAvaliadas,
+        pontuacao: avaliador.pontos,
+      },
+
+      ranking: {
+        posicao: posicaoRanking,
+      },
+
+      agendas: agendas.map((item) => {
+        const usuario =
+          item.avaliacao.candidatoSkill.candidatoSkill.candidato.usuario;
+
+        const candidatoNome =
+          usuario.nome_social?.trim() ||
+          `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+
+        return {
+          id: item.id,
+          avaliacao_id: item.avaliacao.id,
+          candidato: candidatoNome,
+          skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+          data_hora: item.data_hora_agenda,
+          agenda_status: item.status,
+          status_avaliacao: item.avaliacao.status,
+          atrasada: item.data_hora_agenda < agora,
+        };
+      }),
+
+      pendencias: pendencias.map((item) => {
+        const usuario = item.candidatoSkill.candidatoSkill.candidato.usuario;
+
+        const candidatoNome =
+          usuario.nome_social?.trim() ||
+          `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+
+        let acao: 'QUESTIONARIO' | 'AGENDA' | 'REAGENDAR' | 'FINALIZAR';
+
+        if (item.status === StatusAvaliacao.CONVITE_ACEITO) {
+          acao = 'QUESTIONARIO';
+        } else if (
+          item.status === StatusAvaliacao.QUESTIONARIO_ENVIADO &&
+          item.data_resposta_questionario
+        ) {
+          acao = 'AGENDA';
+        } else if (
+          item.status === StatusAvaliacao.AGENDA_ENVIADA &&
+          item.agenda?.status === AgendaStatus.RECUSADO
+        ) {
+          acao = 'REAGENDAR';
+        } else {
+          acao = 'FINALIZAR';
+        }
+
+        return {
+          id: item.id,
+          avaliacao_id: item.id,
+          candidato: candidatoNome,
+          skill: item.candidatoSkill.candidatoSkill.skill.skill,
+          acao,
+          status_avaliacao: item.status,
+          agenda_status: item.agenda?.status ?? null,
+          data_agenda: item.agenda?.data_hora_agenda ?? null,
+        };
+      }),
+
+      top_skills: topSkills,
+    };
+  }
 }
