@@ -66,6 +66,7 @@ export interface CandidatoDto {
   skills: CandidatoSkillDto[];
   certificacoes: CandidatoCertificacaoDto[];
   usuario: UsuarioDto;
+  aberto_oportunidades: boolean;
 }
 
 @Injectable()
@@ -265,6 +266,12 @@ export class CandidatoService {
     logo?: string;
     meio_notificacao: string;
     language: string;
+    aberto_oportunidades: boolean;
+    oportunidade_pcd: boolean;
+    oportunidade_afirmativa_racial: boolean;
+    oportunidade_lgbtqia: boolean;
+    oportunidade_50mais: boolean;
+    oportunidade_diversidade: boolean;
   }) {
     const createData: Prisma.UsuarioPerfilCandidatoCreateInput = {
       usuario: {
@@ -279,6 +286,12 @@ export class CandidatoService {
       logo: data.logo ?? '',
       meio_notificacao: data.meio_notificacao,
       linguagem: data.language,
+      aberto_oportunidades: data.aberto_oportunidades,
+      oportunidade_pcd: data.oportunidade_pcd,
+      oportunidade_afirmativa_racial: data.oportunidade_afirmativa_racial,
+      oportunidade_lgbtqia: data.oportunidade_lgbtqia,
+      oportunidade_50mais: data.oportunidade_50mais,
+      oportunidade_diversidade: data.oportunidade_diversidade,
     };
 
     const candidato = await this.prisma.usuarioPerfilCandidato.create({
@@ -301,6 +314,12 @@ export class CandidatoService {
     meio_notificacao: string;
     ativo: boolean;
     language: string;
+    aberto_oportunidades: boolean;
+    oportunidade_pcd: boolean;
+    oportunidade_afirmativa_racial: boolean;
+    oportunidade_lgbtqia: boolean;
+    oportunidade_50mais: boolean;
+    oportunidade_diversidade: boolean;
   }) {
     const updateData: Prisma.UsuarioPerfilCandidatoUpdateInput = {
       telefone: data.telefone,
@@ -309,6 +328,12 @@ export class CandidatoService {
       logo: data.logo ?? '',
       meio_notificacao: data.meio_notificacao,
       ativo: data.ativo,
+      aberto_oportunidades: data.aberto_oportunidades,
+      oportunidade_pcd: data.oportunidade_pcd,
+      oportunidade_afirmativa_racial: data.oportunidade_afirmativa_racial,
+      oportunidade_lgbtqia: data.oportunidade_lgbtqia,
+      oportunidade_50mais: data.oportunidade_50mais,
+      oportunidade_diversidade: data.oportunidade_diversidade,
     };
 
     return this.prisma.usuarioPerfilCandidato.update({

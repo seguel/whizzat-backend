@@ -5,8 +5,17 @@ import {
   IsInt,
   IsOptional,
   IsDate,
+  IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+
+import { Transform, Type } from 'class-transformer';
+
+const ToBoolean = () =>
+  Transform(({ value }) => {
+    if (typeof value === 'boolean') return value;
+
+    return value === true || value === 'true' || value === '1' || value === 1;
+  });
 
 export class CreateCandidatoDto {
   @IsNotEmpty()
@@ -69,4 +78,34 @@ export class CreateCandidatoDto {
   @Type(() => Number)
   @IsInt()
   cidade_id!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  aberto_oportunidades?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  oportunidade_pcd?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  oportunidade_afirmativa_racial?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  oportunidade_lgbtqia?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  oportunidade_50mais?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  oportunidade_diversidade?: boolean;
 }
