@@ -150,6 +150,13 @@ export class CandidatoController {
       logo: logoFile ? `${BASE_URL}/uploads/${logoFile.filename}` : '',
       meio_notificacao: body.meio_notificacao,
       language: lang,
+      aberto_oportunidades: body.aberto_oportunidades ?? true,
+      oportunidade_pcd: body.oportunidade_pcd ?? false,
+      oportunidade_afirmativa_racial:
+        body.oportunidade_afirmativa_racial ?? false,
+      oportunidade_lgbtqia: body.oportunidade_lgbtqia ?? false,
+      oportunidade_50mais: body.oportunidade_50mais ?? false,
+      oportunidade_diversidade: body.oportunidade_diversidade ?? false,
     });
 
     const dataUser = {
@@ -374,6 +381,13 @@ export class CandidatoController {
       meio_notificacao: body.meio_notificacao,
       ativo: body.ativo,
       language: lang,
+      aberto_oportunidades: body.aberto_oportunidades ?? true,
+      oportunidade_pcd: body.oportunidade_pcd ?? false,
+      oportunidade_afirmativa_racial:
+        body.oportunidade_afirmativa_racial ?? false,
+      oportunidade_lgbtqia: body.oportunidade_lgbtqia ?? false,
+      oportunidade_50mais: body.oportunidade_50mais ?? false,
+      oportunidade_diversidade: body.oportunidade_diversidade ?? false,
     });
 
     const dataUser = {
