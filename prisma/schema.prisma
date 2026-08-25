@@ -196,6 +196,13 @@ model UsuarioPerfilCandidato {
   data_cadastro    DateTime @default(now())
   ativo            Boolean @default(true)
   linguagem        String
+  aberto_oportunidades Boolean @default(true)
+  // Preferências para oportunidades inclusivas / afirmativas
+  oportunidade_pcd                 Boolean @default(false)
+  oportunidade_afirmativa_racial   Boolean @default(false)
+  oportunidade_lgbtqia             Boolean @default(false)
+  oportunidade_50mais              Boolean @default(false)
+  oportunidade_diversidade         Boolean @default(false)
 
   usuario       Usuario @relation(fields: [usuario_id], references: [id])
   perfil        Perfil  @relation(fields: [perfil_id], references: [id])
@@ -204,6 +211,7 @@ model UsuarioPerfilCandidato {
   certificacoes CandidatoCertificacoes[]
 
   @@unique([usuario_id, perfil_id])
+  @@index([ativo, aberto_oportunidades])
   @@map("usuario_perfil_candidato")
 }
 
