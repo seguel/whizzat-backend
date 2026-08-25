@@ -1,4 +1,5 @@
-// src/empresa/dto/create-empresa.dto.ts
+// src/candidato/dto/update-candidato.dto.ts
+
 import {
   IsNotEmpty,
   IsString,
@@ -7,7 +8,20 @@ import {
   IsOptional,
   IsDate,
 } from 'class-validator';
+
 import { Transform, Type } from 'class-transformer';
+
+const booleanTransform = ({ value }: { value: unknown }) => {
+  if (typeof value === 'boolean') return value;
+
+  if (value === '1' || value === 1 || value === 'true') return true;
+
+  if (value === '0' || value === 0 || value === 'false' || value === '') {
+    return false;
+  }
+
+  return Boolean(value);
+};
 
 export class UpdateCandidatoDto {
   @Type(() => Number)
@@ -29,7 +43,7 @@ export class UpdateCandidatoDto {
   @IsString()
   meio_notificacao!: string;
 
-  @Type(() => Number) // transforma string em number
+  @Type(() => Number)
   @IsInt()
   perfilId!: number;
 
@@ -41,13 +55,7 @@ export class UpdateCandidatoDto {
   @IsString()
   novas_skills?: string;
 
-  @Transform(({ value }) => {
-    if (typeof value === 'boolean') return value;
-    if (value === '1' || value === 1 || value === 'true') return true;
-    if (value === '0' || value === 0 || value === 'false' || value === '')
-      return false;
-    return Boolean(value);
-  })
+  @Transform(booleanTransform)
   @IsBoolean()
   ativo: boolean = true;
 
@@ -70,7 +78,7 @@ export class UpdateCandidatoDto {
   ultimo_nome!: string;
 
   @IsDate()
-  @Type(() => Date) // Necessário para converter string em Date com class-transformer
+  @Type(() => Date)
   data_nascimento: Date = new Date();
 
   @IsOptional()
@@ -84,4 +92,32 @@ export class UpdateCandidatoDto {
   @Type(() => Number)
   @IsInt()
   cidade_id!: number;
+
+  // =====================================================
+  // OPORTUNIDADES
+  // =====================================================
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  aberto_oportunidades: boolean = true;
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  oportunidade_pcd: boolean = false;
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  oportunidade_afirmativa_racial: boolean = false;
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  oportunidade_lgbtqia: boolean = false;
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  oportunidade_50mais: boolean = false;
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  oportunidade_diversidade: boolean = false;
 }
