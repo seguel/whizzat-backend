@@ -385,7 +385,7 @@ model Skill {
 
 model ModalidadeTrabalho {
   modalidade_trabalho_id Int     @id @default(autoincrement())
-  codigo                 String
+  codigo                 String @default("")
   modalidade             String
   linguagem              String
   ativo                  Boolean @default(true)
