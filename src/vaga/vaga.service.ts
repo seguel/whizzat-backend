@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, PublicoAfirmativo, TipoOportunidade } from '@prisma/client';
 
 export interface VagaSkillDto {
   skill_id: number;
@@ -18,20 +18,29 @@ export class VagaService {
     empresa_id: number;
     nome_vaga: string;
     descricao: string;
-    local_vaga: string;
+    local_vaga?: string;
     modalidade_trabalho_id: number;
     periodo_trabalho_id: number;
-    pcd: boolean;
-    lgbtq: boolean;
-    mulheres: boolean;
-    cinquenta_mais: boolean;
+    tipo_oportunidade: TipoOportunidade;
     qtde_dias_aberta: number;
     qtde_posicao: number;
     data_cadastro: Date;
     cidade_id: number;
   }) {
     return await this.prisma.empresaVaga.create({
-      data,
+      data: {
+        empresa_id: data.empresa_id,
+        nome_vaga: data.nome_vaga,
+        descricao: data.descricao,
+        local_vaga: data.local_vaga,
+        modalidade_trabalho_id: data.modalidade_trabalho_id,
+        periodo_trabalho_id: data.periodo_trabalho_id,
+        tipo_oportunidade: data.tipo_oportunidade,
+        qtde_dias_aberta: data.qtde_dias_aberta,
+        qtde_posicao: data.qtde_posicao,
+        data_cadastro: data.data_cadastro,
+        cidade_id: data.cidade_id,
+      },
     });
   }
 
@@ -40,13 +49,10 @@ export class VagaService {
     empresa_id: number;
     nome_vaga: string;
     descricao: string;
-    local_vaga: string;
+    local_vaga?: string;
     modalidade_trabalho_id: number;
     periodo_trabalho_id: number;
-    pcd: boolean;
-    lgbtq: boolean;
-    mulheres: boolean;
-    cinquenta_mais: boolean;
+    tipo_oportunidade: TipoOportunidade;
     qtde_dias_aberta: number;
     qtde_posicao: number;
     ativo: boolean;
@@ -57,16 +63,14 @@ export class VagaService {
         vaga_id: data.vaga_id,
         empresa_id: data.empresa_id,
       },
+
       data: {
         nome_vaga: data.nome_vaga,
         descricao: data.descricao,
         local_vaga: data.local_vaga,
         modalidade_trabalho_id: data.modalidade_trabalho_id,
         periodo_trabalho_id: data.periodo_trabalho_id,
-        pcd: data.pcd,
-        lgbtq: data.lgbtq,
-        mulheres: data.mulheres,
-        cinquenta_mais: data.cinquenta_mais,
+        tipo_oportunidade: data.tipo_oportunidade,
         qtde_dias_aberta: data.qtde_dias_aberta,
         qtde_posicao: data.qtde_posicao,
         ativo: data.ativo,
@@ -175,6 +179,11 @@ export class VagaService {
             },
           },
         },
+        publicos_afirmativos: {
+          select: {
+            codigo: true,
+          },
+        },
       },
     });
 
@@ -204,11 +213,19 @@ export class VagaService {
       include: {
         modalidade_trabalho: true,
         periodo_trabalho: true,
+
+        publicos_afirmativos: {
+          select: {
+            codigo: true,
+          },
+        },
+
         skills: {
           select: {
             skill_id: true,
             peso: true,
             avaliador_proprio: true,
+
             skill: {
               select: {
                 skill: true,
@@ -217,16 +234,19 @@ export class VagaService {
             },
           },
         },
+
         empresa: {
           select: {
             nome_empresa: true,
             logo: true,
           },
         },
+
         cidade: {
           select: {
             estado_id: true,
             cidade: true,
+
             estado: {
               select: {
                 estado: true,
@@ -254,6 +274,7 @@ export class VagaService {
 
     return {
       ...vaga,
+      publicos_afirmativos: vaga.publicos_afirmativos.map((p) => p.codigo),
       prazo: prazoDate.toLocaleDateString('pt-BR', {
         day: '2-digit',
         month: '2-digit',
@@ -308,10 +329,13 @@ export class VagaService {
             vaga_id: true,
             nome_vaga: true,
             local_vaga: true,
-            pcd: true,
-            lgbtq: true,
-            mulheres: true,
-            cinquenta_mais: true,
+            tipo_oportunidade: true,
+
+            publicos_afirmativos: {
+              select: {
+                codigo: true,
+              },
+            },
             qtde_dias_aberta: true,
             data_cadastro: true,
             cidade_id: true,
@@ -371,10 +395,11 @@ export class VagaService {
                 month: '2-digit',
               }),
               prazo_timestamp: prazoDate.getTime(), // adiciona para facilitar ordenação
-              pcd: vaga.pcd,
-              lgbtq: vaga.lgbtq,
-              mulheres: vaga.mulheres,
-              cinquenta_mais: vaga.cinquenta_mais,
+              tipo_oportunidade: vaga.tipo_oportunidade,
+
+              publicos_afirmativos: vaga.publicos_afirmativos.map(
+                (p) => p.codigo,
+              ),
               skills: vaga.skills.map((s) => s.skill.skill),
               cidade_label: vaga.cidade.cidade,
               cidade_id: vaga.cidade_id,
@@ -426,10 +451,13 @@ export class VagaService {
             vaga_id: true,
             nome_vaga: true,
             local_vaga: true,
-            pcd: true,
-            lgbtq: true,
-            mulheres: true,
-            cinquenta_mais: true,
+            tipo_oportunidade: true,
+
+            publicos_afirmativos: {
+              select: {
+                codigo: true,
+              },
+            },
             qtde_dias_aberta: true,
             data_cadastro: true,
             cidade_id: true,
@@ -488,10 +516,11 @@ export class VagaService {
                 month: '2-digit',
               }),
               prazo_timestamp: prazoDate.getTime(), // adiciona para facilitar ordenação
-              pcd: vaga.pcd,
-              lgbtq: vaga.lgbtq,
-              mulheres: vaga.mulheres,
-              cinquenta_mais: vaga.cinquenta_mais,
+              tipo_oportunidade: vaga.tipo_oportunidade,
+
+              publicos_afirmativos: vaga.publicos_afirmativos.map(
+                (p) => p.codigo,
+              ),
               skills: vaga.skills.map((s) => s.skill.skill),
               cidade_label: vaga.cidade.cidade,
               cidade_id: vaga.cidade_id,
@@ -505,5 +534,47 @@ export class VagaService {
       .sort((a, b) => a.prazo_timestamp - b.prazo_timestamp);
 
     return vagasPlanas;
+  }
+
+  async updateVagaPublicosAfirmativos(
+    vagaId: number,
+    tipoOportunidade: TipoOportunidade,
+    publicos: PublicoAfirmativo[],
+  ) {
+    let publicosFinais = [...new Set(publicos)];
+
+    // Ampla concorrência nunca deve manter restrição afirmativa
+    if (tipoOportunidade === TipoOportunidade.AMPLA_CONCORRENCIA) {
+      publicosFinais = [];
+    }
+
+    // Se for afirmativa/exclusiva, precisa ter público
+    if (
+      tipoOportunidade !== TipoOportunidade.AMPLA_CONCORRENCIA &&
+      publicosFinais.length === 0
+    ) {
+      throw new BadRequestException(
+        'Uma oportunidade afirmativa ou exclusiva deve possuir pelo menos um público.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.empresaVagaPublicoAfirmativo.deleteMany({
+        where: {
+          vaga_id: vagaId,
+        },
+      });
+
+      if (publicosFinais.length > 0) {
+        await tx.empresaVagaPublicoAfirmativo.createMany({
+          data: publicosFinais.map((codigo) => ({
+            vaga_id: vagaId,
+            codigo,
+          })),
+
+          skipDuplicates: true,
+        });
+      }
+    });
   }
 }

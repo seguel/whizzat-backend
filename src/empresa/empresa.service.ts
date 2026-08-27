@@ -400,7 +400,7 @@ export class EmpresaService {
           day: '2-digit',
           month: '2-digit',
         }),
-        pcd: vaga.pcd,
+        // pcd: vaga.pcd,
         modalidade_trabalho: vaga.modalidade_trabalho,
         periodo_trabalho: vaga.periodo_trabalho,
         ativo: vaga.ativo,

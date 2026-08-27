@@ -12,6 +12,21 @@ enum PerfilTipo {
   AVALIADOR
 }
 
+enum TipoOportunidade {
+  AMPLA_CONCORRENCIA
+  AFIRMATIVA
+  EXCLUSIVA
+}
+
+enum PublicoAfirmativo {
+  PCD
+  AFIRMATIVA_RACIAL
+  LGBTQIA
+  MULHERES
+  CINQUENTA_MAIS
+  DIVERSIDADE
+}
+
 enum TipoNotificacao {
   NOVA_SKILL
   NOVA_MENSAGEM
@@ -209,10 +224,12 @@ model UsuarioPerfilCandidato {
   skills        CandidatoSkill[]
   formacao      CandidatoFormacaoAcademica[]
   certificacoes CandidatoCertificacoes[]
+  candidatoModalidadeTrabalhos CandidatoModalidadeTrabalho[]
 
   @@unique([usuario_id, perfil_id])
   @@index([ativo, aberto_oportunidades])
   @@map("usuario_perfil_candidato")
+  
 }
 
 model CandidatoSkill {
@@ -260,6 +277,19 @@ model CandidatoCertificacoes {
   @@map("candidato_certificacoes")
 }
 
+model CandidatoModalidadeTrabalho {
+  candidato_id Int
+  modalidade_id Int
+
+  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id],onDelete: Cascade)
+  modalidade ModalidadeTrabalho @relation(fields: [modalidade_id], references: [modalidade_trabalho_id])
+
+  @@id([candidato_id, modalidade_id])
+  @@index([modalidade_id])
+
+  @@map("candidato_modalidade_trabalho")
+}
+
 model Empresa {
   id            Int @id @default(autoincrement())
   recrutador_id Int
@@ -292,24 +322,24 @@ model EmpresaVaga {
   descricao              String
   local_vaga             String?
   modalidade_trabalho_id Int
-  periodo_trabalho_id    Int
-  pcd                    Boolean
-  lgbtq                  Boolean @default(false)
-  mulheres               Boolean @default(false)
-  cinquenta_mais         Boolean @default(false)
+  periodo_trabalho_id    Int  
   qtde_dias_aberta       Int
   qtde_posicao           Int
   data_cadastro          DateTime @default(now())
   ativo                  Boolean @default(true)
   cidade_id              Int
+  tipo_oportunidade      TipoOportunidade @default(AMPLA_CONCORRENCIA)
 
   modalidade_trabalho ModalidadeTrabalho @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
   periodo_trabalho    PeriodoTrabalho    @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
   skills              EmpresaVagaSkill[]
   cidade              EstadoCidade @relation(fields: [cidade_id], references: [id])
   empresa             Empresa @relation("EmpresaVagas", fields: [empresa_id], references: [id])
+  publicos_afirmativos EmpresaVagaPublicoAfirmativo[]
 
   @@index([empresa_id])
+  @@index([tipo_oportunidade])
+  @@index([modalidade_trabalho_id])
   @@map("empresa_vaga")
 }
 
@@ -354,14 +384,19 @@ model Skill {
 }
 
 model ModalidadeTrabalho {
-  modalidade_trabalho_id Int @id @default(autoincrement())
+  modalidade_trabalho_id Int     @id @default(autoincrement())
+  codigo                 String
   modalidade             String
-  ativo                  Boolean
   linguagem              String
+  ativo                  Boolean @default(true)
 
-  vagas EmpresaVaga[]
+  candidatos CandidatoModalidadeTrabalho[]
+  //vagas      EmpresaVagaModalidadeTrabalho[]
+  vagas      EmpresaVaga[]
 
-  @@index([modalidade_trabalho_id])
+  @@unique([codigo, linguagem])
+  @@index([linguagem, ativo])
+
   @@map("modalidade_trabalho")
 }
 
@@ -704,4 +739,18 @@ model AvaliadorAvaliacaoSkillAgenda {
   @@index([data_hora_agenda])  
   @@unique([avaliador_avaliacao_id])
   @@map("avaliador_avaliacao_skill_agenda")
+}
+
+model EmpresaVagaPublicoAfirmativo {
+  id       Int @id @default(autoincrement())
+  vaga_id  Int
+  codigo   PublicoAfirmativo
+
+  vaga EmpresaVaga @relation(fields: [vaga_id], references: [vaga_id], onDelete: Cascade)
+
+  @@index([vaga_id])
+  @@index([codigo])
+  @@unique([vaga_id, codigo])
+
+  @@map("empresa_vaga_publico_afirmativo")
 }
