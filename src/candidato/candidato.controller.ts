@@ -140,6 +140,11 @@ export class CandidatoController {
       [],
     );
 
+    const modalidadesTrabalho = safeJsonParse<number[]>(
+      body.modalidades_trabalho,
+      [],
+    );
+
     // Cria o candidato
     const candidato = await this.candidatoService.createCandidato({
       usuario_id: usuarioId,
@@ -169,6 +174,13 @@ export class CandidatoController {
     };
 
     await this.userService.updateUser(usuarioId, dataUser);
+
+    if (modalidadesTrabalho.length > 0) {
+      await this.candidatoService.createCandidatoModalidades(
+        candidato.id,
+        modalidadesTrabalho,
+      );
+    }
 
     // Monta formacoes
     const montaFormacoes =
@@ -361,6 +373,11 @@ export class CandidatoController {
       [],
     );
 
+    const modalidadesTrabalho = safeJsonParse<number[]>(
+      body.modalidades_trabalho,
+      [],
+    );
+
     const candidatoAtual = await this.candidatoService.getCandidato(
       body.candidatoId,
       usuarioId,
@@ -400,6 +417,11 @@ export class CandidatoController {
     };
 
     await this.userService.updateUser(usuarioId, dataUser);
+
+    await this.candidatoService.updateCandidatoModalidades(
+      body.candidatoId,
+      modalidadesTrabalho,
+    );
 
     // skills existentes
     const skillsExistentes =
