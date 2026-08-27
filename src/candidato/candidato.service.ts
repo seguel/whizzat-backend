@@ -191,6 +191,19 @@ export class CandidatoService {
               },
             },
           },
+          candidatoModalidadeTrabalhos: {
+            select: {
+              modalidade_id: true,
+              modalidade: {
+                select: {
+                  modalidade_trabalho_id: true,
+                  codigo: true,
+                  modalidade: true,
+                  linguagem: true,
+                },
+              },
+            },
+          },
         },
       },
     );
@@ -342,6 +355,23 @@ export class CandidatoService {
     });
   }
 
+  async createCandidatoModalidades(
+    candidatoId: number,
+    modalidadesIds: number[],
+  ) {
+    if (!modalidadesIds.length) return;
+
+    const idsUnicos = [...new Set(modalidadesIds)];
+
+    await this.prisma.candidatoModalidadeTrabalho.createMany({
+      data: idsUnicos.map((modalidadeId) => ({
+        candidato_id: candidatoId,
+        modalidade_id: modalidadeId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   async createCandidatoSkills(skills: Prisma.CandidatoSkillCreateManyInput[]) {
     return this.prisma.candidatoSkill.createMany({
       data: skills,
@@ -399,6 +429,31 @@ export class CandidatoService {
         await this.prisma.candidatoSkill.create({ data: s });
       }
     }
+  }
+
+  async updateCandidatoModalidades(
+    candidatoId: number,
+    modalidadesIds: number[],
+  ) {
+    const idsUnicos = [...new Set(modalidadesIds)];
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.candidatoModalidadeTrabalho.deleteMany({
+        where: {
+          candidato_id: candidatoId,
+        },
+      });
+
+      if (idsUnicos.length > 0) {
+        await tx.candidatoModalidadeTrabalho.createMany({
+          data: idsUnicos.map((modalidadeId) => ({
+            candidato_id: candidatoId,
+            modalidade_id: modalidadeId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    });
   }
 
   async createCandidatoFormacao(

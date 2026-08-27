@@ -1,4 +1,3 @@
-// src/empresa/dto/create-empresa.dto.ts
 import {
   IsNotEmpty,
   IsString,
@@ -7,10 +6,15 @@ import {
   ValidateNested,
   IsArray,
   IsOptional,
+  IsEnum,
 } from 'class-validator';
+
 import { Type } from 'class-transformer';
+
+import { PublicoAfirmativo, TipoOportunidade } from '@prisma/client';
+
 import { CreateVagaSkillDto } from './create-vaga-skill.dto';
-import { CreateNovaSkillDto } from './create-nova-skill.dto'; // ← novo import
+import { CreateNovaSkillDto } from './create-nova-skill.dto';
 
 export class UpdateVagaDto {
   @Type(() => Number)
@@ -41,17 +45,17 @@ export class UpdateVagaDto {
   @IsInt()
   periodo_trabalho_id!: number;
 
-  @IsBoolean()
-  pcd: boolean = false;
+  // ==========================================
+  // TIPO / PÚBLICO DA OPORTUNIDADE
+  // ==========================================
 
-  @IsBoolean()
-  lgbtq: boolean = false;
+  @IsEnum(TipoOportunidade)
+  tipo_oportunidade!: TipoOportunidade;
 
-  @IsBoolean()
-  mulheres: boolean = false;
-
-  @IsBoolean()
-  cinquenta_mais: boolean = false;
+  @IsOptional()
+  @IsArray()
+  @IsEnum(PublicoAfirmativo, { each: true })
+  publicos_afirmativos?: PublicoAfirmativo[];
 
   @Type(() => Number)
   @IsInt()
@@ -66,7 +70,6 @@ export class UpdateVagaDto {
   @Type(() => CreateVagaSkillDto)
   skills!: CreateVagaSkillDto[];
 
-  // 👇 novas skills digitadas pelo usuário
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateNovaSkillDto)
