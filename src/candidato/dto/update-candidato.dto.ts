@@ -120,4 +120,8 @@ export class UpdateCandidatoDto {
   @Transform(booleanTransform)
   @IsBoolean()
   oportunidade_diversidade: boolean = false;
+
+  @IsOptional()
+  @IsString()
+  modalidades_trabalho?: string;
 }

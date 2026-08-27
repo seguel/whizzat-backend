@@ -108,4 +108,8 @@ export class CreateCandidatoDto {
   @IsBoolean()
   @ToBoolean()
   oportunidade_diversidade?: boolean;
+
+  @IsOptional()
+  @IsString()
+  modalidades_trabalho?: string;
 }

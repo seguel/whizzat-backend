@@ -41,15 +41,18 @@ export class VagaController {
       local_vaga: body.local_vaga,
       modalidade_trabalho_id: body.modalidade_trabalho_id,
       periodo_trabalho_id: body.periodo_trabalho_id,
-      pcd: body.pcd,
-      lgbtq: body.lgbtq,
-      mulheres: body.mulheres,
-      cinquenta_mais: body.cinquenta_mais,
+      tipo_oportunidade: body.tipo_oportunidade,
       qtde_dias_aberta: body.qtde_dias_aberta,
       qtde_posicao: body.qtde_posicao,
       data_cadastro: new Date(),
       cidade_id: body.cidade_id,
     });
+
+    await this.vagaService.updateVagaPublicosAfirmativos(
+      vaga.vaga_id,
+      body.tipo_oportunidade,
+      body.publicos_afirmativos ?? [],
+    );
 
     // Skills já existentes
     const skillsExistentes =
@@ -130,15 +133,18 @@ export class VagaController {
       local_vaga: body.local_vaga,
       modalidade_trabalho_id: body.modalidade_trabalho_id,
       periodo_trabalho_id: body.periodo_trabalho_id,
-      pcd: body.pcd,
-      lgbtq: body.lgbtq,
-      mulheres: body.mulheres,
-      cinquenta_mais: body.cinquenta_mais,
+      tipo_oportunidade: body.tipo_oportunidade,
       qtde_dias_aberta: body.qtde_dias_aberta,
       qtde_posicao: body.qtde_posicao,
       ativo: body.ativo,
       cidade_id: body.cidade_id,
     });
+
+    await this.vagaService.updateVagaPublicosAfirmativos(
+      body.vaga_id,
+      body.tipo_oportunidade,
+      body.publicos_afirmativos ?? [],
+    );
 
     // skills existentes
     const skillsExistentes =
