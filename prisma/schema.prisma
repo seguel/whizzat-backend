@@ -649,6 +649,20 @@ model EmpresaVagaPublicoAfirmativo {
   @@map("empresa_vaga_publico_afirmativo")
 }
 
+model RecrutadorCandidatoExclusao {
+  id            Int      @id @default(autoincrement())
+  recrutador_id Int
+  candidato_id  Int
+  motivo        String?
+  data_cadastro DateTime @default(now())
+  ativo         Boolean  @default(true)
+
+  @@unique([recrutador_id, candidato_id])
+  @@index([recrutador_id, ativo])
+  @@index([candidato_id])
+  @@map("recrutador_candidato_exclusao")
+}
+
 enum PerfilTipo {
   CANDIDATO
   RECRUTADOR
