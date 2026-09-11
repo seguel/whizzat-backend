@@ -1,6 +1,12 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
+
+const prisma = new PrismaClient({ adapter });
 
 interface CidadeIBGE {
   id: number;
@@ -8,15 +14,14 @@ interface CidadeIBGE {
 }
 
 async function main() {
-  // 1️⃣ Pega todos os estados cadastrados
   const estados = await prisma.estado.findMany();
 
   for (const estado of estados) {
     try {
       console.log(`Populando cidades para o estado ${estado.sigla}...`);
 
-      // 2️⃣ Chama a API do IBGE
       const url = `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${estado.sigla}/municipios`;
+
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -25,18 +30,16 @@ async function main() {
 
       const cidadesIBGE = (await response.json()) as CidadeIBGE[];
 
-      // 3️⃣ Prepara dados para inserir
       const cidadesData = cidadesIBGE.map((c) => ({
         estado_id: estado.id,
         cidade: c.nome,
         cep: null,
       }));
 
-      // 4️⃣ Inserção
       if (cidadesData.length > 0) {
-        await prisma.estado_cidade.createMany({
+        await prisma.estadoCidade.createMany({
           data: cidadesData,
-          skipDuplicates: true, // evita duplicações
+          skipDuplicates: true,
         });
       }
 
@@ -52,7 +55,10 @@ async function main() {
 }
 
 main()
-  .catch((e) => console.error(e))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(async () => {
     await prisma.$disconnect();
   });
