@@ -1,2 +1,0 @@
--- AlterEnum
-ALTER TYPE "TipoNotificacao" ADD VALUE 'CADASTRO_AVALIADOR';
