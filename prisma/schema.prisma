@@ -58,6 +58,7 @@ model UsuarioPerfilRecrutador {
   empresas         Empresa[]
   perfil           Perfil    @relation(fields: [perfil_id], references: [id])
   usuario          Usuario   @relation(fields: [usuario_id], references: [id])
+  candidatos_excluidos RecrutadorCandidatoExclusao[]
 
   @@unique([usuario_id, perfil_id])
   @@map("usuario_perfil_recrutador")
@@ -160,6 +161,7 @@ model UsuarioPerfilCandidato {
   skills                         CandidatoSkill[]
   perfil                         Perfil                        @relation(fields: [perfil_id], references: [id])
   usuario                        Usuario                       @relation(fields: [usuario_id], references: [id])
+  exclusoes_recrutador RecrutadorCandidatoExclusao[]
 
   @@unique([usuario_id, perfil_id])
   @@index([ativo, aberto_oportunidades])
@@ -656,6 +658,10 @@ model RecrutadorCandidatoExclusao {
   motivo        String?
   data_cadastro DateTime @default(now())
   ativo         Boolean  @default(true)
+
+  recrutador UsuarioPerfilRecrutador @relation(fields: [recrutador_id], references: [id], onDelete: Cascade)
+
+  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id],  references: [id], onDelete: Cascade)
 
   @@unique([recrutador_id, candidato_id])
   @@index([recrutador_id, ativo])

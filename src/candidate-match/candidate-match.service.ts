@@ -35,13 +35,16 @@ export class CandidateMatchService {
     limite: number;
     faixa: FaixaMatch;
   }) {
-    await this.validarAcessoRecrutador(usuarioId, empresaId);
+    const recrutador = await this.validarAcessoRecrutador(usuarioId, empresaId);
 
     const vaga = await this.buscarVagaParaMatch(vagaId, empresaId);
 
     this.validarPrazoVaga(vaga.data_cadastro, vaga.qtde_dias_aberta);
 
-    const candidatos = await this.buscarCandidatosBase(vaga.empresa.linguagem);
+    const candidatos = await this.buscarCandidatosBase(
+      vaga.empresa.linguagem,
+      recrutador.id,
+    );
 
     const candidatosElegiveis = candidatos
       .filter((candidato) =>
@@ -280,7 +283,7 @@ export class CandidateMatchService {
     return recrutador;
   }
 
-  private async buscarCandidatosBase(lang: string) {
+  private async buscarCandidatosBase(lang: string, recrutadorId: number) {
     return this.prisma.usuarioPerfilCandidato.findMany({
       where: {
         ativo: true,
@@ -289,6 +292,13 @@ export class CandidateMatchService {
 
         usuario: {
           ativo: true,
+        },
+
+        exclusoes_recrutador: {
+          none: {
+            recrutador_id: recrutadorId,
+            ativo: true,
+          },
         },
       },
 
@@ -601,5 +611,402 @@ export class CandidateMatchService {
      * silenciosamente.
      */
     return false;
+  }
+
+  async ignorarCandidato({
+    usuarioId,
+    candidatoId,
+    motivo,
+  }: {
+    usuarioId: number;
+    candidatoId: number;
+    motivo: string | null;
+  }) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new BadRequestException(
+        'Perfil de recrutador não encontrado ou inativo.',
+      );
+    }
+
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        id: candidatoId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Candidato não encontrado ou inativo.');
+    }
+
+    await this.prisma.recrutadorCandidatoExclusao.upsert({
+      where: {
+        recrutador_id_candidato_id: {
+          recrutador_id: recrutador.id,
+          candidato_id: candidatoId,
+        },
+      },
+
+      update: {
+        ativo: true,
+        motivo,
+        data_cadastro: new Date(),
+      },
+
+      create: {
+        recrutador_id: recrutador.id,
+        candidato_id: candidatoId,
+        motivo,
+        ativo: true,
+      },
+    });
+
+    return {
+      sucesso: true,
+      candidato_id: candidatoId,
+    };
+  }
+
+  private async buscarRecrutadorPorUsuario(usuarioId: number) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new BadRequestException(
+        'Perfil de recrutador não encontrado ou inativo.',
+      );
+    }
+
+    return recrutador;
+  }
+
+  async listarIgnorados(usuarioId: number) {
+    const recrutador = await this.buscarRecrutadorPorUsuario(usuarioId);
+
+    const ignorados = await this.prisma.recrutadorCandidatoExclusao.findMany({
+      where: {
+        recrutador_id: recrutador.id,
+        ativo: true,
+      },
+
+      orderBy: {
+        data_cadastro: 'desc',
+      },
+
+      select: {
+        candidato_id: true,
+        motivo: true,
+        data_cadastro: true,
+
+        candidato: {
+          select: {
+            id: true,
+            logo: true,
+
+            usuario: {
+              select: {
+                primeiro_nome: true,
+                ultimo_nome: true,
+                nome_social: true,
+
+                cidade: {
+                  select: {
+                    cidade: true,
+
+                    estado: {
+                      select: {
+                        sigla: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return ignorados.map((item) => ({
+      candidato_id: item.candidato_id,
+
+      nome:
+        item.candidato.usuario.nome_social?.trim() ||
+        `${item.candidato.usuario.primeiro_nome} ${item.candidato.usuario.ultimo_nome}`.trim(),
+
+      logo: item.candidato.logo,
+
+      localizacao: item.candidato.usuario.cidade
+        ? `${item.candidato.usuario.cidade.cidade}/${item.candidato.usuario.cidade.estado.sigla}`
+        : null,
+
+      motivo: item.motivo,
+      data_ignorado: item.data_cadastro,
+    }));
+  }
+
+  async restaurarCandidato({
+    usuarioId,
+    candidatoId,
+  }: {
+    usuarioId: number;
+    candidatoId: number;
+  }) {
+    const recrutador = await this.buscarRecrutadorPorUsuario(usuarioId);
+
+    const resultado = await this.prisma.recrutadorCandidatoExclusao.updateMany({
+      where: {
+        recrutador_id: recrutador.id,
+        candidato_id: candidatoId,
+        ativo: true,
+      },
+
+      data: {
+        ativo: false,
+      },
+    });
+
+    if (resultado.count === 0) {
+      throw new NotFoundException('Candidato ignorado não encontrado.');
+    }
+
+    return {
+      sucesso: true,
+      candidato_id: candidatoId,
+    };
+  }
+
+  async restaurarCandidatos({
+    usuarioId,
+    candidatoIds,
+  }: {
+    usuarioId: number;
+    candidatoIds: number[];
+  }) {
+    const recrutador = await this.buscarRecrutadorPorUsuario(usuarioId);
+
+    const idsUnicos = [...new Set(candidatoIds)];
+
+    const resultado = await this.prisma.recrutadorCandidatoExclusao.updateMany({
+      where: {
+        recrutador_id: recrutador.id,
+        candidato_id: {
+          in: idsUnicos,
+        },
+        ativo: true,
+      },
+
+      data: {
+        ativo: false,
+      },
+    });
+
+    return {
+      sucesso: true,
+      restaurados: resultado.count,
+    };
+  }
+
+  async buscarPerfilCandidato({
+    usuarioId,
+    candidatoId,
+  }: {
+    usuarioId: number;
+    candidatoId: number;
+  }) {
+    const recrutador = await this.buscarRecrutadorPorUsuario(usuarioId);
+
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        id: candidatoId,
+        ativo: true,
+        usuario: {
+          ativo: true,
+        },
+      },
+
+      select: {
+        id: true,
+        apresentacao: true,
+        logo: true,
+        aberto_oportunidades: true,
+
+        usuario: {
+          select: {
+            primeiro_nome: true,
+            ultimo_nome: true,
+            nome_social: true,
+
+            cidade: {
+              select: {
+                cidade: true,
+
+                estado: {
+                  select: {
+                    sigla: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        skills: {
+          select: {
+            peso: true,
+            peso_avaliador: true,
+            data_ultima_avaliacao: true,
+
+            skill: {
+              select: {
+                skill_id: true,
+                skill: true,
+                tipo_skill_id: true,
+              },
+            },
+          },
+        },
+
+        formacao: {
+          select: {
+            id: true,
+            graduacao_id: true,
+            formacao: true,
+            certificado_file: true,
+
+            graduacao: {
+              select: {
+                id: true,
+                graduacao: true,
+              },
+            },
+          },
+        },
+
+        certificacoes: {
+          select: {
+            id: true,
+            certificacao_id: true,
+            certificado_file: true,
+
+            certificacoes: {
+              select: {
+                id: true,
+                certificado: true,
+              },
+            },
+          },
+        },
+
+        candidatoModalidadeTrabalhos: {
+          select: {
+            modalidade_id: true,
+
+            modalidade: {
+              select: {
+                modalidade_trabalho_id: true,
+                modalidade: true,
+                codigo: true,
+              },
+            },
+          },
+        },
+
+        exclusoes_recrutador: {
+          where: {
+            recrutador_id: recrutador.id,
+            ativo: true,
+          },
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Candidato não encontrado.');
+    }
+
+    if (candidato.exclusoes_recrutador.length > 0) {
+      throw new BadRequestException(
+        'Este candidato está ignorado pelo recrutador.',
+      );
+    }
+
+    const nome =
+      candidato.usuario.nome_social?.trim() ||
+      `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim();
+
+    const localizacao = candidato.usuario.cidade
+      ? `${candidato.usuario.cidade.cidade}/${candidato.usuario.cidade.estado.sigla}`
+      : null;
+
+    const skills = candidato.skills.map((item) => {
+      const nivel =
+        item.peso_avaliador != null ? item.peso_avaliador : item.peso;
+
+      return {
+        skill_id: item.skill.skill_id,
+        nome: item.skill.skill,
+        tipo_skill_id: item.skill.tipo_skill_id,
+        nivel,
+        avaliado: item.peso_avaliador != null,
+        data_ultima_avaliacao: item.data_ultima_avaliacao,
+      };
+    });
+
+    return {
+      candidato_id: candidato.id,
+      nome,
+      logo: candidato.logo,
+      localizacao,
+      apresentacao: candidato.apresentacao,
+
+      modalidades: candidato.candidatoModalidadeTrabalhos.map((item) => ({
+        modalidade_id: item.modalidade.modalidade_trabalho_id,
+        codigo: item.modalidade.codigo,
+        nome: item.modalidade.modalidade,
+      })),
+
+      hard_skills: skills.filter((item) => item.tipo_skill_id === 1),
+
+      soft_skills: skills.filter((item) => item.tipo_skill_id === 2),
+
+      formacao: candidato.formacao.map((item) => ({
+        id: item.id,
+        graduacao_id: item.graduacao_id,
+        graduacao: item.graduacao.graduacao,
+        formacao: item.formacao,
+        certificado_file: item.certificado_file,
+      })),
+
+      certificacoes: candidato.certificacoes.map((item) => ({
+        id: item.id,
+        certificacao_id: item.certificacao_id,
+        certificacao: item.certificacoes.certificado,
+        certificado_file: item.certificado_file,
+      })),
+    };
   }
 }
