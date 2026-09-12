@@ -1,9 +1,672 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
 }
 
-generator client {
-  provider = "prisma-client-js"
+model Usuario {
+  id              Int                       @id @default(autoincrement())
+  primeiro_nome   String
+  ultimo_nome     String
+  email           String                    @unique
+  senha           String
+  id_perfil       Int?
+  ativo           Boolean                   @default(false)
+  createdAt       DateTime                  @default(now())
+  linguagem       String
+  cidade_id       Int
+  data_nascimento DateTime
+  genero_id       Int
+  nome_social     String?
+  notificacao     Notificacao[]
+  cidade          EstadoCidade              @relation(fields: [cidade_id], references: [id])
+  genero          Genero                    @relation(fields: [genero_id], references: [id])
+  avaliador       UsuarioPerfilAvaliador[]
+  candidato       UsuarioPerfilCandidato[]
+  recrutador      UsuarioPerfilRecrutador[]
+
+  @@map("usuario")
+}
+
+model Perfil {
+  id             Int                       @id @default(autoincrement())
+  perfil         String
+  descricao      String
+  ativo          Boolean                   @default(true)
+  usuario_perfil UsuarioPerfil[]
+  avaliador      UsuarioPerfilAvaliador[]
+  candidato      UsuarioPerfilCandidato[]
+  recrutador     UsuarioPerfilRecrutador[]
+
+  @@map("perfil")
+}
+
+model UsuarioPerfilRecrutador {
+  id               Int       @id @default(autoincrement())
+  usuario_id       Int
+  perfil_id        Int
+  telefone         String
+  localizacao      String?
+  apresentacao     String
+  logo             String
+  meio_notificacao String
+  data_cadastro    DateTime  @default(now())
+  ativo            Boolean   @default(true)
+  linguagem        String
+  empresas         Empresa[]
+  perfil           Perfil    @relation(fields: [perfil_id], references: [id])
+  usuario          Usuario   @relation(fields: [usuario_id], references: [id])
+  candidatos_excluidos RecrutadorCandidatoExclusao[]
+
+  @@unique([usuario_id, perfil_id])
+  @@map("usuario_perfil_recrutador")
+}
+
+model UsuarioPerfilAvaliador {
+  id                     Int                          @id @default(autoincrement())
+  usuario_id             Int
+  perfil_id              Int
+  empresa_id             Int?
+  telefone               String
+  localizacao            String?
+  apresentacao           String
+  logo                   String
+  avaliar_todos          Boolean                      @default(false)
+  meio_notificacao       String
+  data_cadastro          DateTime                     @default(now())
+  ativo                  Boolean                      @default(true)
+  status_cadastro        Int                          @default(-1)
+  data_envio_link        DateTime                     @default(now())
+  linguagem              String
+  pontos                 Int                          @default(10)
+  liberado_avaliar       Boolean                      @default(false)
+  avaliacaoSkill         AvaliadorAvaliacaoSkill[]
+  certificacoes          AvaliadorCertificacoes[]
+  formacao               AvaliadorFormacaoAcademica[]
+  avaliadorQuestionarios AvaliadorQuestionario[]
+  avaliadorRanking       AvaliadorRankingAvaliacao[]
+  skills                 AvaliadorSkill[]
+  avaliacoesCandidato    CandidatoAvaliacaoSkill[]
+  empresa                Empresa?                     @relation(fields: [empresa_id], references: [id])
+  perfil                 Perfil                       @relation(fields: [perfil_id], references: [id])
+  usuario                Usuario                      @relation(fields: [usuario_id], references: [id])
+
+  @@unique([usuario_id, perfil_id])
+  @@index([ativo, avaliar_todos, liberado_avaliar, linguagem])
+  @@map("usuario_perfil_avaliador")
+}
+
+model AvaliadorSkill {
+  id             Int                    @id @default(autoincrement())
+  avaliador_id   Int
+  skill_id       Int
+  peso           Int
+  favorito       Boolean
+  tempo_favorito String
+  avaliador      UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  skill          Skill                  @relation(fields: [skill_id], references: [skill_id])
+
+  @@index([skill_id])
+  @@map("avaliador_skill")
+}
+
+model AvaliadorFormacaoAcademica {
+  id               Int                    @id @default(autoincrement())
+  avaliador_id     Int
+  graduacao_id     Int
+  formacao         String
+  certificado_file String
+  avaliador        UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  graduacao        Graduacao              @relation(fields: [graduacao_id], references: [id])
+
+  @@index([avaliador_id])
+  @@map("avaliador_formacao_academica")
+}
+
+model AvaliadorCertificacoes {
+  id               Int                    @id @default(autoincrement())
+  avaliador_id     Int
+  certificacao_id  Int
+  certificado_file String
+  avaliador        UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
+  certificacoes    Certificacoes          @relation(fields: [certificacao_id], references: [id])
+
+  @@index([avaliador_id])
+  @@map("avaliador_certificacoes")
+}
+
+model UsuarioPerfilCandidato {
+  id                             Int                           @id @default(autoincrement())
+  usuario_id                     Int
+  perfil_id                      Int
+  telefone                       String
+  localizacao                    String?
+  apresentacao                   String
+  logo                           String
+  meio_notificacao               String
+  data_cadastro                  DateTime                      @default(now())
+  ativo                          Boolean                       @default(true)
+  linguagem                      String
+  aberto_oportunidades           Boolean                       @default(true)
+  oportunidade_50mais            Boolean                       @default(false)
+  oportunidade_afirmativa_racial Boolean                       @default(false)
+  oportunidade_diversidade       Boolean                       @default(false)
+  oportunidade_lgbtqia           Boolean                       @default(false)
+  oportunidade_pcd               Boolean                       @default(false)
+  certificacoes                  CandidatoCertificacoes[]
+  formacao                       CandidatoFormacaoAcademica[]
+  candidatoModalidadeTrabalhos   CandidatoModalidadeTrabalho[]
+  skills                         CandidatoSkill[]
+  perfil                         Perfil                        @relation(fields: [perfil_id], references: [id])
+  usuario                        Usuario                       @relation(fields: [usuario_id], references: [id])
+  exclusoes_recrutador RecrutadorCandidatoExclusao[]
+
+  @@unique([usuario_id, perfil_id])
+  @@index([ativo, aberto_oportunidades])
+  @@map("usuario_perfil_candidato")
+}
+
+model CandidatoSkill {
+  id                    Int                       @id @default(autoincrement())
+  candidato_id          Int
+  skill_id              Int
+  peso                  Int
+  favorito              Boolean
+  tempo_favorito        String
+  data_ultima_avaliacao DateTime?
+  peso_avaliador        Int?
+  avaliacoes            CandidatoAvaliacaoSkill[]
+  candidato             UsuarioPerfilCandidato    @relation(fields: [candidato_id], references: [id])
+  skill                 Skill                     @relation(fields: [skill_id], references: [skill_id])
+
+  @@index([candidato_id])
+  @@map("candidato_skill")
+}
+
+model CandidatoFormacaoAcademica {
+  id               Int                    @id @default(autoincrement())
+  candidato_id     Int
+  graduacao_id     Int
+  formacao         String
+  certificado_file String
+  candidato        UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
+  graduacao        Graduacao              @relation(fields: [graduacao_id], references: [id])
+
+  @@index([candidato_id])
+  @@map("candidato_formacao_academica")
+}
+
+model CandidatoCertificacoes {
+  id               Int                    @id @default(autoincrement())
+  candidato_id     Int
+  certificacao_id  Int
+  certificado_file String
+  candidato        UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
+  certificacoes    Certificacoes          @relation(fields: [certificacao_id], references: [id])
+
+  @@index([candidato_id])
+  @@map("candidato_certificacoes")
+}
+
+model CandidatoModalidadeTrabalho {
+  candidato_id  Int
+  modalidade_id Int
+  candidato     UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id], onDelete: Cascade)
+  modalidade    ModalidadeTrabalho     @relation(fields: [modalidade_id], references: [modalidade_trabalho_id])
+
+  @@id([candidato_id, modalidade_id])
+  @@index([modalidade_id])
+  @@map("candidato_modalidade_trabalho")
+}
+
+model Empresa {
+  id            Int                      @id @default(autoincrement())
+  recrutador_id Int
+  nome_empresa  String
+  website       String
+  email         String
+  telefone      String
+  localizacao   String?
+  apresentacao  String
+  logo          String
+  imagem_fundo  String
+  data_cadastro DateTime                 @default(now())
+  ativo         Boolean                  @default(true)
+  linguagem     String
+  cidade_id     Int
+  cidade        EstadoCidade             @relation(fields: [cidade_id], references: [id])
+  recrutador    UsuarioPerfilRecrutador  @relation(fields: [recrutador_id], references: [id])
+  vagas         EmpresaVaga[]            @relation("EmpresaVagas")
+  avaliadores   UsuarioPerfilAvaliador[]
+
+  @@index([id, recrutador_id])
+  @@map("empresa")
+}
+
+model EmpresaVaga {
+  vaga_id                Int                            @id @default(autoincrement())
+  empresa_id             Int
+  nome_vaga              String
+  descricao              String
+  local_vaga             String?
+  modalidade_trabalho_id Int
+  periodo_trabalho_id    Int
+  qtde_dias_aberta       Int
+  qtde_posicao           Int
+  data_cadastro          DateTime                       @default(now())
+  ativo                  Boolean                        @default(true)
+  cidade_id              Int
+  tipo_oportunidade      TipoOportunidade               @default(AMPLA_CONCORRENCIA)
+  cidade                 EstadoCidade                   @relation(fields: [cidade_id], references: [id])
+  empresa                Empresa                        @relation("EmpresaVagas", fields: [empresa_id], references: [id])
+  modalidade_trabalho    ModalidadeTrabalho             @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
+  periodo_trabalho       PeriodoTrabalho                @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
+  publicos_afirmativos   EmpresaVagaPublicoAfirmativo[]
+  skills                 EmpresaVagaSkill[]
+
+  @@index([empresa_id])
+  @@index([tipo_oportunidade])
+  @@index([modalidade_trabalho_id])
+  @@map("empresa_vaga")
+}
+
+model EmpresaVagaSkill {
+  id                Int         @id @default(autoincrement())
+  vaga_id           Int
+  skill_id          Int
+  peso              Int
+  avaliador_proprio Boolean
+  skill             Skill       @relation(fields: [skill_id], references: [skill_id])
+  vaga              EmpresaVaga @relation(fields: [vaga_id], references: [vaga_id])
+
+  @@index([vaga_id])
+  @@map("empresa_vaga_skill")
+}
+
+model TipoSkill {
+  id         Int     @id @default(autoincrement())
+  tipo_Skill String
+  skills     Skill[]
+
+  @@index([id])
+  @@map("tipo_skill")
+}
+
+model Skill {
+  skill_id      Int                @id @default(autoincrement())
+  skill         String             @unique
+  tipo_skill_id Int
+  ativo         Boolean            @default(true)
+  linguagem     String
+  avaliadores   AvaliadorSkill[]
+  candidato     CandidatoSkill[]
+  vagas         EmpresaVagaSkill[]
+  tipo_skill    TipoSkill          @relation(fields: [tipo_skill_id], references: [id])
+
+  @@index([skill_id])
+  @@map("skill")
+}
+
+model ModalidadeTrabalho {
+  modalidade_trabalho_id Int                           @id @default(autoincrement())
+  modalidade             String
+  ativo                  Boolean                       @default(true)
+  linguagem              String
+  codigo                 String                        @default("")
+  candidatos             CandidatoModalidadeTrabalho[]
+  vagas                  EmpresaVaga[]
+
+  @@unique([codigo, linguagem])
+  @@index([linguagem, ativo])
+  @@map("modalidade_trabalho")
+}
+
+model PeriodoTrabalho {
+  periodo_trabalho_id Int           @id @default(autoincrement())
+  periodo             String
+  ativo               Boolean
+  linguagem           String
+  vagas               EmpresaVaga[]
+
+  @@index([periodo_trabalho_id])
+  @@map("periodo_trabalho")
+}
+
+model Certificacoes {
+  id                      Int                      @id @default(autoincrement())
+  certificado             String                   @unique
+  ativo                   Boolean                  @default(true)
+  linguagem               String
+  avaliadores_certificado AvaliadorCertificacoes[]
+  candidato_certificado   CandidatoCertificacoes[]
+
+  @@index([id])
+  @@map("certificacoes")
+}
+
+model Graduacao {
+  id                   Int                          @id @default(autoincrement())
+  graduacao            String
+  ativo                Boolean                      @default(true)
+  linguagem            String
+  avaliadores_formacao AvaliadorFormacaoAcademica[]
+  candidatos_formacao  CandidatoFormacaoAcademica[]
+
+  @@index([id])
+  @@map("graduacao")
+}
+
+model Genero {
+  id        Int       @id @default(autoincrement())
+  genero    String
+  ativo     Boolean   @default(true)
+  linguagem String
+  usuario   Usuario[]
+
+  @@index([id])
+  @@map("genero")
+}
+
+model Estado {
+  id        Int            @id @default(autoincrement())
+  estado    String
+  sigla     String
+  linguagem String
+  cidade    EstadoCidade[]
+
+  @@index([id])
+  @@map("estado")
+}
+
+model EstadoCidade {
+  id        Int           @id @default(autoincrement())
+  estado_id Int
+  cidade    String
+  cep       String?
+  empresa   Empresa[]
+  vaga      EmpresaVaga[]
+  estado    Estado        @relation(fields: [estado_id], references: [id])
+  usuario   Usuario[]
+
+  @@unique([estado_id, cidade])
+  @@map("estado_cidade")
+}
+
+model Plano {
+  id        Int              @id @default(autoincrement())
+  plano     String
+  ativo     Boolean          @default(true)
+  highlight Boolean          @default(false)
+  itens     PlanoItens[]
+  linguagem PlanoLinguagem[]
+  periodos  PlanoPeriodo[]
+
+  @@index([id])
+  @@map("plano")
+}
+
+model PlanoLinguagem {
+  id        Int     @id @default(autoincrement())
+  plano_id  Int
+  plano     String
+  linguagem String
+  descricao String?
+  planos    Plano   @relation(fields: [plano_id], references: [id])
+
+  @@index([id])
+  @@index([plano_id])
+  @@map("plano_linguagem")
+}
+
+model PlanoItens {
+  id        Int    @id @default(autoincrement())
+  plano_id  Int
+  descricao String
+  ordem     Int
+  linguagem String
+  plano     Plano  @relation(fields: [plano_id], references: [id])
+
+  @@index([plano_id])
+  @@map("plano_itens")
+}
+
+model PlanoPeriodo {
+  id            Int                  @id @default(autoincrement())
+  plano_id      Int
+  periodo       String
+  validade_dias Int
+  valor         Decimal              @db.Decimal(10, 2)
+  ativo         Boolean              @default(true)
+  perfil_id     Int                  @default(0)
+  valor_old     Decimal?             @db.Decimal(10, 2)
+  desconto      Int?
+  plano         Plano                @relation(fields: [plano_id], references: [id])
+  usuario_plano UsuarioPerfilPlano[]
+
+  @@index([plano_id])
+  @@index([plano_id, perfil_id])
+  @@map("plano_periodo")
+}
+
+model UsuarioPerfil {
+  id         Int                 @id @default(autoincrement())
+  usuario_id Int
+  perfil_id  Int
+  perfil     Perfil              @relation(fields: [perfil_id], references: [id])
+  planos     UsuarioPerfilPlano?
+
+  @@unique([usuario_id, perfil_id])
+  @@index([usuario_id])
+  @@map("usuario_perfil")
+}
+
+model UsuarioPerfilPlano {
+  id                Int             @id @default(autoincrement())
+  usuario_perfil_id Int             @unique
+  plano_periodo_id  Int
+  ativo             Boolean         @default(false)
+  data_inicio       DateTime        @default(now())
+  pagto_pendente    Boolean         @default(true)
+  pagto_log         PlanoPagtoLog[]
+  periodo           PlanoPeriodo    @relation(fields: [plano_periodo_id], references: [id])
+  usuario_perfil    UsuarioPerfil   @relation(fields: [usuario_perfil_id], references: [id])
+
+  @@index([usuario_perfil_id])
+  @@map("usuario_perfil_plano")
+}
+
+model PlanoPagtoLog {
+  id                      Int                @id @default(autoincrement())
+  usuario_perfil_plano_id Int
+  transacao_id            String             @unique
+  data_pagto              DateTime           @default(now())
+  valor                   Decimal            @db.Decimal(10, 2)
+  status                  String
+  usuario_plano           UsuarioPerfilPlano @relation(fields: [usuario_perfil_plano_id], references: [id])
+
+  @@index([usuario_perfil_plano_id])
+  @@map("plano_pagto_log")
+}
+
+model CandidatoAvaliacaoSkill {
+  id                    Int                         @id @default(autoincrement())
+  candidato_skill_id    Int
+  data_avaliacao        DateTime?
+  avaliacao_pendente    Boolean                     @default(true)
+  prioridade_ordem      Int
+  reavaliar             Boolean                     @default(false)
+  data_pedido_reavaliar DateTime?
+  avaliador_id          Int?
+  linguagem             String
+  tentativas_convite    Int                         @default(0)
+  avaliacaoSkill        AvaliadorAvaliacaoSkill[]
+  avaliadorRanking      AvaliadorRankingAvaliacao[]
+  avaliador             UsuarioPerfilAvaliador?     @relation(fields: [avaliador_id], references: [id])
+  candidatoSkill        CandidatoSkill              @relation(fields: [candidato_skill_id], references: [id])
+
+  @@index([avaliador_id])
+  @@index([candidato_skill_id])
+  @@map("candidato_avaliacao_skill")
+}
+
+model AvaliadorRankingAvaliacao {
+  id                 Int                     @id @default(autoincrement())
+  avaliador_id       Int
+  avaliacao_skill_id Int
+  data_convite       DateTime                @default(now())
+  data_expiracao     DateTime
+  aceite             Boolean?
+  data_aceite_recusa DateTime?
+  candidatoSkill     CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id])
+  avaliador          UsuarioPerfilAvaliador  @relation(fields: [avaliador_id], references: [id])
+
+  @@index([avaliador_id, avaliacao_skill_id])
+  @@index([avaliacao_skill_id])
+  @@index([avaliador_id])
+  @@index([aceite])
+  @@index([data_expiracao])
+  @@index([avaliador_id, aceite])
+  @@map("avaliador_ranking_avaliacao")
+}
+
+model AvaliadorAvaliacaoSkill {
+  id                         Int                               @id @default(autoincrement())
+  avaliador_id               Int
+  avaliacao_skill_id         Int
+  data_avaliacao             DateTime?
+  peso                       Int?
+  comentario                 String?
+  data_aceite                DateTime                          @default(now())
+  data_resposta_questionario DateTime?
+  questionario_id            Int?
+  status                     StatusAvaliacao                   @default(CONVITE_ACEITO)
+  data_envio_formulario      DateTime?
+  comentario_resposta        String?
+  candidatoSkill             CandidatoAvaliacaoSkill           @relation(fields: [avaliacao_skill_id], references: [id], onDelete: Cascade)
+  avaliador                  UsuarioPerfilAvaliador            @relation(fields: [avaliador_id], references: [id], onDelete: Cascade)
+  questionario               AvaliadorQuestionario?            @relation(fields: [questionario_id], references: [id])
+  agenda                     AvaliadorAvaliacaoSkillAgenda?
+  resposta                   AvaliadorAvaliacaoSkillResposta[]
+
+  @@unique([avaliador_id, avaliacao_skill_id])
+  @@index([avaliador_id])
+  @@index([avaliacao_skill_id])
+  @@index([avaliador_id, data_avaliacao])
+  @@index([questionario_id])
+  @@map("avaliador_avaliacao_skill")
+}
+
+model Notificacao {
+  id            Int             @id @default(autoincrement())
+  usuario_id    Int
+  perfil_tipo   PerfilTipo
+  perfil_id     Int
+  tipo          TipoNotificacao
+  referencia_id Int?
+  titulo        String
+  mensagem      String
+  lida          Boolean         @default(false)
+  enviada_email Boolean         @default(false)
+  criado_em     DateTime        @default(now())
+  usuario       Usuario         @relation(fields: [usuario_id], references: [id])
+
+  @@unique([perfil_tipo, usuario_id, tipo, referencia_id, titulo])
+  @@index([usuario_id, perfil_tipo])
+  @@index([usuario_id, perfil_tipo, lida])
+  @@index([usuario_id, lida])
+  @@index([enviada_email])
+  @@map("notificacao")
+}
+
+model AvaliadorQuestionario {
+  id           Int                             @id @default(autoincrement())
+  avaliador_id Int
+  titulo       String
+  ativo        Boolean                         @default(true)
+  data_criacao DateTime                        @default(now())
+  comentario   String?
+  avaliacao    AvaliadorAvaliacaoSkill[]
+  avaliador    UsuarioPerfilAvaliador          @relation(fields: [avaliador_id], references: [id])
+  pergunta     AvaliadorQuestionarioPergunta[]
+
+  @@unique([avaliador_id, titulo])
+  @@index([avaliador_id, ativo])
+  @@map("avaliador_questionario")
+}
+
+model AvaliadorQuestionarioPergunta {
+  id              Int                               @id @default(autoincrement())
+  questionario_id Int
+  pergunta        String
+  resposta_base   String?
+  tipo_pergunta   TipoPergunta                      @default(CAIXA_TEXTO)
+  ativo           Boolean                           @default(true)
+  ordem           Int
+  obrigatorio     Boolean                           @default(false)
+  resposta        AvaliadorAvaliacaoSkillResposta[]
+  questionario    AvaliadorQuestionario             @relation(fields: [questionario_id], references: [id], onDelete: Cascade)
+
+  @@index([questionario_id, ativo])
+  @@index([questionario_id, ordem])
+  @@map("avaliador_questionario_pergunta")
+}
+
+model AvaliadorAvaliacaoSkillResposta {
+  id                       Int                           @id @default(autoincrement())
+  avaliador_avaliacao_id   Int
+  questionario_pergunta_id Int
+  resposta                 String?
+  avaliacao                AvaliadorAvaliacaoSkill       @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
+  pergunta                 AvaliadorQuestionarioPergunta @relation(fields: [questionario_pergunta_id], references: [id])
+
+  @@unique([avaliador_avaliacao_id, questionario_pergunta_id])
+  @@index([avaliador_avaliacao_id, questionario_pergunta_id])
+  @@map("avaliador_avaliacao_skill_resposta")
+}
+
+model AvaliadorAvaliacaoSkillAgenda {
+  id                     Int                     @id @default(autoincrement())
+  avaliador_avaliacao_id Int                     @unique
+  data_hora_agenda       DateTime
+  status                 AgendaStatus            @default(PENDENTE)
+  data_criacao           DateTime                @default(now())
+  avaliacao              AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
+
+  @@index([avaliador_avaliacao_id])
+  @@index([data_hora_agenda])
+  @@map("avaliador_avaliacao_skill_agenda")
+}
+
+model EmpresaVagaPublicoAfirmativo {
+  id      Int               @id @default(autoincrement())
+  vaga_id Int
+  codigo  PublicoAfirmativo
+  vaga    EmpresaVaga       @relation(fields: [vaga_id], references: [vaga_id], onDelete: Cascade)
+
+  @@unique([vaga_id, codigo])
+  @@index([vaga_id])
+  @@index([codigo])
+  @@map("empresa_vaga_publico_afirmativo")
+}
+
+model RecrutadorCandidatoExclusao {
+  id            Int      @id @default(autoincrement())
+  recrutador_id Int
+  candidato_id  Int
+  motivo        String?
+  data_cadastro DateTime @default(now())
+  ativo         Boolean  @default(true)
+
+  recrutador UsuarioPerfilRecrutador @relation(fields: [recrutador_id], references: [id], onDelete: Cascade)
+
+  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id],  references: [id], onDelete: Cascade)
+
+  @@unique([recrutador_id, candidato_id])
+  @@index([recrutador_id, ativo])
+  @@index([candidato_id])
+  @@map("recrutador_candidato_exclusao")
 }
 
 enum PerfilTipo {
@@ -46,711 +709,17 @@ enum TipoPergunta {
 
 enum AgendaStatus {
   PENDENTE
-  RECUSADO
   ACEITO
   REALIZADO
   CANCELADO
+  RECUSADO
 }
 
 enum StatusAvaliacao {
   CONVITE_ACEITO
   QUESTIONARIO_ENVIADO
-  AGENDA_ENVIADA
-  AGENDADO
   ENTREVISTA_REALIZADA
   FINALIZADO
-}
-
-model Usuario {
-  id              Int @id @default(autoincrement())
-  primeiro_nome   String
-  ultimo_nome     String
-  email           String @unique
-  senha           String
-  id_perfil       Int?
-  ativo           Boolean @default(false)
-  createdAt       DateTime @default(now())
-  linguagem       String
-  data_nascimento DateTime
-  genero_id       Int
-  nome_social     String?
-  cidade_id       Int
-
-  avaliador  UsuarioPerfilAvaliador[]
-  recrutador UsuarioPerfilRecrutador[]
-  candidato  UsuarioPerfilCandidato[]
-  genero     Genero       @relation(fields: [genero_id], references: [id])
-  cidade     EstadoCidade @relation(fields: [cidade_id], references: [id])
-  notificacao Notificacao[]
-
-  @@map("usuario")
-}
-
-model Perfil {
-  id        Int @id @default(autoincrement())
-  perfil    String
-  descricao String
-  ativo     Boolean @default(true)
-
-  avaliador UsuarioPerfilAvaliador[]
-  recrutador UsuarioPerfilRecrutador[]
-  candidato UsuarioPerfilCandidato[]
-  usuario_perfil UsuarioPerfil[]
-
-  @@map("perfil")
-}
-
-model UsuarioPerfilRecrutador {
-  id               Int @id @default(autoincrement())
-  usuario_id       Int
-  perfil_id        Int
-  telefone         String
-  localizacao      String?
-  apresentacao     String
-  logo             String
-  meio_notificacao String
-  data_cadastro    DateTime @default(now())
-  ativo            Boolean @default(true)
-  linguagem        String
-
-  usuario  Usuario @relation(fields: [usuario_id], references: [id])
-  perfil   Perfil  @relation(fields: [perfil_id], references: [id])
-  empresas Empresa[]
-
-  @@unique([usuario_id, perfil_id])
-  @@map("usuario_perfil_recrutador")
-}
-
-model UsuarioPerfilAvaliador {
-  id                Int @id @default(autoincrement())
-  usuario_id        Int
-  perfil_id         Int
-  empresa_id        Int?
-  telefone          String
-  localizacao       String?
-  apresentacao      String
-  logo              String
-  avaliar_todos     Boolean @default(false)
-  meio_notificacao  String
-  data_cadastro     DateTime @default(now())
-  ativo             Boolean @default(true)
-  status_cadastro   Int @default(-1)
-  data_envio_link   DateTime @default(now())
-  linguagem         String
-  pontos            Int @default(10)
-  liberado_avaliar  Boolean @default(false)
-
-  usuario             Usuario @relation(fields: [usuario_id], references: [id])
-  perfil              Perfil  @relation(fields: [perfil_id], references: [id])
-  empresa             Empresa? @relation(fields: [empresa_id], references: [id])
-  skills              AvaliadorSkill[]
-  formacao            AvaliadorFormacaoAcademica[]
-  certificacoes       AvaliadorCertificacoes[]
-  avaliacoesCandidato CandidatoAvaliacaoSkill[]
-  avaliadorRanking    AvaliadorRankingAvaliacao[]
-  avaliacaoSkill      AvaliadorAvaliacaoSkill[]
-  avaliadorQuestionarios AvaliadorQuestionario[]
-
-  @@unique([usuario_id, perfil_id])
-  @@index([ativo, avaliar_todos, liberado_avaliar, linguagem])
-  @@map("usuario_perfil_avaliador")
-  
-}
-
-model AvaliadorSkill {
-  id             Int @id @default(autoincrement())
-  avaliador_id   Int
-  skill_id       Int
-  peso           Int
-  favorito       Boolean
-  tempo_favorito String
-
-  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
-  skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
-
-  @@index([skill_id])
-  @@map("avaliador_skill")
-}
-
-model AvaliadorFormacaoAcademica {
-  id               Int @id @default(autoincrement())
-  avaliador_id     Int
-  graduacao_id     Int
-  formacao         String
-  certificado_file String
-
-  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
-  graduacao Graduacao               @relation(fields: [graduacao_id], references: [id])
-
-  @@index([avaliador_id])
-  @@map("avaliador_formacao_academica")
-}
-
-model AvaliadorCertificacoes {
-  id               Int @id @default(autoincrement())
-  avaliador_id     Int
-  certificacao_id  Int
-  certificado_file String
-
-  avaliador     UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
-  certificacoes Certificacoes           @relation(fields: [certificacao_id], references: [id])
-
-  @@index([avaliador_id])
-  @@map("avaliador_certificacoes")
-}
-
-model UsuarioPerfilCandidato {
-  id               Int @id @default(autoincrement())
-  usuario_id       Int
-  perfil_id        Int
-  telefone         String
-  localizacao      String?
-  apresentacao     String
-  logo             String
-  meio_notificacao String
-  data_cadastro    DateTime @default(now())
-  ativo            Boolean @default(true)
-  linguagem        String
-  aberto_oportunidades Boolean @default(true)
-  // Preferências para oportunidades inclusivas / afirmativas
-  oportunidade_pcd                 Boolean @default(false)
-  oportunidade_afirmativa_racial   Boolean @default(false)
-  oportunidade_lgbtqia             Boolean @default(false)
-  oportunidade_50mais              Boolean @default(false)
-  oportunidade_diversidade         Boolean @default(false)
-
-  usuario       Usuario @relation(fields: [usuario_id], references: [id])
-  perfil        Perfil  @relation(fields: [perfil_id], references: [id])
-  skills        CandidatoSkill[]
-  formacao      CandidatoFormacaoAcademica[]
-  certificacoes CandidatoCertificacoes[]
-  candidatoModalidadeTrabalhos CandidatoModalidadeTrabalho[]
-
-  @@unique([usuario_id, perfil_id])
-  @@index([ativo, aberto_oportunidades])
-  @@map("usuario_perfil_candidato")
-  
-}
-
-model CandidatoSkill {
-  id             Int @id @default(autoincrement())
-  candidato_id   Int
-  skill_id       Int
-  peso           Int
-  favorito       Boolean
-  tempo_favorito String
-  data_ultima_avaliacao DateTime?
-  peso_avaliador Int?
-
-  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
-  skill     Skill                  @relation(fields: [skill_id], references: [skill_id])
-  avaliacoes CandidatoAvaliacaoSkill[]
-
-  @@index([candidato_id])
-  @@map("candidato_skill")
-}
-
-model CandidatoFormacaoAcademica {
-  id               Int @id @default(autoincrement())
-  candidato_id     Int
-  graduacao_id     Int
-  formacao         String
-  certificado_file String
-
-  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
-  graduacao Graduacao               @relation(fields: [graduacao_id], references: [id])
-
-  @@index([candidato_id])
-  @@map("candidato_formacao_academica")
-}
-
-model CandidatoCertificacoes {
-  id               Int @id @default(autoincrement())
-  candidato_id     Int
-  certificacao_id  Int
-  certificado_file String
-
-  candidato     UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
-  certificacoes Certificacoes           @relation(fields: [certificacao_id], references: [id])
-
-  @@index([candidato_id])
-  @@map("candidato_certificacoes")
-}
-
-model CandidatoModalidadeTrabalho {
-  candidato_id Int
-  modalidade_id Int
-
-  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id],onDelete: Cascade)
-  modalidade ModalidadeTrabalho @relation(fields: [modalidade_id], references: [modalidade_trabalho_id])
-
-  @@id([candidato_id, modalidade_id])
-  @@index([modalidade_id])
-
-  @@map("candidato_modalidade_trabalho")
-}
-
-model Empresa {
-  id            Int @id @default(autoincrement())
-  recrutador_id Int
-  nome_empresa  String
-  website       String
-  email         String
-  telefone      String
-  localizacao   String?
-  apresentacao  String
-  logo          String
-  imagem_fundo  String
-  data_cadastro DateTime @default(now())
-  ativo         Boolean @default(true)
-  linguagem     String
-  cidade_id     Int
-
-  recrutador UsuarioPerfilRecrutador @relation(fields: [recrutador_id], references: [id])
-  vagas       EmpresaVaga[] @relation("EmpresaVagas")
-  avaliadores UsuarioPerfilAvaliador[]
-  cidade      EstadoCidade @relation(fields: [cidade_id], references: [id])
-
-  @@index([id,recrutador_id])
-  @@map("empresa")
-}
-
-model EmpresaVaga {
-  vaga_id                Int @id @default(autoincrement())
-  empresa_id             Int
-  nome_vaga              String
-  descricao              String
-  local_vaga             String?
-  modalidade_trabalho_id Int
-  periodo_trabalho_id    Int  
-  qtde_dias_aberta       Int
-  qtde_posicao           Int
-  data_cadastro          DateTime @default(now())
-  ativo                  Boolean @default(true)
-  cidade_id              Int
-  tipo_oportunidade      TipoOportunidade @default(AMPLA_CONCORRENCIA)
-
-  modalidade_trabalho ModalidadeTrabalho @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
-  periodo_trabalho    PeriodoTrabalho    @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
-  skills              EmpresaVagaSkill[]
-  cidade              EstadoCidade @relation(fields: [cidade_id], references: [id])
-  empresa             Empresa @relation("EmpresaVagas", fields: [empresa_id], references: [id])
-  publicos_afirmativos EmpresaVagaPublicoAfirmativo[]
-
-  @@index([empresa_id])
-  @@index([tipo_oportunidade])
-  @@index([modalidade_trabalho_id])
-  @@map("empresa_vaga")
-}
-
-model EmpresaVagaSkill {
-  id                Int @id @default(autoincrement())
-  vaga_id           Int
-  skill_id          Int
-  peso              Int
-  avaliador_proprio Boolean
-
-  vaga  EmpresaVaga @relation(fields: [vaga_id], references: [vaga_id])
-  skill Skill       @relation(fields: [skill_id], references: [skill_id])
-
-  @@index([vaga_id])
-  @@map("empresa_vaga_skill")
-}
-
-model TipoSkill {
-  id         Int @id @default(autoincrement())
-  tipo_Skill String
-
-  skills Skill[]
-
-  @@index([id])
-  @@map("tipo_skill")
-}
-
-model Skill {
-  skill_id      Int @id @default(autoincrement())
-  skill         String @unique
-  tipo_skill_id Int
-  ativo         Boolean @default(true)
-  linguagem     String
-
-  vagas       EmpresaVagaSkill[]
-  avaliadores AvaliadorSkill[]
-  candidato   CandidatoSkill[]
-  tipo_skill  TipoSkill @relation(fields: [tipo_skill_id], references: [id])
-
-  @@index([skill_id])
-  @@map("skill")
-}
-
-model ModalidadeTrabalho {
-  modalidade_trabalho_id Int     @id @default(autoincrement())
-  codigo                 String @default("")
-  modalidade             String
-  linguagem              String
-  ativo                  Boolean @default(true)
-
-  candidatos CandidatoModalidadeTrabalho[]
-  //vagas      EmpresaVagaModalidadeTrabalho[]
-  vagas      EmpresaVaga[]
-
-  @@unique([codigo, linguagem])
-  @@index([linguagem, ativo])
-
-  @@map("modalidade_trabalho")
-}
-
-model PeriodoTrabalho {
-  periodo_trabalho_id Int @id @default(autoincrement())
-  periodo             String
-  ativo               Boolean
-  linguagem           String
-
-  vagas EmpresaVaga[]
-
-  @@index([periodo_trabalho_id])
-  @@map("periodo_trabalho")
-}
-
-model Certificacoes {
-  id          Int @id @default(autoincrement())
-  certificado String @unique
-  ativo       Boolean @default(true)
-  linguagem   String
-
-  avaliadores_certificado AvaliadorCertificacoes[]
-  candidato_certificado   CandidatoCertificacoes[]
-
-  @@index([id])
-  @@map("certificacoes")
-}
-
-model Graduacao {
-  id        Int @id @default(autoincrement())
-  graduacao String
-  ativo     Boolean @default(true)
-  linguagem String
-
-  avaliadores_formacao AvaliadorFormacaoAcademica[]
-  candidatos_formacao  CandidatoFormacaoAcademica[]
-
-  @@index([id])
-  @@map("graduacao")
-}
-
-model Genero {
-  id        Int @id @default(autoincrement())
-  genero    String
-  ativo     Boolean @default(true)
-  linguagem String
-
-  usuario Usuario[]
-
-  @@index([id])
-  @@map("genero")
-}
-
-model Estado {
-  id        Int @id @default(autoincrement())
-  estado    String
-  sigla     String
-  linguagem String
-
-  cidade EstadoCidade[]
-
-  @@index([id])
-  @@map("estado")
-}
-
-model EstadoCidade {
-  id        Int @id @default(autoincrement())
-  estado_id Int
-  cidade    String
-  cep       String?
-
-  estado  Estado @relation(fields: [estado_id], references: [id])
-  usuario Usuario[]
-  empresa Empresa[]
-  vaga    EmpresaVaga[]
-
-  @@unique([estado_id, cidade])
-  @@map("estado_cidade")
-}
-
-model Plano {
-  id        Int @id @default(autoincrement())
-  plano     String
-  ativo     Boolean @default(true)
-  highlight Boolean @default(false)
-
-  periodos  PlanoPeriodo[]
-  itens     PlanoItens[]
-  linguagem PlanoLinguagem[]
-
-  @@index([id])
-  @@map("plano")
-}
-
-model PlanoLinguagem {
-  id        Int @id @default(autoincrement())
-  plano_id  Int
-  plano     String
-  descricao String?
-  linguagem String
-
-  planos Plano @relation(fields: [plano_id], references: [id])
-
-  @@index([id])
-  @@index([plano_id])
-  @@map("plano_linguagem")
-}
-
-model PlanoItens {
-  id        Int @id @default(autoincrement())
-  plano_id  Int
-  descricao String
-  ordem     Int
-  linguagem String
-
-  plano Plano @relation(fields: [plano_id], references: [id])
-
-  @@index([plano_id])
-  @@map("plano_itens")
-}
-
-model PlanoPeriodo {
-  id            Int @id @default(autoincrement())
-  plano_id      Int
-  periodo       String
-  validade_dias Int
-  valor         Decimal @db.Decimal(10,2)
-  ativo         Boolean @default(true)
-  perfil_id     Int @default(0)
-  valor_old     Decimal? @db.Decimal(10,2)
-  desconto      Int?
-
-  plano         Plano @relation(fields: [plano_id], references: [id])
-  usuario_plano UsuarioPerfilPlano[]
-
-  @@index([plano_id])
-  @@index([plano_id,perfil_id])
-  @@map("plano_periodo")
-}
-
-model UsuarioPerfil {
-  id         Int @id @default(autoincrement())
-  usuario_id Int
-  perfil_id  Int
-
-  perfil Perfil @relation(fields: [perfil_id], references: [id])
-  planos UsuarioPerfilPlano[]
-
-  @@index([usuario_id])
-  @@unique([usuario_id, perfil_id])
-  @@map("usuario_perfil")
-}
-
-model UsuarioPerfilPlano {
-  id                Int @id @default(autoincrement())
-  usuario_perfil_id Int @unique
-  plano_periodo_id  Int
-  data_inicio       DateTime @default(now())
-  ativo             Boolean @default(false)
-  pagto_pendente    Boolean @default(true)
-
-  usuario_perfil UsuarioPerfil @relation(fields: [usuario_perfil_id], references: [id])
-  periodo        PlanoPeriodo @relation(fields: [plano_periodo_id], references: [id])
-  pagto_log      PlanoPagtoLog[]
-
-  @@index([usuario_perfil_id])
-  @@map("usuario_perfil_plano")
-}
-
-model PlanoPagtoLog {
-  id                      Int @id @default(autoincrement())
-  usuario_perfil_plano_id Int
-  transacao_id            String @unique
-  data_pagto              DateTime @default(now())
-  valor                   Decimal @db.Decimal(10,2)
-  status                  String
-
-  usuario_plano UsuarioPerfilPlano @relation(fields: [usuario_perfil_plano_id], references: [id])
-
-  @@index([usuario_perfil_plano_id])
-  @@map("plano_pagto_log")
-}
-
-model CandidatoAvaliacaoSkill {
-  id                    Int @id @default(autoincrement())
-  candidato_skill_id    Int
-  data_avaliacao        DateTime?
-  avaliacao_pendente    Boolean @default(true)
-  prioridade_ordem      Int
-  reavaliar             Boolean @default(false)
-  data_pedido_reavaliar DateTime?
-  avaliador_id          Int?
-  linguagem             String
-  tentativas_convite    Int @default(0)
-
-  candidatoSkill   CandidatoSkill @relation(fields: [candidato_skill_id], references: [id])
-  avaliador         UsuarioPerfilAvaliador? @relation(fields: [avaliador_id], references: [id])
-  avaliadorRanking AvaliadorRankingAvaliacao[]
-  avaliacaoSkill   AvaliadorAvaliacaoSkill[]
-
-  @@index([avaliador_id])
-  @@index([candidato_skill_id])
-  @@map("candidato_avaliacao_skill")
-}
-
-model AvaliadorRankingAvaliacao {
-  id                 Int @id @default(autoincrement())
-  avaliador_id       Int
-  avaliacao_skill_id Int
-  data_convite       DateTime @default(now())
-  data_expiracao     DateTime
-  aceite             Boolean? 
-  data_aceite_recusa DateTime?
-  
-
-  candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id])
-  avaliador       UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
-
-  // @@unique([avaliador_id, avaliacao_skill_id])
-  @@index([avaliador_id, avaliacao_skill_id])
-  @@index([avaliacao_skill_id])
-  @@index([avaliador_id])
-  @@index([aceite])
-  @@index([data_expiracao])
-  @@index([avaliador_id, aceite])
-
-  @@map("avaliador_ranking_avaliacao")
-}
-
-model AvaliadorAvaliacaoSkill {
-  id                          Int @id @default(autoincrement())
-  avaliador_id                Int
-  avaliacao_skill_id          Int
-  data_avaliacao              DateTime?
-  peso                        Int? 
-  comentario                  String?
-  data_aceite                 DateTime @default(now())
-  questionario_id             Int?
-  data_resposta_questionario  DateTime?
-  status                      StatusAvaliacao @default(CONVITE_ACEITO)
-  data_envio_formulario       DateTime?
-  comentario_resposta         String?
-
-  candidatoSkill  CandidatoAvaliacaoSkill @relation(fields: [avaliacao_skill_id], references: [id], onDelete: Cascade)
-  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id], onDelete: Cascade)
-  questionario AvaliadorQuestionario? @relation(fields: [questionario_id], references: [id], onDelete: SetNull)
-  agenda AvaliadorAvaliacaoSkillAgenda?
-  resposta        AvaliadorAvaliacaoSkillResposta[]
-
-  @@unique([avaliador_id, avaliacao_skill_id])
-  @@index([avaliador_id])
-  @@index([avaliacao_skill_id])
-  @@index([avaliador_id, data_avaliacao])
-  @@index([questionario_id])
-  @@map("avaliador_avaliacao_skill")
-}
-
-model Notificacao {
-  id              Int      @id @default(autoincrement())  
-  usuario_id      Int
-  perfil_tipo     PerfilTipo
-  perfil_id       Int  
-  tipo            TipoNotificacao
-  referencia_id   Int?  
-  titulo          String
-  mensagem        String  
-  lida            Boolean  @default(false)
-  enviada_email   Boolean  @default(false)  
-  criado_em       DateTime @default(now())
-
-  usuario Usuario @relation(fields: [usuario_id], references: [id])
-
-  @@index([usuario_id, perfil_tipo])
-  @@index([usuario_id, perfil_tipo, lida])
-  @@index([usuario_id, lida])
-  @@index([enviada_email])
-  @@unique([perfil_tipo, usuario_id, tipo, referencia_id, titulo])
-  @@map("notificacao")
-}
-
-model AvaliadorQuestionario {
-  id              Int      @id @default(autoincrement())  
-  avaliador_id    Int
-  titulo          String
-  comentario      String?
-  ativo           Boolean  @default(true)
-  data_criacao    DateTime @default(now())
-
-  avaliador UsuarioPerfilAvaliador @relation(fields: [avaliador_id], references: [id])
-  pergunta AvaliadorQuestionarioPergunta[]
-  avaliacao AvaliadorAvaliacaoSkill[]
-
-  @@index([avaliador_id,ativo])  
-  @@unique([avaliador_id, titulo])
-  @@map("avaliador_questionario")
-}
-
-model AvaliadorQuestionarioPergunta {
-  id              Int      @id @default(autoincrement())  
-  questionario_id Int
-  pergunta        String
-  resposta_base   String?  
-  tipo_pergunta   TipoPergunta @default(CAIXA_TEXTO)
-  ativo           Boolean  @default(true)
-  ordem           Int
-  obrigatorio     Boolean  @default(false)
-
-  questionario AvaliadorQuestionario @relation(fields: [questionario_id], references: [id], onDelete: Cascade)
-  resposta AvaliadorAvaliacaoSkillResposta[]
-
-  @@index([questionario_id, ativo])  
-  @@index([questionario_id, ordem])
-  @@map("avaliador_questionario_pergunta")
-}
-
-model AvaliadorAvaliacaoSkillResposta {
-  id                      Int      @id @default(autoincrement())  
-  avaliador_avaliacao_id  Int
-  questionario_pergunta_id Int
-  resposta                String?  
-
-  avaliacao AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
-  pergunta  AvaliadorQuestionarioPergunta @relation(fields: [questionario_pergunta_id], references: [id], onDelete: Restrict)
-
-  @@index([avaliador_avaliacao_id,questionario_pergunta_id])  
-  @@unique([avaliador_avaliacao_id, questionario_pergunta_id])
-  @@map("avaliador_avaliacao_skill_resposta")
-}
-
-model AvaliadorAvaliacaoSkillAgenda {
-  id                      Int      @id @default(autoincrement())  
-  avaliador_avaliacao_id  Int
-  data_hora_agenda        DateTime
-  status                  AgendaStatus @default(PENDENTE)
-  data_criacao            DateTime @default(now()) 
-
-  avaliacao AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
-
-  @@index([avaliador_avaliacao_id])
-  @@index([data_hora_agenda])  
-  @@unique([avaliador_avaliacao_id])
-  @@map("avaliador_avaliacao_skill_agenda")
-}
-
-model EmpresaVagaPublicoAfirmativo {
-  id       Int @id @default(autoincrement())
-  vaga_id  Int
-  codigo   PublicoAfirmativo
-
-  vaga EmpresaVaga @relation(fields: [vaga_id], references: [vaga_id], onDelete: Cascade)
-
-  @@index([vaga_id])
-  @@index([codigo])
-  @@unique([vaga_id, codigo])
-
-  @@map("empresa_vaga_publico_afirmativo")
+  AGENDA_ENVIADA
+  AGENDADO
 }

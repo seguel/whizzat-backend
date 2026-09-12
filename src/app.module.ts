@@ -22,6 +22,7 @@ import { PlanoModule } from './plano/plano.module';
 import { MailModule } from './mail/mail.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QuestionarioModule } from './questionario/questionario.module';
+import { CandidateMatchModule } from './candidate-match/candidate-match.module';
 // import * as path from 'path';
 
 // import { CandidatoSkillAvaliarWorker } from './workers/candidato-skill-avaliar.worker';
@@ -59,6 +60,7 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     PlanoModule,
     QuestionarioModule,
     MailModule,
+    CandidateMatchModule,
   ],
   providers: [
     // CandidatoSkillAvaliarWorker,
