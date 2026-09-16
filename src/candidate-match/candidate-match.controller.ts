@@ -15,6 +15,7 @@ import { CandidateMatchService } from './candidate-match.service';
 import { BuscarCandidatosVagaDto } from './dto/buscar-candidatos-vaga.dto';
 import { IgnorarCandidatoDto } from './dto/ignorar-candidato.dto';
 import { RestaurarCandidatosDto } from './dto/restaurar-candidatos.dto';
+import { BuscarCandidatosDto } from './dto/buscar-candidatos.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -96,6 +97,18 @@ export class CandidateMatchController {
     return this.candidateMatchService.buscarPerfilCandidato({
       usuarioId: req.user.sub,
       candidatoId,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('busca')
+  async buscarCandidatos(
+    @Req() req: Request & { user: JwtPayload },
+    @Body() body: BuscarCandidatosDto,
+  ) {
+    return this.candidateMatchService.buscarManual({
+      usuarioId: req.user.sub,
+      criterios: body,
     });
   }
 }
