@@ -8,6 +8,26 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 
 import { FaixaMatch } from './dto/buscar-candidatos-vaga.dto';
+import { BuscarCandidatosDto } from './dto/buscar-candidatos.dto';
+
+interface CriterioSkillMatch {
+  skill_id: number;
+  peso: number;
+
+  skill: {
+    tipo_skill_id: number;
+  };
+}
+
+interface CriteriosMatch {
+  skills: CriterioSkillMatch[];
+  modalidade_codigo?: string;
+  cidade_id?: number | null;
+  tipo_oportunidade?: TipoOportunidade;
+  publicos_afirmativos?: PublicoAfirmativo[];
+  faixa: FaixaMatch;
+  limite: number;
+}
 
 @Injectable()
 export class CandidateMatchService {
@@ -41,77 +61,27 @@ export class CandidateMatchService {
 
     this.validarPrazoVaga(vaga.data_cadastro, vaga.qtde_dias_aberta);
 
-    const candidatos = await this.buscarCandidatosBase(
-      vaga.empresa.linguagem,
-      recrutador.id,
-    );
+    const criterios: CriteriosMatch = {
+      skills: vaga.skills,
+      modalidade_codigo: vaga.modalidade_trabalho.codigo,
+      cidade_id:
+        vaga.modalidade_trabalho.codigo.trim().toUpperCase() === 'REMOTO'
+          ? null
+          : vaga.cidade_id,
+      tipo_oportunidade: vaga.tipo_oportunidade,
+      publicos_afirmativos: vaga.publicos_afirmativos.map(
+        (item) => item.codigo,
+      ),
 
-    const candidatosElegiveis = candidatos
-      .filter((candidato) =>
-        this.isModalidadeCompativel(
-          vaga.modalidade_trabalho.codigo,
-          candidato.candidatoModalidadeTrabalhos.map(
-            (item) => item.modalidade.codigo,
-          ),
-        ),
-      )
-      .filter((candidato) =>
-        this.isLocalizacaoCompativel(
-          vaga.modalidade_trabalho.codigo,
-          vaga.cidade_id,
-          candidato.usuario.cidade_id,
-        ),
-      )
-      .filter((candidato) =>
-        this.isPublicoAfirmativoCompativel(
-          vaga.tipo_oportunidade,
-          vaga.publicos_afirmativos.map((item) => item.codigo),
-          candidato,
-        ),
-      );
+      faixa,
+      limite,
+    };
 
-    const candidatosComScore = candidatosElegiveis.map((candidato) => {
-      const resultadoSkills = this.calcularScoreSkills(
-        vaga.skills,
-        candidato.skills,
-      );
-
-      const publicoPrioritario =
-        vaga.tipo_oportunidade === TipoOportunidade.AFIRMATIVA &&
-        this.candidatoPertencePublicoAfirmativo(
-          vaga.publicos_afirmativos.map((item) => item.codigo),
-          candidato,
-        );
-
-      return {
-        candidato,
-        resultadoSkills,
-        publicoPrioritario,
-      };
+    const candidatos = await this.executarMatch({
+      recrutadorId: recrutador.id,
+      linguagem: vaga.empresa.linguagem,
+      criterios,
     });
-
-    const scoreMinimo = this.MATCH_MINIMO[faixa];
-
-    const candidatosFiltrados = candidatosComScore.filter(
-      (item) => item.resultadoSkills.score >= scoreMinimo,
-    );
-
-    const candidatosOrdenados = candidatosFiltrados.sort((a, b) => {
-      /*
-       * Em vaga AFIRMATIVA, candidatos pertencentes ao público
-       * aparecem primeiro.
-       */
-      if (
-        vaga.tipo_oportunidade === TipoOportunidade.AFIRMATIVA &&
-        a.publicoPrioritario !== b.publicoPrioritario
-      ) {
-        return Number(b.publicoPrioritario) - Number(a.publicoPrioritario);
-      }
-
-      return b.resultadoSkills.score - a.resultadoSkills.score;
-    });
-
-    const candidatosLimitados = candidatosOrdenados.slice(0, limite);
 
     return {
       vaga: {
@@ -142,43 +112,7 @@ export class CandidateMatchService {
         lang,
       },
 
-      candidatos: candidatosLimitados.map((item) => {
-        const candidato = item.candidato;
-
-        return {
-          candidato_id: candidato.id,
-
-          nome:
-            candidato.usuario.nome_social?.trim() ||
-            `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim(),
-
-          localizacao: candidato.usuario.cidade
-            ? `${candidato.usuario.cidade.cidade}/${candidato.usuario.cidade.estado.sigla}`
-            : null,
-
-          score: item.resultadoSkills.score,
-          hard_skills: item.resultadoSkills.hard_skills,
-          soft_skills: item.resultadoSkills.soft_skills,
-
-          publico_prioritario: item.publicoPrioritario,
-
-          modalidade_compativel: true,
-          localizacao_compativel: true,
-
-          oportunidade_compativel:
-            vaga.tipo_oportunidade !== TipoOportunidade.EXCLUSIVA ||
-            this.candidatoPertencePublicoAfirmativo(
-              vaga.publicos_afirmativos.map((publico) => publico.codigo),
-              candidato,
-            ),
-
-          skills_avaliadas: item.resultadoSkills.skills_avaliadas,
-
-          total_skills: item.resultadoSkills.total_skills,
-
-          skills: item.resultadoSkills.detalhes,
-        };
-      }),
+      candidatos,
     };
   }
 
@@ -686,8 +620,10 @@ export class CandidateMatchService {
         usuario_id: usuarioId,
         ativo: true,
       },
+
       select: {
         id: true,
+        linguagem: true,
       },
     });
 
@@ -1008,5 +944,277 @@ export class CandidateMatchService {
         certificado_file: item.certificado_file,
       })),
     };
+  }
+
+  async buscarManual({
+    usuarioId,
+    criterios,
+  }: {
+    usuarioId: number;
+    criterios: BuscarCandidatosDto;
+  }) {
+    const recrutador = await this.buscarRecrutadorPorUsuario(usuarioId);
+
+    const skillIds = criterios.skills.map((item) => item.skill_id);
+
+    const skillIdsUnicos = [...new Set(skillIds)];
+
+    if (skillIdsUnicos.length !== criterios.skills.length) {
+      throw new BadRequestException(
+        'Não é permitido informar a mesma skill mais de uma vez.',
+      );
+    }
+
+    const skillsBanco = await this.prisma.skill.findMany({
+      where: {
+        skill_id: {
+          in: skillIdsUnicos,
+        },
+      },
+
+      select: {
+        skill_id: true,
+        tipo_skill_id: true,
+      },
+    });
+
+    if (skillsBanco.length !== skillIdsUnicos.length) {
+      throw new BadRequestException(
+        'Uma ou mais skills informadas são inválidas.',
+      );
+    }
+
+    const skillsMatch = criterios.skills.map((item) => {
+      const skillBanco = skillsBanco.find(
+        (skill) => skill.skill_id === item.skill_id,
+      );
+
+      if (!skillBanco) {
+        throw new BadRequestException('Skill inválida.');
+      }
+
+      return {
+        skill_id: item.skill_id,
+        peso: item.peso,
+
+        skill: {
+          tipo_skill_id: skillBanco.tipo_skill_id,
+        },
+      };
+    });
+
+    const candidatos = await this.executarMatch({
+      recrutadorId: recrutador.id,
+      linguagem: recrutador.linguagem,
+
+      criterios: {
+        skills: skillsMatch,
+        faixa: criterios.faixa,
+        limite: criterios.limite,
+      },
+    });
+
+    return {
+      parametros: {
+        limite: criterios.limite,
+        faixa: criterios.faixa,
+
+        skills: skillsMatch.map((item) => ({
+          skill_id: item.skill_id,
+          peso: item.peso,
+          tipo_skill_id: item.skill.tipo_skill_id,
+        })),
+      },
+
+      candidatos,
+    };
+  }
+
+  private async executarMatch({
+    recrutadorId,
+    linguagem,
+    criterios,
+  }: {
+    recrutadorId: number;
+    linguagem: string;
+    criterios: CriteriosMatch;
+  }) {
+    const candidatos = await this.buscarCandidatosBase(linguagem, recrutadorId);
+
+    /*
+     * -------------------------------------------------------
+     * Elegibilidade
+     *
+     * Match de vaga:
+     * - modalidade
+     * - localização
+     * - oportunidade / público afirmativo
+     *
+     * Busca manual:
+     * - não aplica esses filtros
+     * - busca exclusivamente pelas skills
+     * -------------------------------------------------------
+     */
+
+    const candidatosElegiveis = candidatos
+      .filter((candidato) => {
+        if (!criterios.modalidade_codigo) {
+          return true;
+        }
+
+        return this.isModalidadeCompativel(
+          criterios.modalidade_codigo,
+          candidato.candidatoModalidadeTrabalhos.map(
+            (item) => item.modalidade.codigo,
+          ),
+        );
+      })
+      .filter((candidato) => {
+        if (!criterios.modalidade_codigo) {
+          return true;
+        }
+
+        return this.isLocalizacaoCompativel(
+          criterios.modalidade_codigo,
+          criterios.cidade_id ?? 0,
+          candidato.usuario.cidade_id,
+        );
+      })
+      .filter((candidato) => {
+        if (!criterios.tipo_oportunidade) {
+          return true;
+        }
+
+        return this.isPublicoAfirmativoCompativel(
+          criterios.tipo_oportunidade,
+          criterios.publicos_afirmativos ?? [],
+          candidato,
+        );
+      });
+
+    /*
+     * -------------------------------------------------------
+     * Score
+     * -------------------------------------------------------
+     */
+
+    const candidatosComScore = candidatosElegiveis.map((candidato) => {
+      const resultadoSkills = this.calcularScoreSkills(
+        criterios.skills,
+        candidato.skills,
+      );
+
+      /*
+       * Prioridade afirmativa existe somente
+       * quando o match veio de uma oportunidade
+       * do tipo AFIRMATIVA.
+       *
+       * Na busca manual será sempre false.
+       */
+
+      const publicoPrioritario =
+        criterios.tipo_oportunidade === TipoOportunidade.AFIRMATIVA &&
+        this.candidatoPertencePublicoAfirmativo(
+          criterios.publicos_afirmativos ?? [],
+          candidato,
+        );
+
+      return {
+        candidato,
+        resultadoSkills,
+        publicoPrioritario,
+      };
+    });
+
+    /*
+     * -------------------------------------------------------
+     * Match mínimo
+     * -------------------------------------------------------
+     */
+
+    const scoreMinimo = this.MATCH_MINIMO[criterios.faixa];
+
+    const candidatosFiltrados = candidatosComScore.filter(
+      (item) => item.resultadoSkills.score >= scoreMinimo,
+    );
+
+    /*
+     * -------------------------------------------------------
+     * Ordenação
+     *
+     * AFIRMATIVA:
+     * público prioritário primeiro e depois score.
+     *
+     * Demais casos / busca manual:
+     * maior score primeiro.
+     * -------------------------------------------------------
+     */
+
+    const candidatosOrdenados = candidatosFiltrados.sort((a, b) => {
+      if (
+        criterios.tipo_oportunidade === TipoOportunidade.AFIRMATIVA &&
+        a.publicoPrioritario !== b.publicoPrioritario
+      ) {
+        return Number(b.publicoPrioritario) - Number(a.publicoPrioritario);
+      }
+
+      return b.resultadoSkills.score - a.resultadoSkills.score;
+    });
+
+    /*
+     * -------------------------------------------------------
+     * Limite
+     * -------------------------------------------------------
+     */
+
+    const candidatosLimitados = candidatosOrdenados.slice(0, criterios.limite);
+
+    /*
+     * -------------------------------------------------------
+     * Retorno
+     * -------------------------------------------------------
+     */
+
+    return candidatosLimitados.map((item) => {
+      const candidato = item.candidato;
+
+      /*
+       * Na busca manual não existe oportunidade,
+       * portanto não existe incompatibilidade
+       * com oportunidade.
+       *
+       * Mantemos esses campos no retorno para
+       * preservar o contrato utilizado pelo
+       * CandidateMatchCard.
+       */
+
+      const oportunidadeCompativel =
+        !criterios.tipo_oportunidade ||
+        criterios.tipo_oportunidade !== TipoOportunidade.EXCLUSIVA ||
+        this.candidatoPertencePublicoAfirmativo(
+          criterios.publicos_afirmativos ?? [],
+          candidato,
+        );
+
+      return {
+        candidato_id: candidato.id,
+        nome:
+          candidato.usuario.nome_social?.trim() ||
+          `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim(),
+        localizacao: candidato.usuario.cidade
+          ? `${candidato.usuario.cidade.cidade}/${candidato.usuario.cidade.estado.sigla}`
+          : null,
+        score: item.resultadoSkills.score,
+        hard_skills: item.resultadoSkills.hard_skills,
+        soft_skills: item.resultadoSkills.soft_skills,
+        publico_prioritario: item.publicoPrioritario,
+        modalidade_compativel: true,
+        localizacao_compativel: true,
+        oportunidade_compativel: oportunidadeCompativel,
+        skills_avaliadas: item.resultadoSkills.skills_avaliadas,
+        total_skills: item.resultadoSkills.total_skills,
+        skills: item.resultadoSkills.detalhes,
+      };
+    });
   }
 }
