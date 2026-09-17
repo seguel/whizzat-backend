@@ -147,6 +147,34 @@ export class EmailResumoSkillWorker {
             );
 
             emailEnviado = true;
+          } else if (tipo === TipoNotificacao.NOVO_CONVITE_RECRUTADOR) {
+            const conviteLink = process.env.FRONTEND_URL
+              ? `${process.env.FRONTEND_URL}/dashboard?perfil=candidato`
+              : dashboardLink;
+
+            await this.mailService.enviarConviteRecrutadorNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              quantidade,
+              conviteLink,
+            );
+
+            emailEnviado = true;
+          } else if (tipo === TipoNotificacao.NOVO_CONVITE_RECRUTADOR_MANUAL) {
+            const conviteLink = process.env.FRONTEND_URL
+              ? `${process.env.FRONTEND_URL}/dashboard?perfil=candidato`
+              : dashboardLink;
+
+            await this.mailService.enviarConviteRecrutadorManualNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              quantidade,
+              conviteLink,
+            );
+
+            emailEnviado = true;
           }
 
           if (emailEnviado) {
