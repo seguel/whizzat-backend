@@ -98,6 +98,25 @@
       "introducao_2": "Acesse a Whizzat para visualizar os detalhes e acompanhar a evolução do seu perfil profissional.",
       "introducao_3": "Agradecemos pela sua participação e pelo tempo dedicado a esse processo.",
       "btn_acessar": "Acessar painel"
+    },
+    "convite_recrutador": {
+      "assunto_prefixo": "Você recebeu um novo convite no Whizzat",
+      "titulo": "Nova oportunidade para você",
+      "saudacao": "Olá",
+      "introducao": "Você recebeu um novo convite de um recrutador para participar de uma oportunidade.",
+      "introducao_varios": "Você recebeu {{quantidade}} novos convites de recrutadores para participar de oportunidades.",
+      "introducao_2": "Acesse o Whizzat para consultar os detalhes e decidir se deseja aceitar ou recusar o convite.",
+      "btn_acessar": "Ver convite"
+    },
+    "convite_recrutador_manual": {
+      "assunto_prefixo": "Você recebeu um novo convite no Whizzat",
+      "titulo": "Você recebeu um novo convite",
+      "saudacao": "Olá",
+      "introducao": "Você recebeu um novo convite profissional de um recrutador no Whizzat.",
+      "introducao_varios": "Você recebeu {{quantidade}} novos convites profissionais de recrutadores no Whizzat.",
+      "introducao_2": "O convite pode estar relacionado a uma oportunidade, mentoria, evento, projeto, consultoria ou networking.",
+      "introducao_3": "Acesse sua conta para visualizar o motivo e os detalhes do convite e decidir se deseja aceitá-lo.",
+      "btn_acessar": "Ver convite"
     }
   },
   "auth": {

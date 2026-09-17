@@ -1,4 +1,12 @@
-import { PublicoAfirmativo, TipoOportunidade } from '@prisma/client';
+import {
+  PublicoAfirmativo,
+  TipoOportunidade,
+  StatusConviteRecrutador,
+  TipoConviteRecrutador,
+  PerfilTipo,
+  TipoNotificacao,
+  AgendaStatus,
+} from '@prisma/client';
 
 import {
   BadRequestException,
@@ -9,6 +17,10 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 import { FaixaMatch } from './dto/buscar-candidatos-vaga.dto';
 import { BuscarCandidatosDto } from './dto/buscar-candidatos.dto';
+import { CriarConviteVagaDto } from './dto/criar-convite-vaga.dto';
+import { CriarConviteManualDto } from './dto/criar-convite-manual.dto';
+import { RespostaConviteCandidato } from './dto/responder-convite-candidato.dto';
+import { RespostaAgendaCandidato } from './dto/responder-agenda-candidato.dto';
 
 interface CriterioSkillMatch {
   skill_id: number;
@@ -83,6 +95,32 @@ export class CandidateMatchService {
       criterios,
     });
 
+    const candidatoIds = candidatos.map((candidato) => candidato.candidato_id);
+
+    const convitesExistentes =
+      candidatoIds.length > 0
+        ? await this.prisma.recrutadorConviteCandidato.findMany({
+            where: {
+              vaga_id: vaga.vaga_id,
+              candidato_id: {
+                in: candidatoIds,
+              },
+            },
+            select: {
+              candidato_id: true,
+            },
+          })
+        : [];
+
+    const candidatoIdsConvidados = new Set(
+      convitesExistentes.map((convite) => convite.candidato_id),
+    );
+
+    const candidatosComConvite = candidatos.map((candidato) => ({
+      ...candidato,
+      ja_convidado: candidatoIdsConvidados.has(candidato.candidato_id),
+    }));
+
     return {
       vaga: {
         vaga_id: vaga.vaga_id,
@@ -112,7 +150,7 @@ export class CandidateMatchService {
         lang,
       },
 
-      candidatos,
+      candidatos: candidatosComConvite,
     };
   }
 
@@ -1014,6 +1052,33 @@ export class CandidateMatchService {
       },
     });
 
+    const candidatoIds: number[] = candidatos.map((item) =>
+      Number(item.candidato_id),
+    );
+
+    const convitesExistentes =
+      await this.prisma.recrutadorConviteCandidato.findMany({
+        where: {
+          recrutador_id: recrutador.id,
+          candidato_id: {
+            in: candidatoIds,
+          },
+          vaga_id: null,
+        },
+        select: {
+          candidato_id: true,
+        },
+      });
+
+    const candidatosJaConvidados = new Set<number>(
+      convitesExistentes.map((item) => item.candidato_id),
+    );
+
+    const candidatosComConvite = candidatos.map((candidato) => ({
+      ...candidato,
+      ja_convidado: candidatosJaConvidados.has(candidato.candidato_id),
+    }));
+
     return {
       parametros: {
         limite: criterios.limite,
@@ -1026,7 +1091,7 @@ export class CandidateMatchService {
         })),
       },
 
-      candidatos,
+      candidatos: candidatosComConvite,
     };
   }
 
@@ -1215,6 +1280,612 @@ export class CandidateMatchService {
         total_skills: item.resultadoSkills.total_skills,
         skills: item.resultadoSkills.detalhes,
       };
+    });
+  }
+
+  async criarConviteVaga({
+    usuarioId,
+    dados,
+  }: {
+    usuarioId: number;
+    dados: CriarConviteVagaDto;
+  }) {
+    const recrutador = await this.buscarRecrutadorPorUsuario(usuarioId);
+
+    const vaga = await this.prisma.empresaVaga.findFirst({
+      where: {
+        vaga_id: dados.vaga_id,
+        empresa_id: dados.empresa_id,
+        ativo: true,
+
+        empresa: {
+          recrutador_id: recrutador.id,
+          ativo: true,
+        },
+      },
+      select: {
+        vaga_id: true,
+        empresa_id: true,
+        nome_vaga: true,
+      },
+    });
+
+    if (!vaga) {
+      throw new BadRequestException(
+        'Vaga não encontrada ou não pertence ao recrutador.',
+      );
+    }
+
+    const candidatoIds = [...new Set(dados.candidato_ids)];
+
+    if (candidatoIds.length !== dados.candidato_ids.length) {
+      throw new BadRequestException(
+        'Não é permitido informar o mesmo candidato mais de uma vez.',
+      );
+    }
+
+    if (candidatoIds.length > 10) {
+      throw new BadRequestException(
+        'É permitido convidar no máximo 10 candidatos por vez.',
+      );
+    }
+
+    const candidatos = await this.prisma.usuarioPerfilCandidato.findMany({
+      where: {
+        id: {
+          in: candidatoIds,
+        },
+
+        ativo: true,
+        aberto_oportunidades: true,
+
+        usuario: {
+          ativo: true,
+        },
+      },
+      select: {
+        id: true,
+        usuario_id: true,
+        perfil_id: true,
+      },
+    });
+
+    if (candidatos.length !== candidatoIds.length) {
+      throw new BadRequestException(
+        'Um ou mais candidatos não foram encontrados ou não estão disponíveis.',
+      );
+    }
+
+    const convitesExistentes =
+      await this.prisma.recrutadorConviteCandidato.findMany({
+        where: {
+          vaga_id: vaga.vaga_id,
+          candidato_id: {
+            in: candidatoIds,
+          },
+        },
+        select: {
+          candidato_id: true,
+        },
+      });
+
+    const candidatoIdsJaConvidados = new Set(
+      convitesExistentes.map((convite) => convite.candidato_id),
+    );
+
+    const candidatoIdsParaConvidar = candidatoIds.filter(
+      (candidatoId) => !candidatoIdsJaConvidados.has(candidatoId),
+    );
+
+    const titulo = dados.titulo?.trim() || `Convite para ${vaga.nome_vaga}`;
+
+    const mensagem = dados.mensagem?.trim() || '';
+
+    const convites = await this.prisma.$transaction(async (tx) => {
+      const registros: {
+        id: number;
+        candidato_id: number;
+        empresa_id: number | null;
+        vaga_id: number | null;
+        tipo: TipoConviteRecrutador;
+        status: StatusConviteRecrutador;
+        data_convite: Date;
+      }[] = [];
+
+      for (const candidatoId of candidatoIdsParaConvidar) {
+        const candidato = candidatos.find((item) => item.id === candidatoId);
+
+        if (!candidato) {
+          continue;
+        }
+
+        const convite = await tx.recrutadorConviteCandidato.create({
+          data: {
+            recrutador_id: recrutador.id,
+            candidato_id: candidatoId,
+
+            empresa_id: vaga.empresa_id,
+            vaga_id: vaga.vaga_id,
+
+            tipo: TipoConviteRecrutador.VAGA,
+            status: StatusConviteRecrutador.CONVITE_ENVIADO,
+
+            titulo,
+            mensagem,
+          },
+
+          select: {
+            id: true,
+            candidato_id: true,
+            empresa_id: true,
+            vaga_id: true,
+            tipo: true,
+            status: true,
+            data_convite: true,
+          },
+        });
+
+        await tx.notificacao.create({
+          data: {
+            usuario_id: candidato.usuario_id,
+            perfil_tipo: PerfilTipo.CANDIDATO,
+            perfil_id: candidato.perfil_id,
+            referencia_id: convite.id,
+
+            titulo: 'Novo convite para oportunidade',
+            mensagem: `Você recebeu um convite para a vaga ${vaga.nome_vaga}.`,
+
+            tipo: TipoNotificacao.NOVO_CONVITE_RECRUTADOR,
+          },
+        });
+
+        registros.push(convite);
+      }
+
+      return registros;
+    });
+
+    return {
+      total: convites.length,
+      ja_convidados: candidatoIdsJaConvidados.size,
+      candidatos_ja_convidados: [...candidatoIdsJaConvidados],
+      convites,
+    };
+  }
+
+  async criarConvites(usuarioId: number, dto: CriarConviteManualDto) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    /*
+     * Remove IDs duplicados caso, por algum motivo,
+     * o front envie o mesmo candidato mais de uma vez.
+     */
+    const candidatoIds = [...new Set(dto.candidato_ids)];
+
+    /*
+     * Confirma que todos os candidatos existem
+     * e estão ativos.
+     */
+    const candidatos = await this.prisma.usuarioPerfilCandidato.findMany({
+      where: {
+        id: {
+          in: candidatoIds,
+        },
+        ativo: true,
+      },
+      select: {
+        id: true,
+        usuario_id: true,
+        perfil_id: true,
+      },
+    });
+
+    if (candidatos.length !== candidatoIds.length) {
+      throw new BadRequestException(
+        'Um ou mais candidatos informados são inválidos.',
+      );
+    }
+
+    /*
+     * Convite da BUSCA MANUAL:
+     *
+     * empresa_id = null
+     * vaga_id    = null
+     */
+    const convites = await this.prisma.$transaction(async (tx) => {
+      const registros = [];
+
+      for (const candidato of candidatos) {
+        const convite = await tx.recrutadorConviteCandidato.create({
+          data: {
+            recrutador_id: recrutador.id,
+            candidato_id: candidato.id,
+
+            empresa_id: null,
+            vaga_id: null,
+
+            tipo: dto.tipo,
+            titulo: dto.titulo,
+            mensagem: dto.mensagem,
+
+            status: StatusConviteRecrutador.CONVITE_ENVIADO,
+          },
+        });
+
+        await tx.notificacao.create({
+          data: {
+            usuario_id: candidato.usuario_id,
+            perfil_tipo: PerfilTipo.CANDIDATO,
+            perfil_id: candidato.perfil_id,
+
+            referencia_id: convite.id,
+
+            titulo: 'Novo convite',
+            mensagem: `Você recebeu um novo convite: ${dto.titulo}.`,
+
+            tipo: TipoNotificacao.NOVO_CONVITE_RECRUTADOR_MANUAL,
+          },
+        });
+
+        registros.push(convite);
+      }
+
+      return registros;
+    });
+
+    return {
+      sucesso: true,
+      quantidade: convites.length,
+      convites: convites.map((convite) => ({
+        id: convite.id,
+        candidato_id: convite.candidato_id,
+      })),
+    };
+  }
+
+  async buscarConvitesCandidato(usuarioId: number) {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Perfil de candidato não encontrado.');
+    }
+
+    return this.prisma.recrutadorConviteCandidato.findMany({
+      where: {
+        candidato_id: candidato.id,
+        status: StatusConviteRecrutador.CONVITE_ENVIADO,
+      },
+      select: {
+        id: true,
+        tipo: true,
+        titulo: true,
+        mensagem: true,
+        data_convite: true,
+
+        empresa: {
+          select: {
+            id: true,
+            nome_empresa: true,
+          },
+        },
+
+        vaga: {
+          select: {
+            vaga_id: true,
+            nome_vaga: true,
+            tipo_oportunidade: true,
+          },
+        },
+      },
+      orderBy: {
+        data_convite: 'desc',
+      },
+    });
+  }
+
+  async responderConviteCandidato({
+    usuarioId,
+    conviteId,
+    resposta,
+  }: {
+    usuarioId: number;
+    conviteId: number;
+    resposta: RespostaConviteCandidato;
+  }) {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Perfil de candidato não encontrado.');
+    }
+
+    const convite = await this.prisma.recrutadorConviteCandidato.findFirst({
+      where: {
+        id: conviteId,
+        candidato_id: candidato.id,
+        status: StatusConviteRecrutador.CONVITE_ENVIADO,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!convite) {
+      throw new NotFoundException(
+        'Convite não encontrado ou não está mais disponível.',
+      );
+    }
+
+    const aceitar = resposta === RespostaConviteCandidato.ACEITAR;
+
+    return this.prisma.recrutadorConviteCandidato.update({
+      where: {
+        id: convite.id,
+      },
+      data: aceitar
+        ? {
+            status: StatusConviteRecrutador.CONVITE_ACEITO,
+            data_aceite: new Date(),
+          }
+        : {
+            status: StatusConviteRecrutador.CONVITE_RECUSADO,
+            data_recusa: new Date(),
+          },
+      select: {
+        id: true,
+        status: true,
+        data_aceite: true,
+        data_recusa: true,
+      },
+    });
+  }
+
+  async buscarProcessosCandidato(usuarioId: number) {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Perfil de candidato não encontrado.');
+    }
+
+    return this.prisma.recrutadorConviteCandidato.findMany({
+      where: {
+        candidato_id: candidato.id,
+        status: {
+          in: [
+            StatusConviteRecrutador.CONVITE_ACEITO,
+            StatusConviteRecrutador.AGENDA_ENVIADA,
+            StatusConviteRecrutador.AGENDADO,
+            StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+          ],
+        },
+      },
+
+      select: {
+        id: true,
+        tipo: true,
+        titulo: true,
+        mensagem: true,
+        status: true,
+        data_convite: true,
+        data_aceite: true,
+
+        empresa: {
+          select: {
+            id: true,
+            nome_empresa: true,
+          },
+        },
+
+        vaga: {
+          select: {
+            vaga_id: true,
+            nome_vaga: true,
+            tipo_oportunidade: true,
+          },
+        },
+
+        agenda: {
+          select: {
+            id: true,
+            data_hora_agenda: true,
+            status: true,
+            data_criacao: true,
+            data_resposta: true,
+          },
+        },
+      },
+
+      orderBy: {
+        data_aceite: 'desc',
+      },
+    });
+  }
+
+  async responderAgendaCandidato({
+    usuarioId,
+    conviteId,
+    resposta,
+  }: {
+    usuarioId: number;
+    conviteId: number;
+    resposta: RespostaAgendaCandidato;
+  }) {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Perfil de candidato não encontrado.');
+    }
+
+    const convite = await this.prisma.recrutadorConviteCandidato.findFirst({
+      where: {
+        id: conviteId,
+        candidato_id: candidato.id,
+        status: StatusConviteRecrutador.AGENDA_ENVIADA,
+      },
+      select: {
+        id: true,
+
+        agenda: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!convite) {
+      throw new NotFoundException(
+        'Processo não encontrado ou não está aguardando resposta de agenda.',
+      );
+    }
+
+    if (!convite.agenda) {
+      throw new BadRequestException(
+        'Nenhuma agenda encontrada para este processo.',
+      );
+    }
+
+    if (convite.agenda.status !== AgendaStatus.PENDENTE) {
+      throw new BadRequestException(
+        'Esta agenda não está mais aguardando resposta.',
+      );
+    }
+
+    const aceitar = resposta === RespostaAgendaCandidato.ACEITAR;
+    const agora = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.recrutadorConviteAgenda.update({
+        where: {
+          id: convite.agenda!.id,
+        },
+        data: {
+          status: aceitar ? AgendaStatus.ACEITO : AgendaStatus.RECUSADO,
+          data_resposta: agora,
+        },
+      });
+
+      return tx.recrutadorConviteCandidato.update({
+        where: {
+          id: convite.id,
+        },
+        data: {
+          status: aceitar
+            ? StatusConviteRecrutador.AGENDADO
+            : StatusConviteRecrutador.CONVITE_ACEITO,
+        },
+        select: {
+          id: true,
+          status: true,
+
+          agenda: {
+            select: {
+              id: true,
+              data_hora_agenda: true,
+              status: true,
+              data_resposta: true,
+            },
+          },
+        },
+      });
+    });
+  }
+
+  async buscarFinalizadosCandidato(usuarioId: number) {
+    const candidato = await this.prisma.usuarioPerfilCandidato.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!candidato) {
+      throw new NotFoundException('Perfil de candidato não encontrado.');
+    }
+
+    return this.prisma.recrutadorConviteCandidato.findMany({
+      where: {
+        candidato_id: candidato.id,
+        status: StatusConviteRecrutador.FINALIZADO,
+      },
+
+      select: {
+        id: true,
+        tipo: true,
+        titulo: true,
+        mensagem: true,
+        aprovado: true,
+        parecer: true,
+        data_convite: true,
+        data_aceite: true,
+        data_finalizacao: true,
+
+        empresa: {
+          select: {
+            id: true,
+            nome_empresa: true,
+          },
+        },
+
+        vaga: {
+          select: {
+            vaga_id: true,
+            nome_vaga: true,
+            tipo_oportunidade: true,
+          },
+        },
+      },
+
+      orderBy: {
+        data_finalizacao: 'desc',
+      },
     });
   }
 }

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TipoNotificacao" ADD VALUE 'NOVO_CONVITE_RECRUTADOR_MANUAL';
