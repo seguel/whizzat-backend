@@ -58,7 +58,9 @@ model UsuarioPerfilRecrutador {
   empresas         Empresa[]
   perfil           Perfil    @relation(fields: [perfil_id], references: [id])
   usuario          Usuario   @relation(fields: [usuario_id], references: [id])
+
   candidatos_excluidos RecrutadorCandidatoExclusao[]
+  convites_candidatos RecrutadorConviteCandidato[]
 
   @@unique([usuario_id, perfil_id])
   @@map("usuario_perfil_recrutador")
@@ -161,7 +163,9 @@ model UsuarioPerfilCandidato {
   skills                         CandidatoSkill[]
   perfil                         Perfil                        @relation(fields: [perfil_id], references: [id])
   usuario                        Usuario                       @relation(fields: [usuario_id], references: [id])
+
   exclusoes_recrutador RecrutadorCandidatoExclusao[]
+  convites_recrutador RecrutadorConviteCandidato[]
 
   @@unique([usuario_id, perfil_id])
   @@index([ativo, aberto_oportunidades])
@@ -236,10 +240,12 @@ model Empresa {
   ativo         Boolean                  @default(true)
   linguagem     String
   cidade_id     Int
+
   cidade        EstadoCidade             @relation(fields: [cidade_id], references: [id])
   recrutador    UsuarioPerfilRecrutador  @relation(fields: [recrutador_id], references: [id])
   vagas         EmpresaVaga[]            @relation("EmpresaVagas")
   avaliadores   UsuarioPerfilAvaliador[]
+  convites_candidatos RecrutadorConviteCandidato[]
 
   @@index([id, recrutador_id])
   @@map("empresa")
@@ -259,12 +265,15 @@ model EmpresaVaga {
   ativo                  Boolean                        @default(true)
   cidade_id              Int
   tipo_oportunidade      TipoOportunidade               @default(AMPLA_CONCORRENCIA)
+
   cidade                 EstadoCidade                   @relation(fields: [cidade_id], references: [id])
   empresa                Empresa                        @relation("EmpresaVagas", fields: [empresa_id], references: [id])
   modalidade_trabalho    ModalidadeTrabalho             @relation(fields: [modalidade_trabalho_id], references: [modalidade_trabalho_id])
   periodo_trabalho       PeriodoTrabalho                @relation(fields: [periodo_trabalho_id], references: [periodo_trabalho_id])
   publicos_afirmativos   EmpresaVagaPublicoAfirmativo[]
   skills                 EmpresaVagaSkill[]
+  convites_candidatos RecrutadorConviteCandidato[]
+
 
   @@index([empresa_id])
   @@index([tipo_oportunidade])
@@ -669,6 +678,52 @@ model RecrutadorCandidatoExclusao {
   @@map("recrutador_candidato_exclusao")
 }
 
+model RecrutadorConviteCandidato {
+  id            Int                      @id @default(autoincrement())
+  recrutador_id Int
+  candidato_id  Int
+  empresa_id    Int?
+  vaga_id       Int?
+  tipo          TipoConviteRecrutador
+  titulo        String
+  mensagem      String                   @db.Text
+  status        StatusConviteRecrutador  @default(CONVITE_ENVIADO)
+  data_convite  DateTime                 @default(now())
+  data_aceite   DateTime?
+  data_recusa   DateTime?
+  aprovado      Boolean?
+  parecer       String?                  @db.Text
+  data_finalizacao DateTime?
+
+  recrutador UsuarioPerfilRecrutador @relation(fields: [recrutador_id],references: [id])
+  candidato UsuarioPerfilCandidato @relation(fields: [candidato_id],references: [id])
+  empresa Empresa? @relation(fields: [empresa_id], references: [id])
+  vaga EmpresaVaga? @relation(fields: [vaga_id], references: [vaga_id])
+  agenda RecrutadorConviteAgenda?
+
+  @@unique([vaga_id, candidato_id])
+  @@index([recrutador_id])
+  @@index([candidato_id])
+  @@index([empresa_id])
+  @@index([vaga_id])
+  @@index([status])
+  @@map("recrutador_convite_candidato")
+}
+
+model RecrutadorConviteAgenda {
+  id          Int          @id @default(autoincrement())
+  convite_id  Int          @unique
+  data_hora_agenda DateTime
+  status           AgendaStatus @default(PENDENTE)
+  data_criacao  DateTime @default(now())
+  data_resposta DateTime?
+
+  convite RecrutadorConviteCandidato @relation(fields: [convite_id],references: [id],onDelete: Cascade)
+
+  @@index([convite_id])
+  @@map("recrutador_convite_agenda")
+}
+
 enum PerfilTipo {
   CANDIDATO
   RECRUTADOR
@@ -699,6 +754,15 @@ enum TipoNotificacao {
   NOVA_MENSAGEM_ENTREVISTA
   NOVA_MENSAGEM_FORMULARIO
   NOVA_MENSAGEM_FINALIZADA
+
+  NOVO_CONVITE_RECRUTADOR
+  NOVO_CONVITE_RECRUTADOR_MANUAL
+  CONVITE_RECRUTADOR_ACEITO
+  CONVITE_RECRUTADOR_RECUSADO
+  NOVA_AGENDA_RECRUTADOR
+  AGENDA_RECRUTADOR_ACEITA
+  AGENDA_RECRUTADOR_RECUSADA
+  PROCESSO_RECRUTADOR_FINALIZADO
 }
 
 enum TipoPergunta {
@@ -722,4 +786,24 @@ enum StatusAvaliacao {
   FINALIZADO
   AGENDA_ENVIADA
   AGENDADO
+}
+
+enum TipoConviteRecrutador {
+  VAGA
+  OPORTUNIDADE
+  PALESTRA_EVENTO
+  MENTORIA
+  PROJETO_CONSULTORIA
+  NETWORKING
+  OUTRO
+}
+
+enum StatusConviteRecrutador {
+  CONVITE_ENVIADO
+  CONVITE_ACEITO
+  CONVITE_RECUSADO
+  AGENDA_ENVIADA
+  AGENDADO
+  ENTREVISTA_REALIZADA
+  FINALIZADO
 }
