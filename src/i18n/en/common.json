@@ -98,6 +98,25 @@
       "introducao_2": "Access Whizzat to view the details and track the progress of your professional profile.",
       "introducao_3": "Thank you for your participation and for the time you dedicated to this process.",
       "btn_acessar": "Access dashboard"
+    },
+    "convite_recrutador": {
+      "assunto_prefixo": "You received a new invitation on Whizzat",
+      "titulo": "A new opportunity for you",
+      "saudacao": "Hello",
+      "introducao": "You received a new invitation from a recruiter to participate in an opportunity.",
+      "introducao_varios": "You received {{quantidade}} new invitations from recruiters to participate in opportunities.",
+      "introducao_2": "Access Whizzat to view the details and decide whether you would like to accept or decline the invitation.",
+      "btn_acessar": "View invitation"
+    },
+    "convite_recrutador_manual": {
+      "assunto_prefixo": "You received a new invitation on Whizzat",
+      "titulo": "You received a new invitation",
+      "saudacao": "Hello",
+      "introducao": "You received a new professional invitation from a recruiter on Whizzat.",
+      "introducao_varios": "You received {{quantidade}} new professional invitations from recruiters on Whizzat.",
+      "introducao_2": "The invitation may be related to an opportunity, mentorship, event, project, consulting, or networking.",
+      "introducao_3": "Access your account to view the reason and invitation details and decide whether you would like to accept it.",
+      "btn_acessar": "View invitation"
     }
   },
   "auth": {

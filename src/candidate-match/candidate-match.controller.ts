@@ -16,6 +16,10 @@ import { BuscarCandidatosVagaDto } from './dto/buscar-candidatos-vaga.dto';
 import { IgnorarCandidatoDto } from './dto/ignorar-candidato.dto';
 import { RestaurarCandidatosDto } from './dto/restaurar-candidatos.dto';
 import { BuscarCandidatosDto } from './dto/buscar-candidatos.dto';
+import { CriarConviteVagaDto } from './dto/criar-convite-vaga.dto';
+import { CriarConviteManualDto } from './dto/criar-convite-manual.dto';
+import { ResponderConviteCandidatoDto } from './dto/responder-convite-candidato.dto';
+import { ResponderAgendaCandidatoDto } from './dto/responder-agenda-candidato.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -88,18 +92,6 @@ export class CandidateMatchController {
     });
   }
 
-  @Get('candidato/:candidatoId')
-  @UseGuards(JwtAuthGuard)
-  async buscarPerfilCandidato(
-    @Req() req: Request & { user: JwtPayload },
-    @Param('candidatoId', ParseIntPipe) candidatoId: number,
-  ) {
-    return this.candidateMatchService.buscarPerfilCandidato({
-      usuarioId: req.user.sub,
-      candidatoId,
-    });
-  }
-
   @UseGuards(JwtAuthGuard)
   @Post('busca')
   async buscarCandidatos(
@@ -109,6 +101,85 @@ export class CandidateMatchController {
     return this.candidateMatchService.buscarManual({
       usuarioId: req.user.sub,
       criterios: body,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('convite/vaga')
+  async criarConviteVaga(
+    @Req() req: Request & { user: JwtPayload },
+    @Body() body: CriarConviteVagaDto,
+  ) {
+    return this.candidateMatchService.criarConviteVaga({
+      usuarioId: req.user.sub,
+      dados: body,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('convites')
+  async criarConvites(
+    @Req() req: Request & { user: JwtPayload },
+    @Body() dto: CriarConviteManualDto,
+  ) {
+    return this.candidateMatchService.criarConvites(req.user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('candidato/convites')
+  async buscarConvitesCandidato(@Req() req: Request & { user: JwtPayload }) {
+    return this.candidateMatchService.buscarConvitesCandidato(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('candidato/convites/:conviteId/resposta')
+  async responderConviteCandidato(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('conviteId', ParseIntPipe) conviteId: number,
+    @Body() dto: ResponderConviteCandidatoDto,
+  ) {
+    return this.candidateMatchService.responderConviteCandidato({
+      usuarioId: req.user.sub,
+      conviteId,
+      resposta: dto.resposta,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('candidato/processos')
+  async buscarProcessosCandidato(@Req() req: Request & { user: JwtPayload }) {
+    return this.candidateMatchService.buscarProcessosCandidato(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('candidato/processos/:conviteId/agenda/resposta')
+  async responderAgendaCandidato(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('conviteId', ParseIntPipe) conviteId: number,
+    @Body() dto: ResponderAgendaCandidatoDto,
+  ) {
+    return this.candidateMatchService.responderAgendaCandidato({
+      usuarioId: req.user.sub,
+      conviteId,
+      resposta: dto.resposta,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('candidato/finalizados')
+  async buscarFinalizadosCandidato(@Req() req: Request & { user: JwtPayload }) {
+    return this.candidateMatchService.buscarFinalizadosCandidato(req.user.sub);
+  }
+
+  @Get('candidato/:candidatoId')
+  @UseGuards(JwtAuthGuard)
+  async buscarPerfilCandidato(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('candidatoId', ParseIntPipe) candidatoId: number,
+  ) {
+    return this.candidateMatchService.buscarPerfilCandidato({
+      usuarioId: req.user.sub,
+      candidatoId,
     });
   }
 }
