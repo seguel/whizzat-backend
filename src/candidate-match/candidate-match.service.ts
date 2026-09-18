@@ -21,6 +21,7 @@ import { CriarConviteVagaDto } from './dto/criar-convite-vaga.dto';
 import { CriarConviteManualDto } from './dto/criar-convite-manual.dto';
 import { RespostaConviteCandidato } from './dto/responder-convite-candidato.dto';
 import { RespostaAgendaCandidato } from './dto/responder-agenda-candidato.dto';
+import { FinalizarProcessoRecrutadorDto } from './dto/finalizar-processo-recrutador.dto';
 
 interface CriterioSkillMatch {
   skill_id: number;
@@ -1060,23 +1061,92 @@ export class CandidateMatchService {
       await this.prisma.recrutadorConviteCandidato.findMany({
         where: {
           recrutador_id: recrutador.id,
+
           candidato_id: {
             in: candidatoIds,
           },
+
           vaga_id: null,
         },
+
         select: {
           candidato_id: true,
+          tipo: true,
+          status: true,
         },
       });
 
+    /*
+     * Histórico:
+     * indica apenas se o candidato já recebeu algum convite manual
+     * deste recrutador.
+     */
     const candidatosJaConvidados = new Set<number>(
       convitesExistentes.map((item) => item.candidato_id),
     );
 
+    /*
+     * Status considerados processos ainda ativos.
+     *
+     * FINALIZADO e CONVITE_RECUSADO ficam de fora,
+     * pois não devem impedir um novo convite no futuro.
+     */
+    const statusConvitesAtivos: StatusConviteRecrutador[] = [
+      StatusConviteRecrutador.CONVITE_ENVIADO,
+      StatusConviteRecrutador.CONVITE_ACEITO,
+      StatusConviteRecrutador.AGENDA_ENVIADA,
+      StatusConviteRecrutador.AGENDADO,
+      StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+    ];
+
+    /*
+     * Exemplo:
+     *
+     * candidato 10:
+     *   MENTORIA
+     *   NETWORKING
+     *
+     * candidato 20:
+     *   OPORTUNIDADE
+     */
+    const tiposAtivosPorCandidato = new Map<
+      number,
+      Set<TipoConviteRecrutador>
+    >();
+
+    for (const convite of convitesExistentes) {
+      if (!statusConvitesAtivos.includes(convite.status)) {
+        continue;
+      }
+
+      let tipos = tiposAtivosPorCandidato.get(convite.candidato_id);
+
+      if (!tipos) {
+        tipos = new Set<TipoConviteRecrutador>();
+
+        tiposAtivosPorCandidato.set(convite.candidato_id, tipos);
+      }
+
+      tipos.add(convite.tipo);
+    }
+
     const candidatosComConvite = candidatos.map((candidato) => ({
       ...candidato,
+
+      /*
+       * Somente informação histórica.
+       * NÃO significa mais que o candidato deve ser bloqueado.
+       */
       ja_convidado: candidatosJaConvidados.has(candidato.candidato_id),
+
+      /*
+       * Tipos de convites que ainda possuem processo ativo.
+       * Usaremos isso depois para impedir duplicidade
+       * somente para o mesmo tipo.
+       */
+      tipos_convite_ativos: Array.from(
+        tiposAtivosPorCandidato.get(candidato.candidato_id) ?? [],
+      ),
     }));
 
     return {
@@ -1499,6 +1569,54 @@ export class CandidateMatchService {
     }
 
     /*
+     * Verifica quais candidatos já possuem um convite manual
+     * ATIVO do mesmo tipo.
+     *
+     * Convites recusados ou finalizados não impedem
+     * um novo convite do mesmo tipo.
+     */
+    const convitesAtivosMesmoTipo =
+      await this.prisma.recrutadorConviteCandidato.findMany({
+        where: {
+          recrutador_id: recrutador.id,
+
+          candidato_id: {
+            in: candidatoIds,
+          },
+
+          vaga_id: null,
+
+          tipo: dto.tipo,
+
+          status: {
+            in: [
+              StatusConviteRecrutador.CONVITE_ENVIADO,
+              StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.AGENDA_ENVIADA,
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            ],
+          },
+        },
+
+        select: {
+          candidato_id: true,
+        },
+      });
+
+    const candidatosComConviteAtivo = new Set<number>(
+      convitesAtivosMesmoTipo.map((convite) => convite.candidato_id),
+    );
+
+    const candidatosPermitidos = candidatos.filter(
+      (candidato) => !candidatosComConviteAtivo.has(candidato.id),
+    );
+
+    const candidatosIgnorados = candidatos.filter((candidato) =>
+      candidatosComConviteAtivo.has(candidato.id),
+    );
+
+    /*
      * Convite da BUSCA MANUAL:
      *
      * empresa_id = null
@@ -1507,7 +1625,7 @@ export class CandidateMatchService {
     const convites = await this.prisma.$transaction(async (tx) => {
       const registros = [];
 
-      for (const candidato of candidatos) {
+      for (const candidato of candidatosPermitidos) {
         const convite = await tx.recrutadorConviteCandidato.create({
           data: {
             recrutador_id: recrutador.id,
@@ -1547,10 +1665,18 @@ export class CandidateMatchService {
 
     return {
       sucesso: true,
+
       quantidade: convites.length,
+      quantidade_ignorados: candidatosIgnorados.length,
+
       convites: convites.map((convite) => ({
         id: convite.id,
         candidato_id: convite.candidato_id,
+      })),
+
+      candidatos_ignorados: candidatosIgnorados.map((candidato) => ({
+        candidato_id: candidato.id,
+        motivo: 'CONVITE_ATIVO_MESMO_TIPO',
       })),
     };
   }
@@ -1973,5 +2099,461 @@ export class CandidateMatchService {
         data_finalizacao: 'desc',
       },
     });
+  }
+
+  async buscarProcessosRecrutador(usuarioId: number) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    const processos = await this.prisma.recrutadorConviteCandidato.findMany({
+      where: {
+        recrutador_id: recrutador.id,
+
+        status: {
+          in: [
+            StatusConviteRecrutador.CONVITE_ACEITO,
+            StatusConviteRecrutador.AGENDA_ENVIADA,
+            StatusConviteRecrutador.AGENDADO,
+            StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            StatusConviteRecrutador.FINALIZADO,
+            StatusConviteRecrutador.CONVITE_RECUSADO,
+          ],
+        },
+      },
+
+      select: {
+        id: true,
+        tipo: true,
+        titulo: true,
+        mensagem: true,
+        status: true,
+
+        data_convite: true,
+        data_aceite: true,
+        data_recusa: true,
+
+        aprovado: true,
+        parecer: true,
+        data_finalizacao: true,
+
+        candidato: {
+          select: {
+            id: true,
+            logo: true,
+
+            usuario: {
+              select: {
+                primeiro_nome: true,
+                ultimo_nome: true,
+                nome_social: true,
+              },
+            },
+          },
+        },
+
+        empresa: {
+          select: {
+            id: true,
+            nome_empresa: true,
+          },
+        },
+
+        vaga: {
+          select: {
+            vaga_id: true,
+            nome_vaga: true,
+          },
+        },
+
+        agenda: {
+          select: {
+            id: true,
+            data_hora_agenda: true,
+            status: true,
+            data_resposta: true,
+          },
+        },
+      },
+
+      orderBy: {
+        data_convite: 'desc',
+      },
+    });
+
+    return processos.map((processo) => {
+      const nomeCandidato =
+        processo.candidato.usuario.nome_social?.trim() ||
+        `${processo.candidato.usuario.primeiro_nome} ${processo.candidato.usuario.ultimo_nome}`.trim();
+
+      return {
+        id: processo.id,
+
+        candidato: {
+          id: processo.candidato.id,
+          nome: nomeCandidato,
+          logo: processo.candidato.logo,
+        },
+
+        tipo: processo.tipo,
+        titulo: processo.titulo,
+        mensagem: processo.mensagem,
+        status: processo.status,
+
+        empresa: processo.empresa,
+        vaga: processo.vaga,
+        agenda: processo.agenda,
+
+        data_convite: processo.data_convite,
+        data_aceite: processo.data_aceite,
+        data_recusa: processo.data_recusa,
+
+        aprovado: processo.aprovado,
+        parecer: processo.parecer,
+        data_finalizacao: processo.data_finalizacao,
+      };
+    });
+  }
+
+  async sugerirAgendaRecrutador({
+    usuarioId,
+    conviteId,
+    dataHoraAgenda,
+  }: {
+    usuarioId: number;
+    conviteId: number;
+    dataHoraAgenda: string;
+  }) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    const dataAgenda = new Date(dataHoraAgenda);
+
+    if (
+      Number.isNaN(dataAgenda.getTime()) ||
+      dataAgenda.getTime() <= Date.now()
+    ) {
+      throw new BadRequestException(
+        'A data e horário da entrevista devem estar no futuro.',
+      );
+    }
+
+    const convite = await this.prisma.recrutadorConviteCandidato.findFirst({
+      where: {
+        id: conviteId,
+        recrutador_id: recrutador.id,
+        status: StatusConviteRecrutador.CONVITE_ACEITO,
+      },
+      select: {
+        id: true,
+        titulo: true,
+
+        candidato: {
+          select: {
+            usuario_id: true,
+            perfil_id: true,
+          },
+        },
+
+        agenda: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!convite) {
+      throw new NotFoundException(
+        'Processo não encontrado ou não está disponível para agendamento.',
+      );
+    }
+
+    /*
+     * Se já existe agenda, só permitimos um novo horário
+     * quando a anterior foi recusada.
+     */
+    if (convite.agenda && convite.agenda.status !== AgendaStatus.RECUSADO) {
+      throw new BadRequestException(
+        'Já existe uma sugestão de entrevista ativa para este processo.',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const agenda = await tx.recrutadorConviteAgenda.upsert({
+        where: {
+          convite_id: convite.id,
+        },
+
+        create: {
+          convite_id: convite.id,
+          data_hora_agenda: dataAgenda,
+          status: AgendaStatus.PENDENTE,
+        },
+
+        update: {
+          data_hora_agenda: dataAgenda,
+          status: AgendaStatus.PENDENTE,
+          data_resposta: null,
+        },
+
+        select: {
+          id: true,
+          data_hora_agenda: true,
+          status: true,
+        },
+      });
+
+      await tx.recrutadorConviteCandidato.update({
+        where: {
+          id: convite.id,
+        },
+        data: {
+          status: StatusConviteRecrutador.AGENDA_ENVIADA,
+        },
+      });
+
+      await tx.notificacao.create({
+        data: {
+          usuario_id: convite.candidato.usuario_id,
+          perfil_tipo: PerfilTipo.CANDIDATO,
+          perfil_id: convite.candidato.perfil_id,
+          referencia_id: convite.id,
+
+          titulo: 'Nova sugestão de entrevista',
+          mensagem: `Você recebeu uma sugestão de entrevista para ${convite.titulo}.`,
+
+          tipo: TipoNotificacao.NOVA_AGENDA_RECRUTADOR,
+        },
+      });
+
+      return {
+        id: convite.id,
+        status: StatusConviteRecrutador.AGENDA_ENVIADA,
+        agenda,
+      };
+    });
+  }
+
+  async marcarEntrevistaRealizada(usuarioId: number, conviteId: number) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    const convite = await this.prisma.recrutadorConviteCandidato.findFirst({
+      where: {
+        id: conviteId,
+        recrutador_id: recrutador.id,
+      },
+      select: {
+        id: true,
+        status: true,
+        agenda: {
+          select: {
+            id: true,
+            status: true,
+            data_hora_agenda: true,
+          },
+        },
+      },
+    });
+
+    if (!convite) {
+      throw new NotFoundException('Processo não encontrado.');
+    }
+
+    if (convite.status !== StatusConviteRecrutador.AGENDADO) {
+      throw new BadRequestException(
+        'Apenas entrevistas agendadas podem ser marcadas como realizadas.',
+      );
+    }
+
+    if (!convite.agenda) {
+      throw new BadRequestException(
+        'Este processo não possui uma entrevista agendada.',
+      );
+    }
+
+    if (convite.agenda.status !== AgendaStatus.ACEITO) {
+      throw new BadRequestException(
+        'A entrevista precisa estar aceita para ser marcada como realizada.',
+      );
+    }
+
+    if (convite.agenda.data_hora_agenda.getTime() > Date.now()) {
+      throw new BadRequestException('A entrevista ainda não ocorreu.');
+    }
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const agenda = await tx.recrutadorConviteAgenda.update({
+        where: {
+          id: convite.agenda!.id,
+        },
+        data: {
+          status: AgendaStatus.REALIZADO,
+        },
+      });
+
+      const processo = await tx.recrutadorConviteCandidato.update({
+        where: {
+          id: convite.id,
+        },
+        data: {
+          status: StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+        },
+      });
+
+      return {
+        processo,
+        agenda,
+      };
+    });
+
+    return {
+      sucesso: true,
+      id: resultado.processo.id,
+      status: resultado.processo.status,
+
+      agenda: {
+        id: resultado.agenda.id,
+        status: resultado.agenda.status,
+        data_hora_agenda: resultado.agenda.data_hora_agenda,
+      },
+    };
+  }
+
+  async finalizarProcessoRecrutador(
+    usuarioId: number,
+    conviteId: number,
+    dto: FinalizarProcessoRecrutadorDto,
+  ) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    const convite = await this.prisma.recrutadorConviteCandidato.findFirst({
+      where: {
+        id: conviteId,
+        recrutador_id: recrutador.id,
+      },
+      select: {
+        id: true,
+        status: true,
+        titulo: true,
+
+        candidato: {
+          select: {
+            id: true,
+            usuario_id: true,
+            perfil_id: true,
+          },
+        },
+      },
+    });
+
+    if (!convite) {
+      throw new NotFoundException('Processo não encontrado.');
+    }
+
+    if (convite.status !== StatusConviteRecrutador.ENTREVISTA_REALIZADA) {
+      throw new BadRequestException(
+        'Apenas processos com entrevista realizada podem ser finalizados.',
+      );
+    }
+
+    const parecer = dto.parecer.trim();
+
+    if (!parecer) {
+      throw new BadRequestException(
+        'Informe um feedback para finalizar o processo.',
+      );
+    }
+
+    const processo = await this.prisma.$transaction(async (tx) => {
+      const processoFinalizado = await tx.recrutadorConviteCandidato.update({
+        where: {
+          id: convite.id,
+        },
+        data: {
+          aprovado: dto.aprovado,
+          parecer,
+          data_finalizacao: new Date(),
+          status: StatusConviteRecrutador.FINALIZADO,
+        },
+        select: {
+          id: true,
+          status: true,
+          aprovado: true,
+          parecer: true,
+          data_finalizacao: true,
+        },
+      });
+
+      await tx.notificacao.create({
+        data: {
+          usuario_id: convite.candidato.usuario_id,
+          perfil_tipo: PerfilTipo.CANDIDATO,
+          perfil_id: convite.candidato.perfil_id,
+
+          tipo: TipoNotificacao.PROCESSO_RECRUTADOR_FINALIZADO,
+          referencia_id: convite.id,
+
+          titulo: 'Processo finalizado',
+          mensagem: convite.titulo,
+
+          lida: false,
+          enviada_email: false,
+        },
+      });
+
+      return processoFinalizado;
+    });
+
+    return {
+      sucesso: true,
+      ...processo,
+    };
   }
 }
