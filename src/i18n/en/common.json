@@ -145,6 +145,14 @@
         "titulo": "Interview time declined",
         "mensagem": "{{candidato}} declined the suggested time for \"{{convite}}\" on {{dataHora}}. You can suggest a new date and time."
       }
+    },
+    "processo_recrutador_finalizado": {
+      "assunto_prefixo": "Update on your process",
+      "titulo": "Your process has been finalized",
+      "saudacao": "Hello, {{nome}}!",
+      "introducao_1": "The {{tituloProcesso}} process has been finalized.",
+      "introducao_2": "Go to your opportunities to view the outcome and the feedback shared by the recruiter.",
+      "botao": "View outcome"
     }
   },
   "auth": {
