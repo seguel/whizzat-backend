@@ -2,13 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { Cron } from '@nestjs/schedule';
-import { Prisma, TipoNotificacao } from '@prisma/client';
+import {
+  Prisma,
+  AgendaStatus,
+  TipoNotificacao,
+  StatusConviteRecrutador,
+} from '@prisma/client';
 
 type NotificacaoComUsuario = Prisma.NotificacaoGetPayload<{
   include: { usuario: true };
 }>;
 
 interface GrupoNotificacao {
+  referencia_id: number | null;
   usuario: NotificacaoComUsuario['usuario'];
   perfil_id: number;
   notificacoes: NotificacaoComUsuario[];
@@ -78,6 +84,7 @@ export class EmailResumoSkillWorker {
 
           if (!acc[key]) {
             acc[key] = {
+              referencia_id: notif.referencia_id,
               usuario: notif.usuario,
               perfil_id: notif.perfil_id,
               notificacoes: [],
@@ -175,6 +182,109 @@ export class EmailResumoSkillWorker {
             );
 
             emailEnviado = true;
+          } else if (tipo === TipoNotificacao.RESPOSTA_CONVITE_RECRUTADOR) {
+            const convite =
+              await this.prisma.recrutadorConviteCandidato.findUnique({
+                where: {
+                  id: grupo.referencia_id || 0,
+                },
+                select: {
+                  titulo: true,
+                  status: true,
+
+                  candidato: {
+                    select: {
+                      usuario: {
+                        select: {
+                          primeiro_nome: true,
+                          ultimo_nome: true,
+                          nome_social: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+
+            if (convite) {
+              const nomeCandidato =
+                convite.candidato.usuario.nome_social?.trim() ||
+                `${convite.candidato.usuario.primeiro_nome} ${convite.candidato.usuario.ultimo_nome}`.trim();
+
+              const aceito =
+                convite.status === StatusConviteRecrutador.CONVITE_ACEITO;
+
+              const dashboardLink = process.env.FRONTEND_URL
+                ? `${process.env.FRONTEND_URL}/dashboard?perfil=recrutador`
+                : '';
+
+              await this.mailService.enviarRespostaConviteRecrutadorNotificacoes(
+                grupo.usuario.email,
+                nomeCompleto,
+                grupo.usuario.linguagem ?? 'pt',
+                nomeCandidato,
+                convite.titulo,
+                aceito,
+                dashboardLink,
+              );
+
+              emailEnviado = true;
+            }
+          } else if (tipo === TipoNotificacao.RESPOSTA_AGENDA_RECRUTADOR) {
+            const convite =
+              await this.prisma.recrutadorConviteCandidato.findUnique({
+                where: {
+                  id: grupo.referencia_id || 0,
+                },
+                select: {
+                  titulo: true,
+                  status: true,
+
+                  candidato: {
+                    select: {
+                      usuario: {
+                        select: {
+                          primeiro_nome: true,
+                          ultimo_nome: true,
+                          nome_social: true,
+                        },
+                      },
+                    },
+                  },
+
+                  agenda: {
+                    select: {
+                      data_hora_agenda: true,
+                      status: true,
+                    },
+                  },
+                },
+              });
+
+            if (convite?.agenda) {
+              const nomeCandidato =
+                convite.candidato.usuario.nome_social?.trim() ||
+                `${convite.candidato.usuario.primeiro_nome} ${convite.candidato.usuario.ultimo_nome}`.trim();
+
+              const aceito = convite.agenda.status === AgendaStatus.ACEITO;
+
+              const recrutadorLink = process.env.FRONTEND_URL
+                ? `${process.env.FRONTEND_URL}/dashboard?perfil=recrutador`
+                : dashboardLink;
+
+              await this.mailService.enviarRespostaAgendaRecrutadorNotificacoes(
+                grupo.usuario.email,
+                nomeCompleto,
+                grupo.usuario.linguagem ?? 'pt',
+                nomeCandidato,
+                convite.titulo,
+                convite.agenda.data_hora_agenda,
+                aceito,
+                recrutadorLink,
+              );
+
+              emailEnviado = true;
+            }
           }
 
           if (emailEnviado) {

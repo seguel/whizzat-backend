@@ -1619,6 +1619,14 @@ export class CandidateMatchService {
       },
       select: {
         id: true,
+
+        usuario: {
+          select: {
+            primeiro_nome: true,
+            ultimo_nome: true,
+            nome_social: true,
+          },
+        },
       },
     });
 
@@ -1634,6 +1642,15 @@ export class CandidateMatchService {
       },
       select: {
         id: true,
+        titulo: true,
+        recrutador_id: true,
+
+        recrutador: {
+          select: {
+            usuario_id: true,
+            perfil_id: true,
+          },
+        },
       },
     });
 
@@ -1645,25 +1662,51 @@ export class CandidateMatchService {
 
     const aceitar = resposta === RespostaConviteCandidato.ACEITAR;
 
-    return this.prisma.recrutadorConviteCandidato.update({
-      where: {
-        id: convite.id,
-      },
-      data: aceitar
-        ? {
-            status: StatusConviteRecrutador.CONVITE_ACEITO,
-            data_aceite: new Date(),
-          }
-        : {
-            status: StatusConviteRecrutador.CONVITE_RECUSADO,
-            data_recusa: new Date(),
-          },
-      select: {
-        id: true,
-        status: true,
-        data_aceite: true,
-        data_recusa: true,
-      },
+    const nomeCandidato =
+      candidato.usuario.nome_social?.trim() ||
+      `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim();
+
+    return this.prisma.$transaction(async (tx) => {
+      const conviteAtualizado = await tx.recrutadorConviteCandidato.update({
+        where: {
+          id: convite.id,
+        },
+        data: aceitar
+          ? {
+              status: StatusConviteRecrutador.CONVITE_ACEITO,
+              data_aceite: new Date(),
+            }
+          : {
+              status: StatusConviteRecrutador.CONVITE_RECUSADO,
+              data_recusa: new Date(),
+            },
+        select: {
+          id: true,
+          status: true,
+          data_aceite: true,
+          data_recusa: true,
+        },
+      });
+
+      await tx.notificacao.create({
+        data: {
+          usuario_id: convite.recrutador.usuario_id,
+          perfil_tipo: PerfilTipo.RECRUTADOR,
+          perfil_id: convite.recrutador.perfil_id,
+
+          referencia_id: convite.id,
+
+          titulo: aceitar ? 'Convite aceito' : 'Convite recusado',
+
+          mensagem: aceitar
+            ? `${nomeCandidato} aceitou o convite: ${convite.titulo}.`
+            : `${nomeCandidato} recusou o convite: ${convite.titulo}.`,
+
+          tipo: TipoNotificacao.RESPOSTA_CONVITE_RECRUTADOR,
+        },
+      });
+
+      return conviteAtualizado;
     });
   }
 
@@ -1752,6 +1795,14 @@ export class CandidateMatchService {
       },
       select: {
         id: true,
+
+        usuario: {
+          select: {
+            primeiro_nome: true,
+            ultimo_nome: true,
+            nome_social: true,
+          },
+        },
       },
     });
 
@@ -1767,11 +1818,20 @@ export class CandidateMatchService {
       },
       select: {
         id: true,
+        titulo: true,
+
+        recrutador: {
+          select: {
+            usuario_id: true,
+            perfil_id: true,
+          },
+        },
 
         agenda: {
           select: {
             id: true,
             status: true,
+            data_hora_agenda: true,
           },
         },
       },
@@ -1798,6 +1858,10 @@ export class CandidateMatchService {
     const aceitar = resposta === RespostaAgendaCandidato.ACEITAR;
     const agora = new Date();
 
+    const nomeCandidato =
+      candidato.usuario.nome_social?.trim() ||
+      `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim();
+
     return this.prisma.$transaction(async (tx) => {
       await tx.recrutadorConviteAgenda.update({
         where: {
@@ -1809,7 +1873,7 @@ export class CandidateMatchService {
         },
       });
 
-      return tx.recrutadorConviteCandidato.update({
+      const conviteAtualizado = await tx.recrutadorConviteCandidato.update({
         where: {
           id: convite.id,
         },
@@ -1832,6 +1896,28 @@ export class CandidateMatchService {
           },
         },
       });
+
+      await tx.notificacao.create({
+        data: {
+          usuario_id: convite.recrutador.usuario_id,
+          perfil_tipo: PerfilTipo.RECRUTADOR,
+          perfil_id: convite.recrutador.perfil_id,
+
+          referencia_id: convite.id,
+
+          titulo: aceitar
+            ? 'Horário de entrevista aceito'
+            : 'Horário de entrevista recusado',
+
+          mensagem: aceitar
+            ? `${nomeCandidato} aceitou o horário sugerido para ${convite.titulo}.`
+            : `${nomeCandidato} recusou o horário sugerido para ${convite.titulo}.`,
+
+          tipo: TipoNotificacao.RESPOSTA_AGENDA_RECRUTADOR,
+        },
+      });
+
+      return conviteAtualizado;
     });
   }
 

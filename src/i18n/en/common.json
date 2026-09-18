@@ -117,6 +117,34 @@
       "introducao_2": "The invitation may be related to an opportunity, mentorship, event, project, consulting, or networking.",
       "introducao_3": "Access your account to view the reason and invitation details and decide whether you would like to accept it.",
       "btn_acessar": "View invitation"
+    },
+    "resposta_convite_recrutador": {
+      "saudacao": "Hello",
+      "btn_acessar": "Open Whizzat",
+      "aceito": {
+        "assunto": "{{candidato}} accepted your invitation",
+        "titulo": "Invitation accepted",
+        "mensagem": "{{candidato}} accepted the invitation \"{{convite}}\". You can now continue the process and suggest an interview."
+      },
+      "recusado": {
+        "assunto": "{{candidato}} declined your invitation",
+        "titulo": "Invitation declined",
+        "mensagem": "{{candidato}} declined the invitation \"{{convite}}\"."
+      }
+    },
+    "resposta_agenda_recrutador": {
+      "saudacao": "Hello",
+      "btn_acessar": "Open Whizzat",
+      "aceita": {
+        "assunto": "{{candidato}} confirmed the interview",
+        "titulo": "Interview confirmed",
+        "mensagem": "{{candidato}} accepted the suggested time for \"{{convite}}\" on {{dataHora}}."
+      },
+      "recusada": {
+        "assunto": "{{candidato}} declined the interview time",
+        "titulo": "Interview time declined",
+        "mensagem": "{{candidato}} declined the suggested time for \"{{convite}}\" on {{dataHora}}. You can suggest a new date and time."
+      }
     }
   },
   "auth": {
