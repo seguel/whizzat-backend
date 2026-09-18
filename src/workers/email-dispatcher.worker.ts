@@ -285,6 +285,38 @@ export class EmailResumoSkillWorker {
 
               emailEnviado = true;
             }
+          } else if (tipo === TipoNotificacao.PROCESSO_RECRUTADOR_FINALIZADO) {
+            const oportunidadesLink = process.env.FRONTEND_URL
+              ? `${process.env.FRONTEND_URL}/dashboard/candidato/oportunidades?perfil=candidato`
+              : dashboardLink;
+
+            const notificacao = grupo.notificacoes[0];
+
+            const convite =
+              await this.prisma.recrutadorConviteCandidato.findUnique({
+                where: {
+                  id: notificacao.referencia_id!,
+                },
+                select: {
+                  titulo: true,
+                },
+              });
+
+            if (!convite) {
+              throw new Error(
+                `Convite ${notificacao.referencia_id} não encontrado`,
+              );
+            }
+
+            await this.mailService.enviarProcessoFinalizadoNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              convite.titulo,
+              oportunidadesLink,
+            );
+
+            emailEnviado = true;
           }
 
           if (emailEnviado) {

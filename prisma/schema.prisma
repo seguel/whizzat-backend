@@ -579,13 +579,17 @@ model Notificacao {
   lida          Boolean         @default(false)
   enviada_email Boolean         @default(false)
   criado_em     DateTime        @default(now())
-  usuario       Usuario         @relation(fields: [usuario_id], references: [id])
 
-  @@unique([perfil_tipo, usuario_id, tipo, referencia_id, titulo])
+  usuario Usuario @relation(fields: [usuario_id], references: [id])
+
   @@index([usuario_id, perfil_tipo])
   @@index([usuario_id, perfil_tipo, lida])
   @@index([usuario_id, lida])
   @@index([enviada_email])
+
+  // Bom para consultas do histórico de uma referência
+  @@index([tipo, referencia_id])
+
   @@map("notificacao")
 }
 
