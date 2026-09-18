@@ -145,6 +145,14 @@
         "titulo": "Horário recusado",
         "mensagem": "{{candidato}} recusou o horário sugerido para \"{{convite}}\" em {{dataHora}}. Você pode sugerir uma nova data e horário."
       }
+    },
+    "processo_recrutador_finalizado": {
+      "assunto_prefixo": "Atualização sobre seu processo",
+      "titulo": "Seu processo foi finalizado",
+      "saudacao": "Olá, {{nome}}!",
+      "introducao_1": "O processo {{tituloProcesso}} foi finalizado.",
+      "introducao_2": "Acesse suas oportunidades para consultar o resultado e o feedback compartilhado pelo recrutador.",
+      "botao": "Ver resultado"
     }
   },
   "auth": {

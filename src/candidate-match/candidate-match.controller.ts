@@ -20,6 +20,8 @@ import { CriarConviteVagaDto } from './dto/criar-convite-vaga.dto';
 import { CriarConviteManualDto } from './dto/criar-convite-manual.dto';
 import { ResponderConviteCandidatoDto } from './dto/responder-convite-candidato.dto';
 import { ResponderAgendaCandidatoDto } from './dto/responder-agenda-candidato.dto';
+import { SugerirAgendaRecrutadorDto } from './dto/sugerir-agenda-recrutador.dto';
+import { FinalizarProcessoRecrutadorDto } from './dto/finalizar-processo-recrutador.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -169,6 +171,56 @@ export class CandidateMatchController {
   @Get('candidato/finalizados')
   async buscarFinalizadosCandidato(@Req() req: Request & { user: JwtPayload }) {
     return this.candidateMatchService.buscarFinalizadosCandidato(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('recrutador/processos')
+  async buscarProcessosRecrutador(@Req() req: Request & { user: JwtPayload }) {
+    return this.candidateMatchService.buscarProcessosRecrutador(req.user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('recrutador/processos/:conviteId/agenda')
+  async sugerirAgendaRecrutador(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('conviteId', ParseIntPipe) conviteId: number,
+    @Body() dto: SugerirAgendaRecrutadorDto,
+  ) {
+    return this.candidateMatchService.sugerirAgendaRecrutador({
+      usuarioId: req.user.sub,
+      conviteId,
+      dataHoraAgenda: dto.data_hora_agenda,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('recrutador/processos/:conviteId/realizada')
+  marcarEntrevistaRealizada(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('conviteId', ParseIntPipe) conviteId: number,
+  ) {
+    const usuarioId = req.user.sub;
+
+    return this.candidateMatchService.marcarEntrevistaRealizada(
+      usuarioId,
+      conviteId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('recrutador/processos/:conviteId/finalizar')
+  finalizarProcesso(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('conviteId', ParseIntPipe) conviteId: number,
+    @Body() dto: FinalizarProcessoRecrutadorDto,
+  ) {
+    const usuarioId = req.user.sub;
+
+    return this.candidateMatchService.finalizarProcessoRecrutador(
+      usuarioId,
+      conviteId,
+      dto,
+    );
   }
 
   @Get('candidato/:candidatoId')
