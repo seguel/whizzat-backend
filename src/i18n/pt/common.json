@@ -117,6 +117,34 @@
       "introducao_2": "O convite pode estar relacionado a uma oportunidade, mentoria, evento, projeto, consultoria ou networking.",
       "introducao_3": "Acesse sua conta para visualizar o motivo e os detalhes do convite e decidir se deseja aceitá-lo.",
       "btn_acessar": "Ver convite"
+    },
+    "resposta_convite_recrutador": {
+      "saudacao": "Olá",
+      "btn_acessar": "Acessar Whizzat",
+      "aceito": {
+        "assunto": "{{candidato}} aceitou seu convite",
+        "titulo": "Convite aceito",
+        "mensagem": "{{candidato}} aceitou o convite \"{{convite}}\". Você já pode continuar o processo e sugerir uma entrevista."
+      },
+      "recusado": {
+        "assunto": "{{candidato}} recusou seu convite",
+        "titulo": "Convite recusado",
+        "mensagem": "{{candidato}} recusou o convite \"{{convite}}\"."
+      }
+    },
+    "resposta_agenda_recrutador": {
+      "saudacao": "Olá",
+      "btn_acessar": "Acessar Whizzat",
+      "aceita": {
+        "assunto": "{{candidato}} confirmou a entrevista",
+        "titulo": "Entrevista confirmada",
+        "mensagem": "{{candidato}} aceitou o horário sugerido para \"{{convite}}\" em {{dataHora}}."
+      },
+      "recusada": {
+        "assunto": "{{candidato}} recusou o horário da entrevista",
+        "titulo": "Horário recusado",
+        "mensagem": "{{candidato}} recusou o horário sugerido para \"{{convite}}\" em {{dataHora}}. Você pode sugerir uma nova data e horário."
+      }
     }
   },
   "auth": {

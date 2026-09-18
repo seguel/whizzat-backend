@@ -993,4 +993,223 @@ export class MailService {
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }
+
+  async enviarRespostaConviteRecrutadorNotificacoes(
+    email: string,
+    nome: string,
+    language: string,
+    nomeCandidato: string,
+    tituloConvite: string,
+    aceito: boolean,
+    dashboardLink: string,
+  ) {
+    const chave = aceito ? 'aceito' : 'recusado';
+
+    const subject = this.i18n.translate(
+      `common.mail.resposta_convite_recrutador.${chave}.assunto`,
+      {
+        lang: language,
+        args: {
+          candidato: nomeCandidato,
+        },
+      },
+    );
+
+    const { error } = await this.resend.emails.send({
+      from: '"Whizzat" <no-reply@whizzat.com.br>',
+      to: email,
+      subject,
+      html: `
+      <div style="width: 100%; background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 35px; border: 1px solid #e5e7eb;">
+
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img
+              src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png"
+              alt="Whizzat"
+              style="width: 170px; height: auto;"
+            />
+          </div>
+
+          <h2 style="font-size: 22px; color: #111827; text-align: center; margin-bottom: 25px;">
+            ${this.i18n.translate(
+              `common.mail.resposta_convite_recrutador.${chave}.titulo`,
+              { lang: language },
+            )}
+          </h2>
+
+          <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+            ${this.i18n.translate(
+              'common.mail.resposta_convite_recrutador.saudacao',
+              { lang: language },
+            )}
+            <strong>${nome}</strong>,
+          </p>
+
+          <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
+            ${this.i18n.translate(
+              `common.mail.resposta_convite_recrutador.${chave}.mensagem`,
+              {
+                lang: language,
+                args: {
+                  candidato: nomeCandidato,
+                  convite: tituloConvite,
+                },
+              },
+            )}
+          </p>
+
+          <div style="text-align: center; margin-bottom: 35px;">
+            <a
+              href="${dashboardLink}"
+              style="background-color: #16a34a;
+                     color: #ffffff;
+                     padding: 14px 28px;
+                     text-decoration: none;
+                     border-radius: 8px;
+                     font-weight: bold;
+                     font-size: 15px;
+                     display: inline-block;"
+            >
+              ${this.i18n.translate(
+                'common.mail.resposta_convite_recrutador.btn_acessar',
+                { lang: language },
+              )}
+            </a>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;" />
+
+          <p style="font-size: 13px; color: #9ca3af; text-align: center;">
+            ${this.i18n.translate('common.mail.resumo_notificacoes.rodape', {
+              lang: language,
+            })}
+          </p>
+
+        </div>
+      </div>
+    `,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
+
+  async enviarRespostaAgendaRecrutadorNotificacoes(
+    email: string,
+    nome: string,
+    language: string,
+    nomeCandidato: string,
+    tituloConvite: string,
+    dataHoraAgenda: Date,
+    aceito: boolean,
+    dashboardLink: string,
+  ) {
+    const chave = aceito ? 'aceita' : 'recusada';
+
+    const locale = language?.toLowerCase().startsWith('en') ? 'en-US' : 'pt-BR';
+
+    const dataHora = new Intl.DateTimeFormat(locale, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(dataHoraAgenda);
+
+    const subject = this.i18n.translate(
+      `common.mail.resposta_agenda_recrutador.${chave}.assunto`,
+      {
+        lang: language,
+        args: {
+          candidato: nomeCandidato,
+        },
+      },
+    );
+
+    const { error } = await this.resend.emails.send({
+      from: '"Whizzat" <no-reply@whizzat.com.br>',
+      to: email,
+      subject,
+      html: `
+      <div style="width: 100%; background-color: #f4f6f8; padding: 40px 0; font-family: Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 35px; border: 1px solid #e5e7eb;">
+
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img
+              src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png"
+              alt="Whizzat"
+              style="width: 170px; height: auto;"
+            />
+          </div>
+
+          <h2 style="font-size: 22px; color: #111827; text-align: center; margin-bottom: 25px;">
+            ${this.i18n.translate(
+              `common.mail.resposta_agenda_recrutador.${chave}.titulo`,
+              {
+                lang: language,
+              },
+            )}
+          </h2>
+
+          <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
+            ${this.i18n.translate(
+              'common.mail.resposta_agenda_recrutador.saudacao',
+              {
+                lang: language,
+              },
+            )}
+            <strong>${nome}</strong>,
+          </p>
+
+          <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
+            ${this.i18n.translate(
+              `common.mail.resposta_agenda_recrutador.${chave}.mensagem`,
+              {
+                lang: language,
+                args: {
+                  candidato: nomeCandidato,
+                  convite: tituloConvite,
+                  dataHora,
+                },
+              },
+            )}
+          </p>
+
+          <div style="text-align: center; margin-bottom: 35px;">
+            <a
+              href="${dashboardLink}"
+              style="background-color: #16a34a;
+                     color: #ffffff;
+                     padding: 14px 28px;
+                     text-decoration: none;
+                     border-radius: 8px;
+                     font-weight: bold;
+                     font-size: 15px;
+                     display: inline-block;"
+            >
+              ${this.i18n.translate(
+                'common.mail.resposta_agenda_recrutador.btn_acessar',
+                {
+                  lang: language,
+                },
+              )}
+            </a>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;" />
+
+          <p style="font-size: 13px; color: #9ca3af; text-align: center;">
+            ${this.i18n.translate('common.mail.resumo_notificacoes.rodape', {
+              lang: language,
+            })}
+          </p>
+
+        </div>
+      </div>
+    `,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
 }
