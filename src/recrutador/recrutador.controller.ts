@@ -336,4 +336,12 @@ export class RecrutadorController {
 
     return this.recrutadorService.deletarNotificacao(Number(id), usuarioId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('dashboard')
+  getDashboard(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user.sub;
+
+    return this.recrutadorService.getDashboardRecrutador(usuarioId);
+  }
 }

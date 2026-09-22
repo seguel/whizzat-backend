@@ -10,6 +10,8 @@ import {
   AgendaStatus,
   StatusAvaliacao,
   TipoNotificacao,
+  StatusConviteRecrutador,
+  TipoConviteRecrutador,
 } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
@@ -68,6 +70,32 @@ export interface CandidatoDto {
   usuario: UsuarioDto;
   aberto_oportunidades: boolean;
 }
+
+type DashboardOportunidadeCandidato = {
+  id: number;
+  tipo: TipoConviteRecrutador;
+  titulo: string;
+  status: StatusConviteRecrutador;
+  compatibilidade: number | null;
+  data_convite: Date;
+  data_aceite: Date | null;
+
+  empresa: {
+    id: number;
+    nome_empresa: string;
+  } | null;
+
+  vaga: {
+    vaga_id: number;
+    nome_vaga: string;
+  } | null;
+
+  agenda: {
+    id: number;
+    data_hora_agenda: Date;
+    status: AgendaStatus;
+  } | null;
+};
 
 @Injectable()
 export class CandidatoService {
@@ -1431,26 +1459,36 @@ export class CandidatoService {
       return {
         resumo: {
           processos_seletivos: 0,
+          outras_oportunidades: 0,
           entrevistas_agendadas: 0,
           entrevistas_realizadas: 0,
           skills_avaliadas: 0,
         },
         skills: [],
+        oportunidades: [],
         entrevistas_agendadas: [],
+        movimentacoes_recentes: [],
       };
     }
 
     const agora = new Date();
 
     const [
-      totalEntrevistasAgendadas,
-      totalEntrevistasRealizadas,
+      totalEntrevistasAgendadasAvaliacao,
+      totalEntrevistasRealizadasAvaliacao,
       totalSkillsAvaliadas,
       skills,
-      entrevistasAgendadas,
+      entrevistasAgendadasAvaliacao,
+      totalProcessosSeletivos,
+      totalOutrasOportunidades,
+      totalEntrevistasAgendadasRecrutador,
+      totalEntrevistasRealizadasRecrutador,
+      entrevistasAgendadasRecrutador,
+      oportunidadesEmAndamento,
+      movimentacoesRecrutador,
     ] = await this.prisma.$transaction([
       // =====================================================
-      // ENTREVISTAS AGENDADAS
+      // 1. ENTREVISTAS DE AVALIAÇÃO AGENDADAS
       // Inclui futuras e atrasadas ainda com status ACEITO
       // =====================================================
       this.prisma.avaliadorAvaliacaoSkillAgenda.count({
@@ -1468,7 +1506,7 @@ export class CandidatoService {
       }),
 
       // =====================================================
-      // ENTREVISTAS REALIZADAS
+      // 2. ENTREVISTAS DE AVALIAÇÃO REALIZADAS
       // =====================================================
       this.prisma.avaliadorAvaliacaoSkillAgenda.count({
         where: {
@@ -1485,7 +1523,7 @@ export class CandidatoService {
       }),
 
       // =====================================================
-      // SKILLS JÁ AVALIADAS
+      // 3. SKILLS JÁ AVALIADAS
       // =====================================================
       this.prisma.candidatoSkill.count({
         where: {
@@ -1498,7 +1536,7 @@ export class CandidatoService {
       }),
 
       // =====================================================
-      // SKILLS PARA RADAR + BARRAS
+      // 4. SKILLS PARA RADAR + BARRAS
       // =====================================================
       this.prisma.candidatoSkill.findMany({
         where: {
@@ -1527,8 +1565,7 @@ export class CandidatoService {
       }),
 
       // =====================================================
-      // ENTREVISTAS AGENDADAS
-      // ACEITO = ainda faz parte da agenda do candidato
+      // 5. ENTREVISTAS DE AVALIAÇÃO PARA A AGENDA
       // =====================================================
       this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
         where: {
@@ -1574,14 +1611,339 @@ export class CandidatoService {
           },
         },
       }),
+
+      // =====================================================
+      // 6. PROCESSOS SELETIVOS ATIVOS
+      // Somente convites vinculados a VAGA
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.count({
+        where: {
+          candidato_id: candidato.id,
+          tipo: TipoConviteRecrutador.VAGA,
+
+          status: {
+            in: [
+              StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.AGENDA_ENVIADA,
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            ],
+          },
+        },
+      }),
+
+      // =====================================================
+      // 7. OUTRAS OPORTUNIDADES ATIVAS
+      // Tudo que NÃO é VAGA
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.count({
+        where: {
+          candidato_id: candidato.id,
+
+          tipo: {
+            not: TipoConviteRecrutador.VAGA,
+          },
+
+          status: {
+            in: [
+              StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.AGENDA_ENVIADA,
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            ],
+          },
+        },
+      }),
+
+      // =====================================================
+      // 8. ENTREVISTAS / COMPROMISSOS DO RECRUTADOR AGENDADOS
+      // =====================================================
+      this.prisma.recrutadorConviteAgenda.count({
+        where: {
+          status: AgendaStatus.ACEITO,
+
+          convite: {
+            candidato_id: candidato.id,
+            status: StatusConviteRecrutador.AGENDADO,
+          },
+        },
+      }),
+
+      // =====================================================
+      // 9. ENTREVISTAS / COMPROMISSOS DO RECRUTADOR REALIZADOS
+      // =====================================================
+      this.prisma.recrutadorConviteAgenda.count({
+        where: {
+          status: AgendaStatus.REALIZADO,
+
+          convite: {
+            candidato_id: candidato.id,
+          },
+        },
+      }),
+
+      // =====================================================
+      // 10. ENTREVISTAS / COMPROMISSOS DO RECRUTADOR
+      // PARA EXIBIR NA AGENDA
+      // =====================================================
+      this.prisma.recrutadorConviteAgenda.findMany({
+        where: {
+          status: AgendaStatus.ACEITO,
+
+          convite: {
+            candidato_id: candidato.id,
+            status: StatusConviteRecrutador.AGENDADO,
+          },
+        },
+
+        orderBy: {
+          data_hora_agenda: 'asc',
+        },
+
+        select: {
+          id: true,
+          data_hora_agenda: true,
+          status: true,
+
+          convite: {
+            select: {
+              id: true,
+              tipo: true,
+              titulo: true,
+              status: true,
+
+              empresa: {
+                select: {
+                  id: true,
+                  nome_empresa: true,
+                },
+              },
+
+              vaga: {
+                select: {
+                  vaga_id: true,
+                  nome_vaga: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      // =====================================================
+      // 11. OPORTUNIDADES EM ANDAMENTO
+      // Resumo exibido no dashboard do candidato
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.findMany({
+        where: {
+          candidato_id: candidato.id,
+
+          status: {
+            in: [
+              StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.AGENDA_ENVIADA,
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            ],
+          },
+        },
+
+        orderBy: {
+          data_convite: 'desc',
+        },
+
+        take: 5,
+
+        select: {
+          id: true,
+          tipo: true,
+          titulo: true,
+          status: true,
+          compatibilidade: true,
+
+          data_convite: true,
+          data_aceite: true,
+
+          empresa: {
+            select: {
+              id: true,
+              nome_empresa: true,
+            },
+          },
+
+          vaga: {
+            select: {
+              vaga_id: true,
+              nome_vaga: true,
+            },
+          },
+
+          agenda: {
+            select: {
+              id: true,
+              data_hora_agenda: true,
+              status: true,
+            },
+          },
+        },
+      }),
+
+      // =====================================================
+      // 12. MOVIMENTAÇÕES RECENTES DO RECRUTADOR
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.findMany({
+        where: {
+          candidato_id: candidato.id,
+        },
+
+        orderBy: {
+          data_convite: 'desc',
+        },
+
+        take: 10,
+
+        select: {
+          id: true,
+          tipo: true,
+          titulo: true,
+          status: true,
+
+          data_convite: true,
+          data_aceite: true,
+          data_finalizacao: true,
+
+          empresa: {
+            select: {
+              nome_empresa: true,
+            },
+          },
+
+          vaga: {
+            select: {
+              nome_vaga: true,
+            },
+          },
+
+          agenda: {
+            select: {
+              id: true,
+              status: true,
+              data_criacao: true,
+              data_resposta: true,
+            },
+          },
+        },
+      }),
     ]);
+
+    const oportunidadesDashboard =
+      oportunidadesEmAndamento as DashboardOportunidadeCandidato[];
+
+    const movimentacoesRecentes = movimentacoesRecrutador
+      .flatMap((item) => {
+        const descricao = item.vaga?.nome_vaga ?? item.titulo;
+
+        const empresa = item.empresa?.nome_empresa ?? null;
+
+        const eventos: {
+          id: string;
+          evento:
+            | 'CONVITE_RECEBIDO'
+            | 'CONVITE_ACEITO'
+            | 'AGENDA_ENVIADA'
+            | 'AGENDA_CONFIRMADA'
+            | 'PROCESSO_FINALIZADO';
+          origem: 'RECRUTADOR';
+          referencia_id: number;
+          tipo_convite: TipoConviteRecrutador;
+          descricao: string;
+          empresa: string | null;
+          data: Date;
+        }[] = [];
+
+        eventos.push({
+          id: `convite-${item.id}`,
+          evento: 'CONVITE_RECEBIDO',
+          origem: 'RECRUTADOR',
+          referencia_id: item.id,
+          tipo_convite: item.tipo,
+          descricao,
+          empresa,
+          data: item.data_convite,
+        });
+
+        if (item.data_aceite) {
+          eventos.push({
+            id: `aceite-${item.id}`,
+            evento: 'CONVITE_ACEITO',
+            origem: 'RECRUTADOR',
+            referencia_id: item.id,
+            tipo_convite: item.tipo,
+            descricao,
+            empresa,
+            data: item.data_aceite,
+          });
+        }
+
+        if (item.agenda) {
+          eventos.push({
+            id: `agenda-enviada-${item.agenda.id}`,
+            evento: 'AGENDA_ENVIADA',
+            origem: 'RECRUTADOR',
+            referencia_id: item.id,
+            tipo_convite: item.tipo,
+            descricao,
+            empresa,
+            data: item.agenda.data_criacao,
+          });
+
+          if (
+            item.agenda.status === AgendaStatus.ACEITO &&
+            item.agenda.data_resposta
+          ) {
+            eventos.push({
+              id: `agenda-confirmada-${item.agenda.id}`,
+              evento: 'AGENDA_CONFIRMADA',
+              origem: 'RECRUTADOR',
+              referencia_id: item.id,
+              tipo_convite: item.tipo,
+              descricao,
+              empresa,
+              data: item.agenda.data_resposta,
+            });
+          }
+        }
+
+        if (item.data_finalizacao) {
+          eventos.push({
+            id: `finalizacao-${item.id}`,
+            evento: 'PROCESSO_FINALIZADO',
+            origem: 'RECRUTADOR',
+            referencia_id: item.id,
+            tipo_convite: item.tipo,
+            descricao,
+            empresa,
+            data: item.data_finalizacao,
+          });
+        }
+
+        return eventos;
+      })
+      .sort((a, b) => b.data.getTime() - a.data.getTime())
+      .slice(0, 5);
 
     return {
       resumo: {
-        // ainda não temos o domínio de processo seletivo
-        processos_seletivos: 0,
-        entrevistas_agendadas: totalEntrevistasAgendadas,
-        entrevistas_realizadas: totalEntrevistasRealizadas,
+        processos_seletivos: totalProcessosSeletivos,
+        outras_oportunidades: totalOutrasOportunidades,
+
+        entrevistas_agendadas:
+          totalEntrevistasAgendadasAvaliacao +
+          totalEntrevistasAgendadasRecrutador,
+
+        entrevistas_realizadas:
+          totalEntrevistasRealizadasAvaliacao +
+          totalEntrevistasRealizadasRecrutador,
+
         skills_avaliadas: totalSkillsAvaliadas,
       },
 
@@ -1594,16 +1956,79 @@ export class CandidatoService {
         peso_avaliador: item.peso_avaliador,
       })),
 
-      entrevistas_agendadas: entrevistasAgendadas.map((item) => ({
+      oportunidades: oportunidadesDashboard.map((item) => ({
         id: item.id,
-        avaliacao_id: item.avaliacao.id,
-        tipo: 'AVALIACAO_SKILL',
-        skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
-        data_hora: item.data_hora_agenda,
-        agenda_status: item.status,
-        status_avaliacao: item.avaliacao.status,
-        atrasada: item.data_hora_agenda < agora,
+        tipo: item.tipo,
+        titulo: item.vaga?.nome_vaga ?? item.titulo,
+        status: item.status,
+        compatibilidade:
+          item.tipo === TipoConviteRecrutador.VAGA
+            ? item.compatibilidade
+            : null,
+        empresa: item.empresa,
+        vaga: item.vaga,
+        agenda: item.agenda
+          ? {
+              id: item.agenda.id,
+              data_hora: item.agenda.data_hora_agenda,
+              status: item.agenda.status,
+            }
+          : null,
+
+        data_convite: item.data_convite,
+        data_aceite: item.data_aceite,
       })),
+
+      movimentacoes_recentes: movimentacoesRecentes,
+
+      entrevistas_agendadas: [
+        // =====================================================
+        // AVALIAÇÃO DE SKILL
+        // =====================================================
+        ...entrevistasAgendadasAvaliacao.map((item) => ({
+          id: item.id,
+          referencia_id: item.avaliacao.id,
+
+          tipo: 'AVALIACAO_SKILL' as const,
+          tipo_convite: null,
+
+          titulo: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+          subtitulo: null,
+
+          data_hora: item.data_hora_agenda,
+          agenda_status: item.status,
+          status: item.avaliacao.status,
+
+          empresa: null,
+          vaga: null,
+
+          atrasada: item.data_hora_agenda < agora,
+        })),
+
+        // =====================================================
+        // RECRUTADOR
+        // VAGA, MENTORIA, EVENTO, NETWORKING ETC.
+        // =====================================================
+        ...entrevistasAgendadasRecrutador.map((item) => ({
+          id: item.id,
+          referencia_id: item.convite.id,
+
+          tipo: 'RECRUTADOR' as const,
+          tipo_convite: item.convite.tipo,
+
+          titulo: item.convite.vaga?.nome_vaga ?? item.convite.titulo,
+          subtitulo: item.convite.empresa?.nome_empresa ?? null,
+
+          data_hora: item.data_hora_agenda,
+          agenda_status: item.status,
+          status: item.convite.status,
+
+          empresa: item.convite.empresa,
+          vaga: item.convite.vaga,
+
+          atrasada: item.data_hora_agenda < agora,
+        })),
+      ].sort((a, b) => a.data_hora.getTime() - b.data_hora.getTime()),
     };
   }
 }
