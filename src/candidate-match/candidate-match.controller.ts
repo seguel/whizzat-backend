@@ -223,6 +223,14 @@ export class CandidateMatchController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('recrutador/convites')
+  listarConvitesRecrutador(@Req() req: Request & { user: JwtPayload }) {
+    const usuarioId = req.user.sub;
+
+    return this.candidateMatchService.listarConvitesRecrutador(usuarioId);
+  }
+
   @Get('candidato/:candidatoId')
   @UseGuards(JwtAuthGuard)
   async buscarPerfilCandidato(
