@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, Empresa, PerfilTipo } from '@prisma/client';
+import {
+  Prisma,
+  Empresa,
+  PerfilTipo,
+  AgendaStatus,
+  StatusConviteRecrutador,
+} from '@prisma/client';
 import { AuthService } from '../auth/auth.service';
 
 export interface CheckPerfil {
@@ -463,5 +469,324 @@ export class RecrutadorService {
         perfil_tipo: PerfilTipo.RECRUTADOR,
       },
     });
+  }
+
+  async getDashboardRecrutador(usuarioId: number) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      return {
+        resumo: {
+          vagas_abertas: 0,
+          convites_pendentes: 0,
+          processos_andamento: 0,
+          entrevistas_agendadas: 0,
+          processos_finalizados: 0,
+        },
+        agendas: [],
+        pendencias: [],
+      };
+    }
+
+    const agora = new Date();
+
+    const [
+      vagasAtivas,
+      totalConvitesPendentes,
+      totalProcessosAndamento,
+      totalEntrevistasAgendadas,
+      totalProcessosFinalizados,
+      entrevistasAgendadas,
+      processosPendentes,
+    ] = await this.prisma.$transaction([
+      // =====================================================
+      // VAGAS POTENCIALMENTE ABERTAS
+      // O prazo será validado abaixo porque qtde_dias_aberta
+      // varia para cada vaga.
+      // =====================================================
+      this.prisma.empresaVaga.findMany({
+        where: {
+          ativo: true,
+
+          empresa: {
+            recrutador_id: recrutador.id,
+            ativo: true,
+          },
+        },
+
+        select: {
+          data_cadastro: true,
+          qtde_dias_aberta: true,
+        },
+      }),
+
+      // =====================================================
+      // CONVITES AGUARDANDO RESPOSTA DO CANDIDATO
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.count({
+        where: {
+          recrutador_id: recrutador.id,
+          status: StatusConviteRecrutador.CONVITE_ENVIADO,
+        },
+      }),
+
+      // =====================================================
+      // PROCESSOS EM ANDAMENTO
+      // Não inclui convite enviado, recusado ou finalizado.
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.count({
+        where: {
+          recrutador_id: recrutador.id,
+
+          status: {
+            in: [
+              StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.AGENDA_ENVIADA,
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            ],
+          },
+        },
+      }),
+
+      // =====================================================
+      // ENTREVISTAS CONFIRMADAS
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.count({
+        where: {
+          recrutador_id: recrutador.id,
+          status: StatusConviteRecrutador.AGENDADO,
+
+          agenda: {
+            is: {
+              status: AgendaStatus.ACEITO,
+            },
+          },
+        },
+      }),
+
+      // =====================================================
+      // PROCESSOS FINALIZADOS
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.count({
+        where: {
+          recrutador_id: recrutador.id,
+          status: StatusConviteRecrutador.FINALIZADO,
+        },
+      }),
+
+      // =====================================================
+      // AGENDA DO RECRUTADOR
+      // Entrevistas confirmadas pelo candidato
+      // Inclui futuras e atrasadas ainda não realizadas
+      // =====================================================
+      this.prisma.recrutadorConviteAgenda.findMany({
+        where: {
+          status: AgendaStatus.ACEITO,
+
+          convite: {
+            recrutador_id: recrutador.id,
+            status: StatusConviteRecrutador.AGENDADO,
+          },
+        },
+
+        orderBy: {
+          data_hora_agenda: 'asc',
+        },
+
+        select: {
+          id: true,
+          data_hora_agenda: true,
+          status: true,
+
+          convite: {
+            select: {
+              id: true,
+              titulo: true,
+              tipo: true,
+
+              candidato: {
+                select: {
+                  id: true,
+
+                  usuario: {
+                    select: {
+                      primeiro_nome: true,
+                      ultimo_nome: true,
+                      nome_social: true,
+                    },
+                  },
+                },
+              },
+
+              empresa: {
+                select: {
+                  id: true,
+                  nome_empresa: true,
+                },
+              },
+
+              vaga: {
+                select: {
+                  vaga_id: true,
+                  nome_vaga: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      // =====================================================
+      // PROCESSOS QUE EXIGEM AÇÃO DO RECRUTADOR
+      //
+      // CONVITE_ACEITO:
+      // candidato aceitou → recrutador precisa sugerir entrevista
+      //
+      // ENTREVISTA_REALIZADA:
+      // entrevista concluída → recrutador precisa finalizar processo
+      // =====================================================
+      this.prisma.recrutadorConviteCandidato.findMany({
+        where: {
+          recrutador_id: recrutador.id,
+
+          status: {
+            in: [
+              StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.ENTREVISTA_REALIZADA,
+            ],
+          },
+        },
+
+        orderBy: {
+          data_aceite: 'asc',
+        },
+
+        select: {
+          id: true,
+          titulo: true,
+          tipo: true,
+          status: true,
+          data_convite: true,
+          data_aceite: true,
+
+          candidato: {
+            select: {
+              id: true,
+
+              usuario: {
+                select: {
+                  primeiro_nome: true,
+                  ultimo_nome: true,
+                  nome_social: true,
+                },
+              },
+            },
+          },
+
+          empresa: {
+            select: {
+              id: true,
+              nome_empresa: true,
+            },
+          },
+
+          vaga: {
+            select: {
+              vaga_id: true,
+              nome_vaga: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    // =====================================================
+    // VAGAS ABERTAS
+    //
+    // data_cadastro + qtde_dias_aberta >= agora
+    // =====================================================
+    const totalVagasAbertas = vagasAtivas.filter((vaga) => {
+      const dataEncerramento = new Date(vaga.data_cadastro);
+
+      dataEncerramento.setDate(
+        dataEncerramento.getDate() + vaga.qtde_dias_aberta,
+      );
+
+      return dataEncerramento >= agora;
+    }).length;
+
+    return {
+      resumo: {
+        vagas_abertas: totalVagasAbertas,
+        convites_pendentes: totalConvitesPendentes,
+        processos_andamento: totalProcessosAndamento,
+        entrevistas_agendadas: totalEntrevistasAgendadas,
+        processos_finalizados: totalProcessosFinalizados,
+      },
+
+      agendas: entrevistasAgendadas.map((item) => {
+        const candidato = item.convite.candidato;
+        const nome =
+          candidato.usuario.nome_social?.trim() ||
+          `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim();
+
+        return {
+          id: item.id,
+          convite_id: item.convite.id,
+          candidato: {
+            id: candidato.id,
+            nome,
+          },
+          titulo: item.convite.titulo,
+          tipo: item.convite.tipo,
+          empresa: item.convite.empresa,
+          vaga: item.convite.vaga,
+          data_hora: item.data_hora_agenda,
+          status: item.status,
+          atrasada: item.data_hora_agenda < agora,
+        };
+      }),
+
+      pendencias: processosPendentes.map((item) => {
+        const candidato = item.candidato;
+
+        const nome =
+          candidato.usuario.nome_social?.trim() ||
+          `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim();
+
+        return {
+          id: item.id,
+
+          candidato: {
+            id: candidato.id,
+            nome,
+          },
+
+          titulo: item.titulo,
+          tipo: item.tipo,
+          status: item.status,
+
+          empresa: item.empresa,
+          vaga: item.vaga,
+
+          data_convite: item.data_convite,
+          data_aceite: item.data_aceite,
+
+          acao:
+            item.status === StatusConviteRecrutador.CONVITE_ACEITO
+              ? 'AGENDA'
+              : 'FINALIZAR',
+        };
+      }),
+    };
   }
 }

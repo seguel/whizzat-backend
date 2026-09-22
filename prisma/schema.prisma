@@ -698,6 +698,7 @@ model RecrutadorConviteCandidato {
   aprovado      Boolean?
   parecer       String?                  @db.Text
   data_finalizacao DateTime?
+  compatibilidade Int?
 
   recrutador UsuarioPerfilRecrutador @relation(fields: [recrutador_id],references: [id])
   candidato UsuarioPerfilCandidato @relation(fields: [candidato_id],references: [id])
