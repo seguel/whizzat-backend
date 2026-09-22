@@ -1400,6 +1400,39 @@ export class CandidateMatchService {
       );
     }
 
+    const compatibilidadePorCandidato = new Map(
+      dados.compatibilidades.map((item) => [
+        item.candidato_id,
+        Math.round(item.score),
+      ]),
+    );
+
+    if (compatibilidadePorCandidato.size !== candidatoIds.length) {
+      throw new BadRequestException(
+        'A compatibilidade deve ser informada para todos os candidatos.',
+      );
+    }
+
+    const compatibilidadesInvalidas = candidatoIds.some(
+      (candidatoId) => !compatibilidadePorCandidato.has(candidatoId),
+    );
+
+    if (compatibilidadesInvalidas) {
+      throw new BadRequestException(
+        'A compatibilidade de um ou mais candidatos não foi informada.',
+      );
+    }
+
+    const candidatosCompatibilidadeInvalidos = dados.compatibilidades.some(
+      (item) => !candidatoIds.includes(item.candidato_id),
+    );
+
+    if (candidatosCompatibilidadeInvalidos) {
+      throw new BadRequestException(
+        'Foi informada compatibilidade para um candidato não selecionado.',
+      );
+    }
+
     const candidatos = await this.prisma.usuarioPerfilCandidato.findMany({
       where: {
         id: {
@@ -1459,6 +1492,7 @@ export class CandidateMatchService {
         vaga_id: number | null;
         tipo: TipoConviteRecrutador;
         status: StatusConviteRecrutador;
+        compatibilidade: number | null;
         data_convite: Date;
       }[] = [];
 
@@ -1469,19 +1503,25 @@ export class CandidateMatchService {
           continue;
         }
 
+        const compatibilidade = compatibilidadePorCandidato.get(candidatoId);
+
+        if (compatibilidade === undefined) {
+          throw new BadRequestException(
+            `Compatibilidade não encontrada para o candidato ${candidatoId}.`,
+          );
+        }
+
         const convite = await tx.recrutadorConviteCandidato.create({
           data: {
             recrutador_id: recrutador.id,
             candidato_id: candidatoId,
-
             empresa_id: vaga.empresa_id,
             vaga_id: vaga.vaga_id,
-
             tipo: TipoConviteRecrutador.VAGA,
             status: StatusConviteRecrutador.CONVITE_ENVIADO,
-
             titulo,
             mensagem,
+            compatibilidade,
           },
 
           select: {
@@ -1491,6 +1531,7 @@ export class CandidateMatchService {
             vaga_id: true,
             tipo: true,
             status: true,
+            compatibilidade: true,
             data_convite: true,
           },
         });
