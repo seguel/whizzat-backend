@@ -78,9 +78,19 @@ export class EmailResumoSkillWorker {
         return;
       }
 
+      const tiposIndividuais: TipoNotificacao[] = [
+        TipoNotificacao.RESPOSTA_CONVITE_RECRUTADOR,
+        TipoNotificacao.RESPOSTA_AGENDA_RECRUTADOR,
+        TipoNotificacao.PROCESSO_RECRUTADOR_FINALIZADO,
+      ];
+
       const agrupado = notificacoes.reduce(
         (acc, notif) => {
-          const key = `${notif.usuario_id}_${notif.perfil_id}_${notif.tipo}`;
+          const notificacaoIndividual = tiposIndividuais.includes(notif.tipo);
+
+          const key = notificacaoIndividual
+            ? `${notif.usuario_id}_${notif.perfil_id}_${notif.tipo}_${notif.id}`
+            : `${notif.usuario_id}_${notif.perfil_id}_${notif.tipo}`;
 
           if (!acc[key]) {
             acc[key] = {
@@ -290,12 +300,10 @@ export class EmailResumoSkillWorker {
               ? `${process.env.FRONTEND_URL}/dashboard/candidato/oportunidades?perfil=candidato`
               : dashboardLink;
 
-            const notificacao = grupo.notificacoes[0];
-
             const convite =
               await this.prisma.recrutadorConviteCandidato.findUnique({
                 where: {
-                  id: notificacao.referencia_id!,
+                  id: grupo.referencia_id || 0,
                 },
                 select: {
                   titulo: true,
@@ -303,9 +311,7 @@ export class EmailResumoSkillWorker {
               });
 
             if (!convite) {
-              throw new Error(
-                `Convite ${notificacao.referencia_id} não encontrado`,
-              );
+              throw new Error(`Convite ${grupo.referencia_id} não encontrado`);
             }
 
             await this.mailService.enviarProcessoFinalizadoNotificacoes(
@@ -330,11 +336,17 @@ export class EmailResumoSkillWorker {
                 enviada_email: true,
               },
             });
+
+            this.logger.log(
+              `Email enviado usuario=${grupo.usuario.id} (${quantidade} notificações)`,
+            );
           }
 
-          this.logger.log(
-            `Email enviado usuario=${grupo.usuario.id} (${quantidade} notificações)`,
-          );
+          if (!emailEnviado) {
+            this.logger.warn(
+              `Tipo de notificação sem tratamento de email: ${tipo}`,
+            );
+          }
         } catch (error) {
           this.logger.error(
             `Erro ao enviar email usuario=${grupo.usuario.id}`,

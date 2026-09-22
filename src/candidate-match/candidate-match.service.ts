@@ -2556,4 +2556,117 @@ export class CandidateMatchService {
       ...processo,
     };
   }
+
+  async listarConvitesRecrutador(usuarioId: number) {
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    const convites = await this.prisma.recrutadorConviteCandidato.findMany({
+      where: {
+        recrutador_id: recrutador.id,
+        status: StatusConviteRecrutador.CONVITE_ENVIADO,
+      },
+
+      select: {
+        id: true,
+        tipo: true,
+        titulo: true,
+        mensagem: true,
+        status: true,
+        data_convite: true,
+
+        empresa: {
+          select: {
+            id: true,
+            nome_empresa: true,
+          },
+        },
+
+        vaga: {
+          select: {
+            vaga_id: true,
+            nome_vaga: true,
+          },
+        },
+
+        candidato: {
+          select: {
+            id: true,
+            logo: true,
+
+            usuario: {
+              select: {
+                primeiro_nome: true,
+                ultimo_nome: true,
+                nome_social: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        data_convite: 'desc',
+      },
+    });
+
+    return convites.map((convite) => {
+      const usuario = convite.candidato.usuario;
+
+      const nome =
+        usuario.nome_social?.trim() ||
+        `${usuario.primeiro_nome} ${usuario.ultimo_nome}`.trim();
+
+      return {
+        id: convite.id,
+
+        candidato: {
+          id: convite.candidato.id,
+          nome,
+          logo: convite.candidato.logo,
+        },
+
+        tipo: convite.tipo,
+        titulo: convite.titulo,
+        mensagem: convite.mensagem,
+        status: convite.status,
+
+        empresa: convite.empresa
+          ? {
+              id: convite.empresa.id,
+              nome_empresa: convite.empresa.nome_empresa,
+            }
+          : null,
+
+        vaga: convite.vaga
+          ? {
+              vaga_id: convite.vaga.vaga_id,
+              nome_vaga: convite.vaga.nome_vaga,
+            }
+          : null,
+
+        agenda: null,
+
+        data_convite: convite.data_convite,
+        data_aceite: null,
+        data_recusa: null,
+
+        aprovado: null,
+        parecer: null,
+        data_finalizacao: null,
+      };
+    });
+  }
 }
