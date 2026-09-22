@@ -1005,15 +1005,28 @@ export class MailService {
   ) {
     const chave = aceito ? 'aceito' : 'recusado';
 
-    const subject = this.i18n.translate(
+    const subjectTraduzido = this.i18n.translate(
       `common.mail.resposta_convite_recrutador.${chave}.assunto`,
       {
         lang: language,
-        args: {
-          candidato: nomeCandidato,
-        },
       },
     );
+
+    const subject = this.interpolar(subjectTraduzido, {
+      candidato: nomeCandidato,
+    });
+
+    const mensagemTraduzida = this.i18n.translate(
+      `common.mail.resposta_convite_recrutador.${chave}.mensagem`,
+      {
+        lang: language,
+      },
+    );
+
+    const mensagem = this.interpolar(mensagemTraduzida, {
+      candidato: nomeCandidato,
+      convite: tituloConvite,
+    });
 
     const { error } = await this.resend.emails.send({
       from: '"Whizzat" <no-reply@whizzat.com.br>',
@@ -1047,16 +1060,7 @@ export class MailService {
           </p>
 
           <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
-            ${this.i18n.translate(
-              `common.mail.resposta_convite_recrutador.${chave}.mensagem`,
-              {
-                lang: language,
-                args: {
-                  candidato: nomeCandidato,
-                  convite: tituloConvite,
-                },
-              },
-            )}
+            ${mensagem}
           </p>
 
           <div style="text-align: center; margin-bottom: 35px;">
@@ -1115,15 +1119,29 @@ export class MailService {
       timeStyle: 'short',
     }).format(dataHoraAgenda);
 
-    const subject = this.i18n.translate(
+    const subjectTraduzido = this.i18n.translate(
       `common.mail.resposta_agenda_recrutador.${chave}.assunto`,
       {
         lang: language,
-        args: {
-          candidato: nomeCandidato,
-        },
       },
     );
+
+    const subject = this.interpolar(subjectTraduzido, {
+      candidato: nomeCandidato,
+    });
+
+    const mensagemTraduzida = this.i18n.translate(
+      `common.mail.resposta_agenda_recrutador.${chave}.mensagem`,
+      {
+        lang: language,
+      },
+    );
+
+    const mensagem = this.interpolar(mensagemTraduzida, {
+      candidato: nomeCandidato,
+      convite: tituloConvite,
+      dataHora,
+    });
 
     const { error } = await this.resend.emails.send({
       from: '"Whizzat" <no-reply@whizzat.com.br>',
@@ -1161,17 +1179,7 @@ export class MailService {
           </p>
 
           <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin-bottom: 20px;">
-            ${this.i18n.translate(
-              `common.mail.resposta_agenda_recrutador.${chave}.mensagem`,
-              {
-                lang: language,
-                args: {
-                  candidato: nomeCandidato,
-                  convite: tituloConvite,
-                  dataHora,
-                },
-              },
-            )}
+            ${mensagem}
           </p>
 
           <div style="text-align: center; margin-bottom: 35px;">
@@ -1221,11 +1229,33 @@ export class MailService {
     oportunidadesLink: string,
   ) {
     const subject = this.i18n.translate(
-      'common.mail.processo_recrutador_finalizado.assunto',
+      'common.mail.processo_recrutador_finalizado.assunto_prefixo',
       {
         lang: language,
       },
     );
+
+    const saudacaoTraduzida = this.i18n.translate(
+      'common.mail.processo_recrutador_finalizado.saudacao',
+      {
+        lang: language,
+      },
+    );
+
+    const saudacao = this.interpolar(saudacaoTraduzida, {
+      nome,
+    });
+
+    const introducaoTraduzida = this.i18n.translate(
+      'common.mail.processo_recrutador_finalizado.introducao_1',
+      {
+        lang: language,
+      },
+    );
+
+    const introducao = this.interpolar(introducaoTraduzida, {
+      tituloProcesso: tituloConvite,
+    });
 
     const { error } = await this.resend.emails.send({
       from: '"Whizzat" <no-reply@whizzat.com.br>',
@@ -1253,30 +1283,16 @@ export class MailService {
           </h2>
 
           <p style="font-size: 16px; color: #374151; margin-bottom: 15px;">
-            ${this.i18n.translate(
-              'common.mail.processo_recrutador_finalizado.saudacao',
-              {
-                lang: language,
-              },
-            )}
-            <strong>${nome}</strong>,
+            ${saudacao}
           </p>
 
           <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin-bottom: 15px;">
-            ${this.i18n.translate(
-              'common.mail.processo_recrutador_finalizado.mensagem',
-              {
-                lang: language,
-                args: {
-                  convite: tituloConvite,
-                },
-              },
-            )}
+            ${introducao}
           </p>
 
           <p style="font-size: 15px; color: #4b5563; line-height: 1.6; margin-bottom: 25px;">
             ${this.i18n.translate(
-              'common.mail.processo_recrutador_finalizado.mensagem_feedback',
+              'common.mail.processo_recrutador_finalizado.introducao_2',
               {
                 lang: language,
               },
@@ -1296,7 +1312,7 @@ export class MailService {
                      display: inline-block;"
             >
               ${this.i18n.translate(
-                'common.mail.processo_recrutador_finalizado.btn_acessar',
+                'common.mail.processo_recrutador_finalizado.botao',
                 {
                   lang: language,
                 },
@@ -1320,5 +1336,19 @@ export class MailService {
     if (error) {
       throw new Error(`Failed to send email: ${error.message}`);
     }
+  }
+
+  private interpolar(
+    texto: string,
+    variaveis: Record<string, string | number>,
+  ): string {
+    return Object.entries(variaveis).reduce(
+      (resultado, [chave, valor]) =>
+        resultado.replace(
+          new RegExp(`{{\\s*${chave}\\s*}}`, 'g'),
+          String(valor),
+        ),
+      texto,
+    );
   }
 }
