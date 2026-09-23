@@ -344,4 +344,12 @@ export class RecrutadorController {
 
     return this.recrutadorService.getDashboardRecrutador(usuarioId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('agenda')
+  buscarAgenda(@Req() req: Request & { user: JwtPayload }) {
+    const userId = req.user?.sub;
+
+    return this.recrutadorService.buscarAgendaRecrutador(userId);
+  }
 }

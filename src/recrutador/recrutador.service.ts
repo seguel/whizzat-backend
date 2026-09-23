@@ -789,4 +789,113 @@ export class RecrutadorService {
       }),
     };
   }
+
+  async buscarAgendaRecrutador(usuarioId: number) {
+    const agendas = await this.prisma.recrutadorConviteAgenda.findMany({
+      where: {
+        status: {
+          in: [AgendaStatus.PENDENTE, AgendaStatus.ACEITO],
+        },
+
+        convite: {
+          recrutador: {
+            usuario_id: usuarioId,
+          },
+        },
+      },
+
+      orderBy: {
+        data_hora_agenda: 'asc',
+      },
+
+      select: {
+        id: true,
+        status: true,
+        data_hora_agenda: true,
+
+        convite: {
+          select: {
+            id: true,
+            tipo: true,
+            titulo: true,
+
+            candidato: {
+              select: {
+                id: true,
+
+                usuario: {
+                  select: {
+                    primeiro_nome: true,
+                    ultimo_nome: true,
+                    nome_social: true,
+
+                    cidade: {
+                      select: {
+                        cidade: true,
+
+                        estado: {
+                          select: {
+                            sigla: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+
+            empresa: {
+              select: {
+                id: true,
+                nome_empresa: true,
+              },
+            },
+
+            vaga: {
+              select: {
+                vaga_id: true,
+                nome_vaga: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return agendas.map((item) => {
+      const candidato = item.convite.candidato.usuario;
+
+      return {
+        id: item.id,
+        conviteId: item.convite.id,
+        status: item.status,
+        data_hora: item.data_hora_agenda,
+        tipo: item.convite.tipo,
+        titulo: item.convite.vaga?.nome_vaga ?? item.convite.titulo,
+        candidato: {
+          id: item.convite.candidato.id,
+          nome:
+            candidato.nome_social?.trim() ||
+            `${candidato.primeiro_nome} ${candidato.ultimo_nome}`,
+          cidade: candidato.cidade.cidade,
+          estado: candidato.cidade.estado.sigla,
+        },
+
+        empresa: item.convite.empresa
+          ? {
+              id: item.convite.empresa.id,
+              nome_empresa: item.convite.empresa.nome_empresa,
+            }
+          : null,
+
+        vaga: item.convite.vaga
+          ? {
+              vaga_id: item.convite.vaga.vaga_id,
+              nome_vaga: item.convite.vaga.nome_vaga,
+            }
+          : null,
+      };
+    });
+  }
 }
