@@ -1380,50 +1380,49 @@ export class CandidatoService {
   }
 
   async buscarAgendaCandidato(usuarioId: number) {
-    const hoje = new Date();
+    const [agendasAvaliacao, agendasRecrutador] =
+      await this.prisma.$transaction([
+        // =========================================================
+        // AGENDA DE AVALIAÇÃO DE SKILL
+        // =========================================================
+        this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
+          where: {
+            status: AgendaStatus.ACEITO,
 
-    hoje.setHours(0, 0, 0, 0);
-
-    const agendas = await this.prisma.avaliadorAvaliacaoSkillAgenda.findMany({
-      where: {
-        status: AgendaStatus.ACEITO,
-
-        // data_hora_agenda: {
-        //   gte: hoje,
-        // },
-
-        avaliacao: {
-          candidatoSkill: {
-            candidatoSkill: {
-              candidato: {
-                usuario_id: usuarioId,
+            avaliacao: {
+              candidatoSkill: {
+                candidatoSkill: {
+                  candidato: {
+                    usuario_id: usuarioId,
+                  },
+                },
               },
             },
           },
-        },
-      },
 
-      orderBy: {
-        data_hora_agenda: 'asc',
-      },
+          orderBy: {
+            data_hora_agenda: 'asc',
+          },
 
-      select: {
-        id: true,
-        data_hora_agenda: true,
-
-        avaliacao: {
           select: {
             id: true,
+            data_hora_agenda: true,
 
-            candidatoSkill: {
+            avaliacao: {
               select: {
+                id: true,
+
                 candidatoSkill: {
                   select: {
-                    peso: true,
-
-                    skill: {
+                    candidatoSkill: {
                       select: {
-                        skill: true,
+                        peso: true,
+
+                        skill: {
+                          select: {
+                            skill: true,
+                          },
+                        },
                       },
                     },
                   },
@@ -1431,17 +1430,112 @@ export class CandidatoService {
               },
             },
           },
-        },
-      },
-    });
+        }),
 
-    return agendas.map((item) => ({
-      id: item.id,
-      avaliacaoId: item.avaliacao.id,
+        // =========================================================
+        // AGENDA DE PROCESSOS / OPORTUNIDADES DO RECRUTADOR
+        // =========================================================
+        this.prisma.recrutadorConviteAgenda.findMany({
+          where: {
+            status: AgendaStatus.ACEITO,
+
+            convite: {
+              candidato: {
+                usuario_id: usuarioId,
+              },
+            },
+          },
+
+          orderBy: {
+            data_hora_agenda: 'asc',
+          },
+
+          select: {
+            id: true,
+            data_hora_agenda: true,
+
+            convite: {
+              select: {
+                id: true,
+                tipo: true,
+                titulo: true,
+
+                empresa: {
+                  select: {
+                    id: true,
+                    nome_empresa: true,
+                  },
+                },
+
+                vaga: {
+                  select: {
+                    vaga_id: true,
+                    nome_vaga: true,
+                  },
+                },
+              },
+            },
+          },
+        }),
+      ]);
+
+    // =========================================================
+    // NORMALIZA AVALIAÇÕES
+    // =========================================================
+
+    const avaliacoes = agendasAvaliacao.map((item) => ({
+      id: `avaliacao-${item.id}`,
+      agendaId: item.id,
+      referenciaId: item.avaliacao.id,
+      origem: 'AVALIACAO' as const,
       data_hora: item.data_hora_agenda,
+      status: AgendaStatus.ACEITO,
+      titulo: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
+      tipo: 'AVALIACAO_SKILL' as const,
       skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
       autoavaliacao: item.avaliacao.candidatoSkill.candidatoSkill.peso,
+
+      empresa: null,
+      vaga: null,
     }));
+
+    // =========================================================
+    // NORMALIZA RECRUTADOR
+    // =========================================================
+
+    const recrutador = agendasRecrutador.map((item) => ({
+      id: `recrutador-${item.id}`,
+      agendaId: item.id,
+      referenciaId: item.convite.id,
+      origem: 'RECRUTADOR' as const,
+      data_hora: item.data_hora_agenda,
+      titulo: item.convite.vaga?.nome_vaga ?? item.convite.titulo,
+      tipo: item.convite.tipo,
+      skill: null,
+      autoavaliacao: null,
+      empresa: item.convite.empresa
+        ? {
+            id: item.convite.empresa.id,
+            nome_empresa: item.convite.empresa.nome_empresa,
+          }
+        : null,
+
+      vaga: item.convite.vaga
+        ? {
+            vaga_id: item.convite.vaga.vaga_id,
+            nome_vaga: item.convite.vaga.nome_vaga,
+          }
+        : null,
+    }));
+
+    // =========================================================
+    // UNE E ORDENA
+    // =========================================================
+
+    return [...avaliacoes, ...recrutador].sort(
+      (a, b) =>
+        new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime(),
+    );
   }
 
   async getDashboardCandidato(usuarioId: number) {
