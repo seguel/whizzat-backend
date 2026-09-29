@@ -2291,12 +2291,17 @@ export class CandidateMatchService {
 
     const dataAgenda = new Date(dataHoraAgenda);
 
+    const ANTECEDENCIA_MINIMA_AGENDA_MINUTOS = 30;
+
+    const horarioMinimo =
+      Date.now() + ANTECEDENCIA_MINIMA_AGENDA_MINUTOS * 60 * 1000;
+
     if (
       Number.isNaN(dataAgenda.getTime()) ||
-      dataAgenda.getTime() <= Date.now()
+      dataAgenda.getTime() < horarioMinimo
     ) {
       throw new BadRequestException(
-        'A data e horário da entrevista devem estar no futuro.',
+        `A entrevista deve ser agendada com pelo menos ${ANTECEDENCIA_MINIMA_AGENDA_MINUTOS} minutos de antecedência.`,
       );
     }
 
@@ -2453,9 +2458,9 @@ export class CandidateMatchService {
       );
     }
 
-    if (convite.agenda.data_hora_agenda.getTime() > Date.now()) {
-      throw new BadRequestException('A entrevista ainda não ocorreu.');
-    }
+    // if (convite.agenda.data_hora_agenda.getTime() > Date.now()) {
+    //   throw new BadRequestException('A entrevista ainda não ocorreu.');
+    // }
 
     const resultado = await this.prisma.$transaction(async (tx) => {
       const agenda = await tx.recrutadorConviteAgenda.update({
