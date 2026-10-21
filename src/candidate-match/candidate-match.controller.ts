@@ -22,6 +22,7 @@ import { ResponderConviteCandidatoDto } from './dto/responder-convite-candidato.
 import { ResponderAgendaCandidatoDto } from './dto/responder-agenda-candidato.dto';
 import { SugerirAgendaRecrutadorDto } from './dto/sugerir-agenda-recrutador.dto';
 import { FinalizarProcessoRecrutadorDto } from './dto/finalizar-processo-recrutador.dto';
+import { EnviarLinkEntrevistaDto } from './dto/enviar-link-entrevista.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -229,6 +230,22 @@ export class CandidateMatchController {
     const usuarioId = req.user.sub;
 
     return this.candidateMatchService.listarConvitesRecrutador(usuarioId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('recrutador/processos/:conviteId/link-entrevista')
+  enviarLinkEntrevista(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('conviteId', ParseIntPipe) conviteId: number,
+    @Body() dto: EnviarLinkEntrevistaDto,
+  ) {
+    return this.candidateMatchService.enviarLinkEntrevista({
+      usuarioId: req.user.sub,
+      conviteId,
+      plataforma: dto.plataforma,
+      linkReuniao: dto.link_reuniao,
+      gerarAutomaticamente: dto.gerar_automaticamente ?? false,
+    });
   }
 
   @Get('candidato/:candidatoId')

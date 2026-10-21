@@ -1443,6 +1443,13 @@ export class CandidatoService {
               candidato: {
                 usuario_id: usuarioId,
               },
+
+              status: {
+                in: [
+                  StatusConviteRecrutador.AGENDADO,
+                  StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+                ],
+              },
             },
           },
 
@@ -1454,11 +1461,16 @@ export class CandidatoService {
             id: true,
             data_hora_agenda: true,
 
+            plataforma: true,
+            link_reuniao: true,
+            data_envio_link: true,
+
             convite: {
               select: {
                 id: true,
                 tipo: true,
                 titulo: true,
+                status: true,
 
                 empresa: {
                   select: {
@@ -1495,6 +1507,9 @@ export class CandidatoService {
       skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
       autoavaliacao: item.avaliacao.candidatoSkill.candidatoSkill.peso,
 
+      plataforma: null,
+      link_reuniao: null,
+      data_envio_link: null,
       empresa: null,
       vaga: null,
     }));
@@ -1507,12 +1522,23 @@ export class CandidatoService {
       id: `recrutador-${item.id}`,
       agendaId: item.id,
       referenciaId: item.convite.id,
+
       origem: 'RECRUTADOR' as const,
+
       data_hora: item.data_hora_agenda,
+
+      status: item.convite.status,
+
       titulo: item.convite.vaga?.nome_vaga ?? item.convite.titulo,
       tipo: item.convite.tipo,
+
       skill: null,
       autoavaliacao: null,
+
+      plataforma: item.plataforma,
+      link_reuniao: item.link_reuniao,
+      data_envio_link: item.data_envio_link,
+
       empresa: item.convite.empresa
         ? {
             id: item.convite.empresa.id,
@@ -1720,6 +1746,7 @@ export class CandidatoService {
               StatusConviteRecrutador.CONVITE_ACEITO,
               StatusConviteRecrutador.AGENDA_ENVIADA,
               StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
               StatusConviteRecrutador.ENTREVISTA_REALIZADA,
             ],
           },
@@ -1743,6 +1770,7 @@ export class CandidatoService {
               StatusConviteRecrutador.CONVITE_ACEITO,
               StatusConviteRecrutador.AGENDA_ENVIADA,
               StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
               StatusConviteRecrutador.ENTREVISTA_REALIZADA,
             ],
           },
@@ -1758,7 +1786,12 @@ export class CandidatoService {
 
           convite: {
             candidato_id: candidato.id,
-            status: StatusConviteRecrutador.AGENDADO,
+            status: {
+              in: [
+                StatusConviteRecrutador.AGENDADO,
+                StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+              ],
+            },
           },
         },
       }),
@@ -1786,7 +1819,13 @@ export class CandidatoService {
 
           convite: {
             candidato_id: candidato.id,
-            status: StatusConviteRecrutador.AGENDADO,
+
+            status: {
+              in: [
+                StatusConviteRecrutador.AGENDADO,
+                StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+              ],
+            },
           },
         },
 
@@ -1798,6 +1837,10 @@ export class CandidatoService {
           id: true,
           data_hora_agenda: true,
           status: true,
+
+          plataforma: true,
+          link_reuniao: true,
+          data_envio_link: true,
 
           convite: {
             select: {
@@ -1836,6 +1879,7 @@ export class CandidatoService {
               StatusConviteRecrutador.CONVITE_ACEITO,
               StatusConviteRecrutador.AGENDA_ENVIADA,
               StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
               StatusConviteRecrutador.ENTREVISTA_REALIZADA,
             ],
           },
@@ -1923,6 +1967,7 @@ export class CandidatoService {
               status: true,
               data_criacao: true,
               data_resposta: true,
+              data_envio_link: true,
             },
           },
         },
@@ -1945,6 +1990,7 @@ export class CandidatoService {
             | 'CONVITE_ACEITO'
             | 'AGENDA_ENVIADA'
             | 'AGENDA_CONFIRMADA'
+            | 'LINK_ENTREVISTA_DISPONIVEL'
             | 'PROCESSO_FINALIZADO';
           origem: 'RECRUTADOR';
           referencia_id: number;
@@ -2003,6 +2049,19 @@ export class CandidatoService {
               descricao,
               empresa,
               data: item.agenda.data_resposta,
+            });
+          }
+
+          if (item.agenda.data_envio_link) {
+            eventos.push({
+              id: `link-entrevista-${item.agenda.id}`,
+              evento: 'LINK_ENTREVISTA_DISPONIVEL',
+              origem: 'RECRUTADOR',
+              referencia_id: item.id,
+              tipo_convite: item.tipo,
+              descricao,
+              empresa,
+              data: item.agenda.data_envio_link,
             });
           }
         }
@@ -2093,6 +2152,10 @@ export class CandidatoService {
           agenda_status: item.status,
           status: item.avaliacao.status,
 
+          plataforma: null,
+          link_reuniao: null,
+          data_envio_link: null,
+
           empresa: null,
           vaga: null,
 
@@ -2116,6 +2179,10 @@ export class CandidatoService {
           data_hora: item.data_hora_agenda,
           agenda_status: item.status,
           status: item.convite.status,
+
+          plataforma: item.plataforma,
+          link_reuniao: item.link_reuniao,
+          data_envio_link: item.data_envio_link,
 
           empresa: item.convite.empresa,
           vaga: item.convite.vaga,

@@ -82,6 +82,7 @@ export class EmailResumoSkillWorker {
         TipoNotificacao.RESPOSTA_CONVITE_RECRUTADOR,
         TipoNotificacao.RESPOSTA_AGENDA_RECRUTADOR,
         TipoNotificacao.PROCESSO_RECRUTADOR_FINALIZADO,
+        TipoNotificacao.LINK_ENTREVISTA_RECRUTADOR,
       ];
 
       const agrupado = notificacoes.reduce(
@@ -315,6 +316,55 @@ export class EmailResumoSkillWorker {
             }
 
             await this.mailService.enviarProcessoFinalizadoNotificacoes(
+              grupo.usuario.email,
+              nomeCompleto,
+              grupo.usuario.linguagem ?? 'pt',
+              convite.titulo,
+              oportunidadesLink,
+            );
+
+            emailEnviado = true;
+          } else if (tipo === TipoNotificacao.LINK_ENTREVISTA_RECRUTADOR) {
+            const referenciaId = grupo.referencia_id;
+
+            if (!referenciaId) {
+              throw new Error(
+                'Notificação de entrevista sem referência ao convite.',
+              );
+            }
+
+            const convite =
+              await this.prisma.recrutadorConviteCandidato.findUnique({
+                where: {
+                  id: referenciaId,
+                },
+                select: {
+                  titulo: true,
+                  agenda: {
+                    select: {
+                      data_hora_agenda: true,
+                      plataforma: true,
+                      link_reuniao: true,
+                    },
+                  },
+                },
+              });
+
+            if (!convite) {
+              throw new Error(`Convite ${referenciaId} não encontrado.`);
+            }
+
+            if (!convite.agenda?.link_reuniao) {
+              throw new Error(
+                `Entrevista do convite ${referenciaId} sem link cadastrado.`,
+              );
+            }
+
+            const oportunidadesLink = process.env.FRONTEND_URL
+              ? `${process.env.FRONTEND_URL}/dashboard/candidato/oportunidades?perfil=candidato`
+              : dashboardLink;
+
+            await this.mailService.enviarLinkEntrevistaNotificacoes(
               grupo.usuario.email,
               nomeCompleto,
               grupo.usuario.linguagem ?? 'pt',

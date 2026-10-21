@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TipoNotificacao" ADD VALUE 'LINK_ENTREVISTA_RECRUTADOR';

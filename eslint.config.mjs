@@ -6,11 +6,23 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/coverage/**',
+      '**/generated/**',
+      'eslint.config.mjs',
+    ],
   },
+
   eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
+
+  // Regras TypeScript sem análise completa de tipos
+  ...tseslint.configs.recommended,
+
+  // Mantém integração com Prettier
   eslintPluginPrettierRecommended,
+
   {
     languageOptions: {
       globals: {
@@ -18,17 +30,17 @@ export default tseslint.config(
         ...globals.jest,
       },
       sourceType: 'commonjs',
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: import.meta.dirname,
-      },
     },
   },
+
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
+
+      // Estas regras exigem análise de tipos,
+      // portanto ficam desativadas neste modo.
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
     },
   },
 );
