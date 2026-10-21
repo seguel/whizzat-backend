@@ -6,10 +6,12 @@ import {
   PerfilTipo,
   TipoNotificacao,
   AgendaStatus,
+  PlataformaEntrevista,
 } from '@prisma/client';
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,6 +24,8 @@ import { CriarConviteManualDto } from './dto/criar-convite-manual.dto';
 import { RespostaConviteCandidato } from './dto/responder-convite-candidato.dto';
 import { RespostaAgendaCandidato } from './dto/responder-agenda-candidato.dto';
 import { FinalizarProcessoRecrutadorDto } from './dto/finalizar-processo-recrutador.dto';
+import { GoogleService } from 'src/google/google.service';
+import { ZoomService } from '../zoom/zoom.service';
 
 interface CriterioSkillMatch {
   skill_id: number;
@@ -44,7 +48,11 @@ interface CriteriosMatch {
 
 @Injectable()
 export class CandidateMatchService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly googleService: GoogleService,
+    private readonly zoomService: ZoomService,
+  ) {}
 
   private readonly MATCH_MINIMO: Record<FaixaMatch, number> = {
     [FaixaMatch.ALTA]: 90,
@@ -1900,6 +1908,7 @@ export class CandidateMatchService {
             StatusConviteRecrutador.CONVITE_ACEITO,
             StatusConviteRecrutador.AGENDA_ENVIADA,
             StatusConviteRecrutador.AGENDADO,
+            StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
             StatusConviteRecrutador.ENTREVISTA_REALIZADA,
           ],
         },
@@ -1936,6 +1945,9 @@ export class CandidateMatchService {
             status: true,
             data_criacao: true,
             data_resposta: true,
+            plataforma: true,
+            link_reuniao: true,
+            data_envio_link: true,
           },
         },
       },
@@ -2166,6 +2178,7 @@ export class CandidateMatchService {
             StatusConviteRecrutador.CONVITE_ACEITO,
             StatusConviteRecrutador.AGENDA_ENVIADA,
             StatusConviteRecrutador.AGENDADO,
+            StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
             StatusConviteRecrutador.ENTREVISTA_REALIZADA,
             StatusConviteRecrutador.FINALIZADO,
             StatusConviteRecrutador.CONVITE_RECUSADO,
@@ -2223,6 +2236,10 @@ export class CandidateMatchService {
             data_hora_agenda: true,
             status: true,
             data_resposta: true,
+
+            plataforma: true,
+            link_reuniao: true,
+            data_envio_link: true,
           },
         },
       },
@@ -2431,6 +2448,9 @@ export class CandidateMatchService {
             id: true,
             status: true,
             data_hora_agenda: true,
+            plataforma: true,
+            link_reuniao: true,
+            data_envio_link: true,
           },
         },
       },
@@ -2440,9 +2460,9 @@ export class CandidateMatchService {
       throw new NotFoundException('Processo não encontrado.');
     }
 
-    if (convite.status !== StatusConviteRecrutador.AGENDADO) {
+    if (convite.status !== StatusConviteRecrutador.ENTREVISTA_CONFIRMADA) {
       throw new BadRequestException(
-        'Apenas entrevistas agendadas podem ser marcadas como realizadas.',
+        'O link da entrevista precisa ser enviado antes de marcar a entrevista como realizada.',
       );
     }
 
@@ -2455,6 +2475,16 @@ export class CandidateMatchService {
     if (convite.agenda.status !== AgendaStatus.ACEITO) {
       throw new BadRequestException(
         'A entrevista precisa estar aceita para ser marcada como realizada.',
+      );
+    }
+
+    if (
+      !convite.agenda.link_reuniao ||
+      !convite.agenda.plataforma ||
+      !convite.agenda.data_envio_link
+    ) {
+      throw new BadRequestException(
+        'O link da entrevista ainda não foi enviado ao candidato.',
       );
     }
 
@@ -2714,5 +2744,316 @@ export class CandidateMatchService {
         data_finalizacao: null,
       };
     });
+  }
+
+  async enviarLinkEntrevista({
+    usuarioId,
+    conviteId,
+    plataforma,
+    linkReuniao,
+    gerarAutomaticamente = false,
+  }: {
+    usuarioId: number;
+    conviteId: number;
+    plataforma: PlataformaEntrevista;
+    linkReuniao?: string;
+    gerarAutomaticamente?: boolean;
+  }) {
+    // =========================================================
+    // VALIDAÇÃO DA PLATAFORMA
+    // =========================================================
+
+    if (
+      gerarAutomaticamente &&
+      plataforma !== PlataformaEntrevista.GOOGLE_MEET &&
+      plataforma !== PlataformaEntrevista.ZOOM
+    ) {
+      throw new BadRequestException(
+        'A geração automática está disponível apenas para Google Meet e Zoom.',
+      );
+    }
+
+    let link = linkReuniao?.trim() || null;
+
+    if (!gerarAutomaticamente) {
+      if (!link) {
+        throw new BadRequestException('Informe o link da entrevista.');
+      }
+
+      let url: URL;
+
+      try {
+        url = new URL(link);
+      } catch {
+        throw new BadRequestException(
+          'Informe um link válido para a entrevista.',
+        );
+      }
+
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new BadRequestException(
+          'Informe um link HTTP ou HTTPS válido para a entrevista.',
+        );
+      }
+    }
+
+    // =========================================================
+    // VALIDAR RECRUTADOR
+    // =========================================================
+
+    const recrutador = await this.prisma.usuarioPerfilRecrutador.findFirst({
+      where: {
+        usuario_id: usuarioId,
+        ativo: true,
+      },
+      select: { id: true },
+    });
+
+    if (!recrutador) {
+      throw new NotFoundException('Perfil de recrutador não encontrado.');
+    }
+
+    // =========================================================
+    // BUSCAR PROCESSO E AGENDA
+    // =========================================================
+
+    const convite = await this.prisma.recrutadorConviteCandidato.findFirst({
+      where: {
+        id: conviteId,
+        recrutador_id: recrutador.id,
+      },
+      select: {
+        id: true,
+        titulo: true,
+        status: true,
+        candidato: {
+          select: {
+            usuario_id: true,
+            perfil_id: true,
+          },
+        },
+        agenda: {
+          select: {
+            id: true,
+            status: true,
+            data_hora_agenda: true,
+            plataforma: true,
+            link_reuniao: true,
+            provider_meeting_id: true,
+            data_envio_link: true,
+          },
+        },
+      },
+    });
+
+    if (!convite) {
+      throw new NotFoundException('Processo não encontrado.');
+    }
+
+    if (convite.status !== StatusConviteRecrutador.AGENDADO) {
+      throw new BadRequestException(
+        'O processo precisa estar agendado para o link da entrevista ser enviado.',
+      );
+    }
+
+    if (!convite.agenda) {
+      throw new BadRequestException(
+        'Este processo não possui uma entrevista agendada.',
+      );
+    }
+
+    if (convite.agenda.status !== AgendaStatus.ACEITO) {
+      throw new BadRequestException(
+        'O candidato precisa aceitar o horário antes do envio do link da entrevista.',
+      );
+    }
+
+    if (convite.agenda.link_reuniao || convite.agenda.provider_meeting_id) {
+      throw new ConflictException(
+        'Esta entrevista já possui um link de reunião.',
+      );
+    }
+
+    // =========================================================
+    // GERAR REUNIÃO AUTOMATICAMENTE
+    // =========================================================
+
+    let providerMeetingId: string | null = null;
+
+    // Plataforma responsável pela reunião criada.
+    // Utilizada também para cancelar em caso de erro.
+    let plataformaGerada: PlataformaEntrevista | null = null;
+
+    const cancelarReuniaoCriada = async () => {
+      if (!providerMeetingId || !plataformaGerada) return;
+
+      try {
+        if (plataformaGerada === PlataformaEntrevista.GOOGLE_MEET) {
+          await this.googleService.cancelarEventoGoogle(providerMeetingId);
+        } else if (plataformaGerada === PlataformaEntrevista.ZOOM) {
+          await this.zoomService.cancelarReuniaoZoom(providerMeetingId);
+        }
+      } catch (erro) {
+        console.error(`Falha ao cancelar reunião ${plataformaGerada}:`, erro);
+      }
+    };
+
+    if (gerarAutomaticamente) {
+      const inicio = new Date(convite.agenda.data_hora_agenda);
+
+      if (Number.isNaN(inicio.getTime())) {
+        throw new BadRequestException('A data da entrevista é inválida.');
+      }
+
+      const duracaoMinutos = 60;
+
+      const titulo = `Entrevista Whizzat - ${convite.titulo}`;
+
+      const descricao = 'Entrevista agendada pela plataforma Whizzat.';
+
+      // ---------------------------------------------------------
+      // GOOGLE MEET
+      // ---------------------------------------------------------
+
+      if (plataforma === PlataformaEntrevista.GOOGLE_MEET) {
+        const fim = new Date(inicio.getTime() + duracaoMinutos * 60 * 1000);
+
+        const reuniao = await this.googleService.criarEntrevistaGoogleMeet(
+          titulo,
+          descricao,
+          inicio.toISOString(),
+          fim.toISOString(),
+        );
+
+        providerMeetingId = reuniao.eventoId ?? null;
+        link = reuniao.linkMeet ?? null;
+
+        plataformaGerada = PlataformaEntrevista.GOOGLE_MEET;
+      }
+
+      // ---------------------------------------------------------
+      // ZOOM
+      // ---------------------------------------------------------
+      else if (plataforma === PlataformaEntrevista.ZOOM) {
+        const reuniao = await this.zoomService.criarEntrevistaZoom(
+          titulo,
+          descricao,
+          inicio,
+          duracaoMinutos,
+        );
+
+        providerMeetingId = reuniao.id ?? null;
+        link = reuniao.link ?? null;
+
+        plataformaGerada = PlataformaEntrevista.ZOOM;
+      }
+
+      // ---------------------------------------------------------
+      // VALIDAR RESULTADO DA GERAÇÃO
+      // ---------------------------------------------------------
+
+      if (!providerMeetingId || !link) {
+        await cancelarReuniaoCriada();
+
+        throw new BadRequestException(
+          'Não foi possível gerar o link da reunião automaticamente.',
+        );
+      }
+    }
+
+    // =========================================================
+    // ATUALIZAR BANCO E NOTIFICAR CANDIDATO
+    // =========================================================
+
+    const agora = new Date();
+
+    try {
+      const resultado = await this.prisma.$transaction(async (tx) => {
+        const atualizado = await tx.recrutadorConviteAgenda.updateMany({
+          where: {
+            id: convite.agenda!.id,
+            status: AgendaStatus.ACEITO,
+            link_reuniao: null,
+            provider_meeting_id: null,
+          },
+          data: {
+            plataforma,
+            link_reuniao: link,
+            provider_meeting_id: providerMeetingId,
+            data_envio_link: agora,
+          },
+        });
+
+        if (atualizado.count === 0) {
+          throw new ConflictException(
+            'O link desta entrevista já foi enviado ou a agenda foi alterada.',
+          );
+        }
+
+        if (atualizado.count !== 1) {
+          throw new ConflictException(
+            'O link desta entrevista já foi enviado.',
+          );
+        }
+
+        const agenda = await tx.recrutadorConviteAgenda.findUniqueOrThrow({
+          where: {
+            id: convite.agenda!.id,
+          },
+          select: {
+            id: true,
+            status: true,
+            data_hora_agenda: true,
+            plataforma: true,
+            link_reuniao: true,
+            provider_meeting_id: true,
+            data_envio_link: true,
+          },
+        });
+
+        const processoAtualizado =
+          await tx.recrutadorConviteCandidato.updateMany({
+            where: {
+              id: convite.id,
+              status: StatusConviteRecrutador.AGENDADO,
+            },
+            data: {
+              status: StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+            },
+          });
+
+        if (processoAtualizado.count !== 1) {
+          throw new ConflictException('O status do processo foi alterado.');
+        }
+
+        await tx.notificacao.create({
+          data: {
+            usuario_id: convite.candidato.usuario_id,
+            perfil_tipo: PerfilTipo.CANDIDATO,
+            perfil_id: convite.candidato.perfil_id,
+            referencia_id: convite.id,
+            titulo: 'Link da entrevista disponível',
+            mensagem:
+              `O acesso à sua entrevista para ` +
+              `${convite.titulo} já está disponível.`,
+            tipo: TipoNotificacao.LINK_ENTREVISTA_RECRUTADOR,
+          },
+        });
+
+        return { agenda };
+      });
+
+      return {
+        sucesso: true,
+        id: convite.id,
+        status: StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+        agenda: resultado.agenda,
+      };
+    } catch (erro) {
+      // Compensação: cancelar a reunião criada se o banco falhar.
+      await cancelarReuniaoCriada();
+
+      throw erro;
+    }
   }
 }

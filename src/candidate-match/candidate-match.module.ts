@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { CandidateMatchController } from './candidate-match.controller';
 import { CandidateMatchService } from './candidate-match.service';
+import { GoogleModule } from '../google/google.module';
+import { ZoomModule } from '../zoom/zoom.module';
 
 @Module({
+  imports: [GoogleModule, ZoomModule],
   controllers: [CandidateMatchController],
   providers: [CandidateMatchService],
   exports: [CandidateMatchService],

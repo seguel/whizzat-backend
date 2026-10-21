@@ -23,7 +23,8 @@ import { MailModule } from './mail/mail.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { QuestionarioModule } from './questionario/questionario.module';
 import { CandidateMatchModule } from './candidate-match/candidate-match.module';
-// import * as path from 'path';
+import { GoogleModule } from './google/google.module';
+import { ZoomModule } from './zoom/zoom.module';
 
 // import { CandidatoSkillAvaliarWorker } from './workers/candidato-skill-avaliar.worker';
 // import { AvaliadorDispatcherWorker } from './workers/avaliador-dispatcher.worker';
@@ -61,6 +62,8 @@ const envFile = `.env.${process.env.NODE_ENV || 'development'}`;
     QuestionarioModule,
     MailModule,
     CandidateMatchModule,
+    GoogleModule,
+    ZoomModule,
   ],
   providers: [
     // CandidatoSkillAvaliarWorker,
