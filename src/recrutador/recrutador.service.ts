@@ -551,6 +551,7 @@ export class RecrutadorService {
               StatusConviteRecrutador.CONVITE_ACEITO,
               StatusConviteRecrutador.AGENDA_ENVIADA,
               StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
               StatusConviteRecrutador.ENTREVISTA_REALIZADA,
             ],
           },
@@ -563,7 +564,12 @@ export class RecrutadorService {
       this.prisma.recrutadorConviteCandidato.count({
         where: {
           recrutador_id: recrutador.id,
-          status: StatusConviteRecrutador.AGENDADO,
+          status: {
+            in: [
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+            ],
+          },
 
           agenda: {
             is: {
@@ -594,7 +600,13 @@ export class RecrutadorService {
 
           convite: {
             recrutador_id: recrutador.id,
-            status: StatusConviteRecrutador.AGENDADO,
+
+            status: {
+              in: [
+                StatusConviteRecrutador.AGENDADO,
+                StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+              ],
+            },
           },
         },
 
@@ -606,12 +618,16 @@ export class RecrutadorService {
           id: true,
           data_hora_agenda: true,
           status: true,
+          plataforma: true,
+          link_reuniao: true,
+          data_envio_link: true,
 
           convite: {
             select: {
               id: true,
               titulo: true,
               tipo: true,
+              status: true,
 
               candidato: {
                 select: {
@@ -661,6 +677,7 @@ export class RecrutadorService {
           status: {
             in: [
               StatusConviteRecrutador.CONVITE_ACEITO,
+              StatusConviteRecrutador.AGENDADO,
               StatusConviteRecrutador.ENTREVISTA_REALIZADA,
             ],
           },
@@ -751,7 +768,14 @@ export class RecrutadorService {
           empresa: item.convite.empresa,
           vaga: item.convite.vaga,
           data_hora: item.data_hora_agenda,
+
           status: item.status,
+          status_processo: item.convite.status,
+
+          plataforma: item.plataforma,
+          link_reuniao: item.link_reuniao,
+          data_envio_link: item.data_envio_link,
+
           atrasada: item.data_hora_agenda < agora,
         };
       }),
@@ -784,7 +808,9 @@ export class RecrutadorService {
           acao:
             item.status === StatusConviteRecrutador.CONVITE_ACEITO
               ? 'AGENDA'
-              : 'FINALIZAR',
+              : item.status === StatusConviteRecrutador.AGENDADO
+                ? 'ENVIAR_LINK'
+                : 'FINALIZAR',
         };
       }),
     };
@@ -801,6 +827,14 @@ export class RecrutadorService {
           recrutador: {
             usuario_id: usuarioId,
           },
+
+          status: {
+            in: [
+              StatusConviteRecrutador.AGENDA_ENVIADA,
+              StatusConviteRecrutador.AGENDADO,
+              StatusConviteRecrutador.ENTREVISTA_CONFIRMADA,
+            ],
+          },
         },
       },
 
@@ -813,11 +847,16 @@ export class RecrutadorService {
         status: true,
         data_hora_agenda: true,
 
+        plataforma: true,
+        link_reuniao: true,
+        data_envio_link: true,
+
         convite: {
           select: {
             id: true,
             tipo: true,
             titulo: true,
+            status: true,
 
             candidato: {
               select: {
@@ -869,10 +908,15 @@ export class RecrutadorService {
       return {
         id: item.id,
         conviteId: item.convite.id,
+
         status: item.status,
+        status_processo: item.convite.status,
+
         data_hora: item.data_hora_agenda,
+
         tipo: item.convite.tipo,
         titulo: item.convite.vaga?.nome_vaga ?? item.convite.titulo,
+
         candidato: {
           id: item.convite.candidato.id,
           nome:
@@ -895,6 +939,10 @@ export class RecrutadorService {
               nome_vaga: item.convite.vaga.nome_vaga,
             }
           : null,
+
+        plataforma: item.plataforma,
+        link_reuniao: item.link_reuniao,
+        data_envio_link: item.data_envio_link,
       };
     });
   }

@@ -1338,6 +1338,93 @@ export class MailService {
     }
   }
 
+  async enviarLinkEntrevistaNotificacoes(
+    email: string,
+    nome: string,
+    language: string,
+    tituloConvite: string,
+    dashboardLink: string,
+  ) {
+    const traduzir = (chave: string) =>
+      this.i18n.translate(`common.mail.link_entrevista_recrutador.${chave}`, {
+        lang: language,
+      }) as string;
+
+    const subject = traduzir('assunto');
+
+    const saudacao = this.interpolar(traduzir('saudacao'), {
+      nome,
+    });
+
+    const introducao = this.interpolar(traduzir('introducao'), {
+      tituloProcesso: tituloConvite,
+    });
+
+    const { error } = await this.resend.emails.send({
+      from: '"Whizzat" <no-reply@whizzat.com.br>',
+      to: email,
+      subject,
+      html: `
+      <div style="width:100%;background-color:#f4f6f8;padding:40px 0;font-family:Arial,sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;padding:35px;border:1px solid #e5e7eb;">
+
+          <div style="text-align:center;margin-bottom:30px;">
+            <img
+              src="https://whizzat-frontend.onrender.com/assets/logofull_whizzat.png"
+              alt="Whizzat"
+              style="width:170px;height:auto;"
+            />
+          </div>
+
+          <h2 style="font-size:22px;color:#111827;text-align:center;margin-bottom:25px;">
+            ${traduzir('titulo')}
+          </h2>
+
+          <p style="font-size:16px;color:#374151;margin-bottom:15px;">
+            ${saudacao}
+          </p>
+
+          <p style="font-size:15px;color:#4b5563;line-height:1.6;margin-bottom:15px;">
+            ${introducao}
+          </p>
+
+          <p style="font-size:15px;color:#4b5563;line-height:1.6;margin-bottom:20px;">
+            ${traduzir('descricao')}
+          </p>
+
+          <div style="background:#f5f3ff;border-radius:8px;padding:16px;margin-bottom:25px;">
+            <p style="font-size:14px;color:#6d28d9;line-height:1.6;margin:0;">
+              ${traduzir('aviso')}
+            </p>
+          </div>
+
+          <div style="text-align:center;margin-bottom:35px;">
+            <a
+              href="${dashboardLink}"
+              style="background-color:#7c3aed;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:15px;display:inline-block;"
+            >
+              ${traduzir('botao')}
+            </a>
+          </div>
+
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:25px 0;" />
+
+          <p style="font-size:13px;color:#9ca3af;text-align:center;">
+            ${this.i18n.translate('common.mail.resumo_notificacoes.rodape', {
+              lang: language,
+            })}
+          </p>
+
+        </div>
+      </div>
+    `,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+  }
+
   private interpolar(
     texto: string,
     variaveis: Record<string, string | number>,
