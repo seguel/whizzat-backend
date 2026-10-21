@@ -153,6 +153,15 @@
       "introducao_1": "O processo {{tituloProcesso}} foi finalizado.",
       "introducao_2": "Acesse suas oportunidades para consultar o resultado e o feedback compartilhado pelo recrutador.",
       "botao": "Ver resultado"
+    },
+    "link_entrevista_recrutador": {
+      "assunto": "Sua entrevista foi confirmada - Whizzat",
+      "titulo": "Sua entrevista está confirmada!",
+      "saudacao": "Olá, {{nome}}!",
+      "introducao": "O link da sua entrevista para '{{tituloProcesso}}' já foi disponibilizado no Whizzat.",
+      "descricao": "Acesse seu painel para consultar os detalhes da entrevista.",
+      "aviso": "O botão de acesso à reunião será liberado 15 minutos antes do horário agendado.",
+      "botao": "Acessar meu painel"
     }
   },
   "auth": {

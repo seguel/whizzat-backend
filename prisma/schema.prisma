@@ -716,17 +716,29 @@ model RecrutadorConviteCandidato {
 }
 
 model RecrutadorConviteAgenda {
-  id          Int          @id @default(autoincrement())
-  convite_id  Int          @unique
+  id               Int          @id @default(autoincrement())
+  convite_id       Int          @unique
   data_hora_agenda DateTime
   status           AgendaStatus @default(PENDENTE)
-  data_criacao  DateTime @default(now())
-  data_resposta DateTime?
+  data_criacao     DateTime     @default(now())
+  data_resposta    DateTime?
 
-  convite RecrutadorConviteCandidato @relation(fields: [convite_id],references: [id],onDelete: Cascade)
+  plataforma          PlataformaEntrevista?
+  link_reuniao        String?
+  provider_meeting_id String?
+  data_envio_link     DateTime?
+
+  convite RecrutadorConviteCandidato @relation(fields: [convite_id], references: [id], onDelete: Cascade)
 
   @@index([convite_id])
   @@map("recrutador_convite_agenda")
+}
+
+enum PlataformaEntrevista {
+  GOOGLE_MEET
+  MICROSOFT_TEAMS
+  ZOOM
+  LINK_EXTERNO
 }
 
 enum PerfilTipo {
@@ -767,6 +779,7 @@ enum TipoNotificacao {
   NOVA_AGENDA_RECRUTADOR
   AGENDA_RECRUTADOR_ACEITA
   AGENDA_RECRUTADOR_RECUSADA
+  LINK_ENTREVISTA_RECRUTADOR
   PROCESSO_RECRUTADOR_FINALIZADO
 
   RESPOSTA_CONVITE_RECRUTADOR
@@ -812,6 +825,7 @@ enum StatusConviteRecrutador {
   CONVITE_RECUSADO
   AGENDA_ENVIADA
   AGENDADO
+  ENTREVISTA_CONFIRMADA
   ENTREVISTA_REALIZADA
   FINALIZADO
 }
