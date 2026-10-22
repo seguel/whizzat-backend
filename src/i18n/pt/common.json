@@ -160,7 +160,7 @@
       "saudacao": "Olá, {{nome}}!",
       "introducao": "O link da sua entrevista para '{{tituloProcesso}}' já foi disponibilizado no Whizzat.",
       "descricao": "Acesse seu painel para consultar os detalhes da entrevista.",
-      "aviso": "O botão de acesso à reunião será liberado 15 minutos antes do horário agendado.",
+      "aviso": "O botão de acesso à reunião será liberado 5 minutos antes do horário agendado.",
       "botao": "Acessar meu painel"
     }
   },

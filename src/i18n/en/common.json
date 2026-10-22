@@ -160,7 +160,7 @@
       "saudacao": "Hello, {{nome}}!",
       "introducao": "The link for your interview for '{{tituloProcesso}}' is now available on Whizzat.",
       "descricao": "Visit your dashboard to view the interview details.",
-      "aviso": "The meeting access button will become available 15 minutes before the scheduled time.",
+      "aviso": "The meeting access button will become available 5 minutes before the scheduled time.",
       "botao": "Go to my dashboard"
     }
   },

@@ -81,8 +81,11 @@ export class ZoomService {
           duration: duracaoMinutos,
           timezone: 'America/Sao_Paulo',
           settings: {
-            waiting_room: true,
-            join_before_host: false,
+            waiting_room: false,
+            join_before_host: true,
+            jbh_time: 0,
+            host_video: true,
+            participant_video: true,
           },
         }),
       },
