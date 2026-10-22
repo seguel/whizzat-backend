@@ -24,8 +24,11 @@ export class GoogleService {
     return this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       prompt: 'consent',
-      scope: ['https://www.googleapis.com/auth/calendar.events'],
-      state,
+      include_granted_scopes: true,
+      scope: [
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/meetings.space.settings',
+      ],
     });
   }
 
@@ -61,13 +64,15 @@ export class GoogleService {
       refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
     });
 
+    const calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+
     const calendar = google.calendar({
       version: 'v3',
       auth: oauth2Client,
     });
 
     const response = await calendar.events.insert({
-      calendarId: process.env.GOOGLE_CALENDAR_ID || 'primary',
+      calendarId,
       conferenceDataVersion: 1,
       requestBody: {
         summary: titulo,
@@ -93,14 +98,54 @@ export class GoogleService {
 
     const evento = response.data;
 
+    const linkMeet =
+      evento.hangoutLink ||
+      evento.conferenceData?.entryPoints?.find(
+        (entry) => entry.entryPointType === 'video',
+      )?.uri;
+
+    if (!evento.id || !linkMeet) {
+      if (evento.id) {
+        await calendar.events.delete({
+          calendarId,
+          eventId: evento.id,
+        });
+      }
+
+      throw new Error(
+        'O Google Calendar não retornou um link válido para o Meet.',
+      );
+    }
+
+    try {
+      const accessToken = await oauth2Client.getAccessToken();
+
+      if (!accessToken.token) {
+        throw new Error('Não foi possível obter o token do Google.');
+      }
+
+      await this.configurarAcessoLivreMeet(linkMeet, accessToken.token);
+    } catch (error) {
+      // Remove o evento criado caso não consiga configurar o acesso.
+      try {
+        await calendar.events.delete({
+          calendarId,
+          eventId: evento.id,
+        });
+      } catch (erroCancelamento) {
+        console.error(
+          'Erro ao cancelar evento Google após falha na configuração do Meet:',
+          erroCancelamento,
+        );
+      }
+
+      throw error;
+    }
+
     return {
       eventoId: evento.id,
       titulo: evento.summary,
-      linkMeet:
-        evento.hangoutLink ||
-        evento.conferenceData?.entryPoints?.find(
-          (entry) => entry.entryPointType === 'video',
-        )?.uri,
+      linkMeet,
       linkCalendar: evento.htmlLink,
       statusConferencia:
         evento.conferenceData?.createRequest?.status?.statusCode,
@@ -149,6 +194,59 @@ export class GoogleService {
       }
 
       throw error;
+    }
+  }
+
+  private async configurarAcessoLivreMeet(
+    linkMeet: string,
+    accessToken: string,
+  ): Promise<void> {
+    const codigoMeet = new URL(linkMeet).pathname.split('/').filter(Boolean)[0];
+
+    if (!codigoMeet) {
+      throw new Error('Código do Google Meet não encontrado.');
+    }
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Busca o identificador real do espaço.
+    const consulta = await fetch(
+      `https://meet.googleapis.com/v2/spaces/${encodeURIComponent(codigoMeet)}`,
+      { headers },
+    );
+
+    if (!consulta.ok) {
+      throw new Error(
+        `Erro ao consultar Google Meet: ${consulta.status} - ${await consulta.text()}`,
+      );
+    }
+
+    const espaco = (await consulta.json()) as {
+      name: string;
+    };
+
+    // Atualiza as configurações da reunião.
+    const resposta = await fetch(
+      `https://meet.googleapis.com/v2/${espaco.name}?updateMask=config.accessType,config.moderation`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          config: {
+            accessType: 'OPEN',
+            moderation: 'OFF',
+          },
+        }),
+      },
+    );
+
+    if (!resposta.ok) {
+      throw new Error(
+        `Erro ao liberar acesso ao Google Meet: ${resposta.status} - ${await resposta.text()}`,
+      );
     }
   }
 }
