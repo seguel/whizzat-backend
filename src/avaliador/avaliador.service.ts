@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
@@ -11,7 +12,10 @@ import {
   StatusAvaliacao,
   TipoNotificacao,
   AvaliadorAvaliacaoSkillAgenda,
+  PlataformaEntrevista,
 } from '@prisma/client';
+import { GoogleService } from 'src/google/google.service';
+import { ZoomService } from '../zoom/zoom.service';
 import { generateActivationToken72 } from '../lib/util';
 import { I18nService } from 'nestjs-i18n';
 import { MailService } from '../mail/mail.service';
@@ -95,6 +99,8 @@ export class AvaliadorService {
     private readonly mailService: MailService,
     private readonly i18n: I18nService,
     private readonly authService: AuthService,
+    private readonly googleService: GoogleService,
+    private readonly zoomService: ZoomService,
   ) {}
 
   private getNomeExibicao(usuario: {
@@ -1706,6 +1712,7 @@ export class AvaliadorService {
       (a) =>
         a.status === StatusAvaliacao.AGENDADO ||
         a.status === StatusAvaliacao.AGENDA_ENVIADA ||
+        a.status === StatusAvaliacao.ENTREVISTA_CONFIRMADA ||
         a.status === StatusAvaliacao.ENTREVISTA_REALIZADA,
     );
 
@@ -1756,6 +1763,10 @@ export class AvaliadorService {
       data_avaliacao: avaliacao.data_avaliacao ?? null,
       status: avaliacao.status,
       status_agenda: avaliacao.agenda?.status ?? null,
+
+      plataforma: avaliacao.agenda?.plataforma ?? null,
+      link_reuniao: avaliacao.agenda?.link_reuniao ?? null,
+      data_envio_link: avaliacao.agenda?.data_envio_link ?? null,
     };
   };
 
@@ -2127,13 +2138,14 @@ export class AvaliadorService {
     }
 
     // Se NÃO for finalizar sem entrevista,
-    // obrigatoriamente deve estar AGENDADO.
+    // a avaliação deve estar agendada ou com entrevista confirmada.
     if (
       !finalizarSemEntrevista &&
-      avaliacao.status !== StatusAvaliacao.AGENDADO
+      avaliacao.status !== StatusAvaliacao.AGENDADO &&
+      avaliacao.status !== StatusAvaliacao.ENTREVISTA_CONFIRMADA
     ) {
       throw new BadRequestException(
-        'Avaliação precisa estar agendada para ser finalizada',
+        'Avaliação precisa estar agendada ou com entrevista confirmada para ser finalizada',
       );
     }
 
@@ -2375,10 +2387,14 @@ export class AvaliadorService {
         id: true,
         status: true,
         data_hora_agenda: true,
+        plataforma: true,
+        link_reuniao: true,
+        data_envio_link: true,
 
         avaliacao: {
           select: {
             id: true,
+            status: true,
 
             candidatoSkill: {
               select: {
@@ -2433,6 +2449,11 @@ export class AvaliadorService {
         avaliacaoId: item.avaliacao.id,
 
         status: item.status,
+        status_avaliacao: item.avaliacao.status,
+
+        plataforma: item.plataforma,
+        link_reuniao: item.link_reuniao,
+        data_envio_link: item.data_envio_link,
 
         data_hora: item.data_hora_agenda,
 
@@ -2551,6 +2572,7 @@ export class AvaliadorService {
           id: true,
           data_hora_agenda: true,
           status: true,
+          link_reuniao: true,
 
           avaliacao: {
             select: {
@@ -2751,6 +2773,7 @@ export class AvaliadorService {
           agenda_status: item.status,
           status_avaliacao: item.avaliacao.status,
           atrasada: item.data_hora_agenda < agora,
+          link_reuniao: item.link_reuniao,
         };
       }),
 
@@ -2793,5 +2816,293 @@ export class AvaliadorService {
 
       top_skills: topSkills,
     };
+  }
+
+  async enviarLinkEntrevista({
+    usuarioId,
+    avaliacaoId,
+    plataforma,
+    linkReuniao,
+    gerarAutomaticamente = false,
+  }: {
+    usuarioId: number;
+    avaliacaoId: number;
+    plataforma: PlataformaEntrevista;
+    linkReuniao?: string;
+    gerarAutomaticamente?: boolean;
+  }) {
+    // =========================================================
+    // VALIDAR PLATAFORMA E LINK
+    // =========================================================
+
+    if (
+      gerarAutomaticamente &&
+      plataforma !== PlataformaEntrevista.GOOGLE_MEET &&
+      plataforma !== PlataformaEntrevista.ZOOM
+    ) {
+      throw new BadRequestException(
+        'A geração automática está disponível apenas para Google Meet e Zoom.',
+      );
+    }
+
+    let link = linkReuniao?.trim() || null;
+
+    if (!gerarAutomaticamente) {
+      if (!link) {
+        throw new BadRequestException('Informe o link da entrevista.');
+      }
+
+      let url: URL;
+
+      try {
+        url = new URL(link);
+      } catch {
+        throw new BadRequestException(
+          'Informe um link válido para a entrevista.',
+        );
+      }
+
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        throw new BadRequestException(
+          'Informe um link HTTP ou HTTPS válido para a entrevista.',
+        );
+      }
+    }
+
+    // =========================================================
+    // BUSCAR AVALIAÇÃO DO AVALIADOR AUTENTICADO
+    // =========================================================
+
+    const avaliacao = await this.prisma.avaliadorAvaliacaoSkill.findFirst({
+      where: {
+        id: avaliacaoId,
+        avaliador: {
+          usuario_id: usuarioId,
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+
+        candidatoSkill: {
+          select: {
+            candidatoSkill: {
+              select: {
+                candidato: {
+                  select: {
+                    usuario_id: true,
+                    id: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+
+        agenda: {
+          select: {
+            id: true,
+            status: true,
+            data_hora_agenda: true,
+            plataforma: true,
+            link_reuniao: true,
+            provider_meeting_id: true,
+            data_envio_link: true,
+          },
+        },
+      },
+    });
+
+    if (!avaliacao) {
+      throw new NotFoundException('Avaliação não encontrada.');
+    }
+
+    // =========================================================
+    // VALIDAR STATUS DA AVALIAÇÃO
+    // =========================================================
+
+    if (avaliacao.status !== StatusAvaliacao.AGENDADO) {
+      throw new BadRequestException(
+        'A avaliação precisa estar agendada para enviar o link da entrevista.',
+      );
+    }
+
+    if (!avaliacao.agenda) {
+      throw new BadRequestException(
+        'Esta avaliação não possui uma entrevista agendada.',
+      );
+    }
+
+    if (avaliacao.agenda.status !== AgendaStatus.ACEITO) {
+      throw new BadRequestException(
+        'O candidato precisa aceitar o horário antes do envio do link.',
+      );
+    }
+
+    if (avaliacao.agenda.link_reuniao || avaliacao.agenda.provider_meeting_id) {
+      throw new ConflictException(
+        'Esta entrevista já possui um link de reunião.',
+      );
+    }
+
+    // =========================================================
+    // IDENTIFICAR CANDIDATO
+    // =========================================================
+
+    const candidato = avaliacao.candidatoSkill.candidatoSkill.candidato;
+
+    if (!candidato) {
+      throw new NotFoundException('Candidato não encontrado.');
+    }
+
+    // =========================================================
+    // GERAR REUNIÃO AUTOMATICAMENTE
+    // =========================================================
+
+    let providerMeetingId: string | null = null;
+    let plataformaGerada: PlataformaEntrevista | null = null;
+
+    const cancelarReuniaoCriada = async () => {
+      if (!providerMeetingId || !plataformaGerada) return;
+
+      try {
+        if (plataformaGerada === PlataformaEntrevista.GOOGLE_MEET) {
+          await this.googleService.cancelarEventoGoogle(providerMeetingId);
+        } else if (plataformaGerada === PlataformaEntrevista.ZOOM) {
+          await this.zoomService.cancelarReuniaoZoom(providerMeetingId);
+        }
+      } catch (erro) {
+        console.error(`Falha ao cancelar reunião ${plataformaGerada}:`, erro);
+      }
+    };
+
+    if (gerarAutomaticamente) {
+      const inicio = new Date(avaliacao.agenda.data_hora_agenda);
+
+      if (Number.isNaN(inicio.getTime())) {
+        throw new BadRequestException('A data da entrevista é inválida.');
+      }
+
+      const duracaoMinutos = 60;
+      const titulo = 'Entrevista Whizzat - Avaliação de Skill';
+      const descricao = 'Entrevista agendada pela plataforma Whizzat.';
+
+      if (plataforma === PlataformaEntrevista.GOOGLE_MEET) {
+        const fim = new Date(inicio.getTime() + duracaoMinutos * 60 * 1000);
+
+        const reuniao = await this.googleService.criarEntrevistaGoogleMeet(
+          titulo,
+          descricao,
+          inicio.toISOString(),
+          fim.toISOString(),
+        );
+
+        providerMeetingId = reuniao.eventoId ?? null;
+        link = reuniao.linkMeet ?? null;
+
+        plataformaGerada = PlataformaEntrevista.GOOGLE_MEET;
+      } else if (plataforma === PlataformaEntrevista.ZOOM) {
+        const reuniao = await this.zoomService.criarEntrevistaZoom(
+          titulo,
+          descricao,
+          inicio,
+          duracaoMinutos,
+        );
+
+        providerMeetingId = reuniao.id ?? null;
+        link = reuniao.link ?? null;
+
+        plataformaGerada = PlataformaEntrevista.ZOOM;
+      }
+
+      if (!providerMeetingId || !link) {
+        await cancelarReuniaoCriada();
+
+        throw new BadRequestException(
+          'Não foi possível gerar o link da reunião automaticamente.',
+        );
+      }
+    }
+
+    // =========================================================
+    // ATUALIZAR AGENDA, AVALIAÇÃO E NOTIFICAR CANDIDATO
+    // =========================================================
+
+    const agora = new Date();
+
+    try {
+      const resultado = await this.prisma.$transaction(async (tx) => {
+        const atualizado = await tx.avaliadorAvaliacaoSkillAgenda.updateMany({
+          where: {
+            id: avaliacao.agenda!.id,
+            status: AgendaStatus.ACEITO,
+            link_reuniao: null,
+            provider_meeting_id: null,
+          },
+          data: {
+            plataforma,
+            link_reuniao: link,
+            provider_meeting_id: providerMeetingId,
+            data_envio_link: agora,
+          },
+        });
+
+        if (atualizado.count !== 1) {
+          throw new ConflictException(
+            'O link já foi enviado ou a agenda foi alterada.',
+          );
+        }
+
+        const agenda = await tx.avaliadorAvaliacaoSkillAgenda.findUniqueOrThrow(
+          {
+            where: {
+              id: avaliacao.agenda!.id,
+            },
+          },
+        );
+
+        const avaliacaoAtualizada = await tx.avaliadorAvaliacaoSkill.updateMany(
+          {
+            where: {
+              id: avaliacao.id,
+              status: StatusAvaliacao.AGENDADO,
+            },
+            data: {
+              status: StatusAvaliacao.ENTREVISTA_CONFIRMADA,
+            },
+          },
+        );
+
+        if (avaliacaoAtualizada.count !== 1) {
+          throw new ConflictException('O status da avaliação foi alterado.');
+        }
+
+        await tx.notificacao.create({
+          data: {
+            usuario_id: candidato.usuario_id,
+            perfil_tipo: PerfilTipo.CANDIDATO,
+            perfil_id: candidato.id,
+            referencia_id: avaliacao.id,
+            titulo: 'Link da entrevista disponível',
+            mensagem:
+              'O link de acesso à sua entrevista de avaliação ' +
+              'já está disponível no Whizzat.',
+            tipo: TipoNotificacao.LINK_ENTREVISTA_AVALIADOR,
+          },
+        });
+
+        return { agenda };
+      });
+
+      return {
+        sucesso: true,
+        id: avaliacao.id,
+        status: StatusAvaliacao.ENTREVISTA_CONFIRMADA,
+        agenda: resultado.agenda,
+      };
+    } catch (erro) {
+      await cancelarReuniaoCriada();
+      throw erro;
+    }
   }
 }

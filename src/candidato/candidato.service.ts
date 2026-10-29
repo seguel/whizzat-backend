@@ -794,7 +794,7 @@ export class CandidatoService {
   }
 
   async listarAvaliacoesCandidato(usuarioId: number) {
-    // 1️⃣ Buscar perfil candidato
+    // 1. Buscar perfil do candidato
     const perfilCandidato = await this.prisma.usuarioPerfilCandidato.findFirst({
       where: {
         usuario_id: usuarioId,
@@ -813,25 +813,22 @@ export class CandidatoService {
       };
     }
 
-    // 2️⃣ Buscar avaliações vinculadas ao candidato
+    // 2. Buscar avaliações vinculadas ao candidato
     const avaliacoes = await this.prisma.candidatoAvaliacaoSkill.findMany({
       where: {
         candidatoSkill: {
           candidato_id: perfilCandidato.id,
         },
-
         avaliador_id: {
           not: null,
         },
       },
-
       include: {
         candidatoSkill: {
           include: {
             skill: true,
           },
         },
-
         avaliador: {
           include: {
             usuario: {
@@ -845,7 +842,6 @@ export class CandidatoService {
             },
           },
         },
-
         avaliacaoSkill: {
           include: {
             agenda: true,
@@ -853,17 +849,12 @@ export class CandidatoService {
           },
         },
       },
-
       orderBy: {
         data_avaliacao: 'desc',
       },
     });
 
-    // =====================================================
-    // COLUNAS
-    // =====================================================
-
-    // 📋 aguardando responder questionário
+    // 3. Questionários pendentes
     const aguardando_questionario = avaliacoes.filter(
       (a) =>
         a.avaliacaoSkill.length > 0 &&
@@ -872,16 +863,18 @@ export class CandidatoService {
         ),
     );
 
-    // 📅 agenda enviada
+    // 4. Entrevistas
+
     const agendadas = avaliacoes.filter((a) =>
       a.avaliacaoSkill.some(
         (av) =>
           av.status === StatusAvaliacao.AGENDA_ENVIADA ||
-          av.status === StatusAvaliacao.AGENDADO,
+          av.status === StatusAvaliacao.AGENDADO ||
+          av.status === StatusAvaliacao.ENTREVISTA_CONFIRMADA,
       ),
     );
 
-    // ✅ finalizadas
+    // 5. Avaliações finalizadas
     const finalizadas = avaliacoes.filter((a) =>
       a.avaliacaoSkill.some((av) => av.status === StatusAvaliacao.FINALIZADO),
     );
@@ -905,7 +898,6 @@ export class CandidatoService {
             skill: true;
           };
         };
-
         avaliador: {
           include: {
             usuario: {
@@ -919,7 +911,6 @@ export class CandidatoService {
             };
           };
         };
-
         avaliacaoSkill: {
           include: {
             agenda: true;
@@ -929,8 +920,6 @@ export class CandidatoService {
       };
     }>,
   ) {
-    // Como existe apenas uma avaliação por avaliador/skill,
-    // pegamos a primeira posição.
     const avaliacaoSkill = avaliacao.avaliacaoSkill[0];
 
     const avaliadorUsuario = avaliacao.avaliador?.usuario;
@@ -938,8 +927,10 @@ export class CandidatoService {
     const cidade = avaliadorUsuario?.cidade?.cidade;
     const sigla = avaliadorUsuario?.cidade?.estado?.sigla;
 
+    const agenda = avaliacaoSkill?.agenda;
+
     return {
-      id: avaliacaoSkill?.id,
+      id: avaliacaoSkill?.id ?? null,
 
       avaliador_nome: avaliadorUsuario
         ? this.getNomeExibicao(avaliadorUsuario)
@@ -952,7 +943,7 @@ export class CandidatoService {
       skill: avaliacao.candidatoSkill.skill.skill,
 
       peso: avaliacao.candidatoSkill.peso,
-      peso_avaliador: avaliacaoSkill.peso,
+      peso_avaliador: avaliacaoSkill?.peso ?? null,
 
       criado_em: avaliacaoSkill?.data_aceite ?? null,
 
@@ -963,10 +954,23 @@ export class CandidatoService {
       data_resposta_questionario:
         avaliacaoSkill?.data_resposta_questionario ?? null,
 
-      data_agenda: avaliacaoSkill?.agenda?.data_hora_agenda ?? null,
+      // AGENDA
+      data_agenda: agenda?.data_hora_agenda ?? null,
 
-      agenda_status: avaliacaoSkill?.agenda?.status ?? null,
+      agenda_status: agenda?.status ?? null,
 
+      data_agenda_criacao: agenda?.data_criacao ?? null,
+
+      // REUNIÃO
+      plataforma: agenda?.plataforma ?? null,
+
+      link_reuniao: agenda?.link_reuniao ?? null,
+
+      provider_meeting_id: agenda?.provider_meeting_id ?? null,
+
+      data_envio_link: agenda?.data_envio_link ?? null,
+
+      // AVALIAÇÃO
       status: avaliacaoSkill?.status ?? null,
 
       comentario: avaliacaoSkill?.comentario ?? null,
@@ -975,8 +979,7 @@ export class CandidatoService {
 
       avaliacao_id: avaliacaoSkill?.id ?? null,
 
-      data_avaliacao: avaliacaoSkill?.data_avaliacao,
-      data_agenda_criacao: avaliacaoSkill.agenda?.data_criacao ?? null,
+      data_avaliacao: avaliacaoSkill?.data_avaliacao ?? null,
     };
   }
 
@@ -1407,10 +1410,14 @@ export class CandidatoService {
           select: {
             id: true,
             data_hora_agenda: true,
+            plataforma: true,
+            link_reuniao: true,
+            data_envio_link: true,
 
             avaliacao: {
               select: {
                 id: true,
+                status: true,
 
                 candidatoSkill: {
                   select: {
@@ -1501,15 +1508,15 @@ export class CandidatoService {
       referenciaId: item.avaliacao.id,
       origem: 'AVALIACAO' as const,
       data_hora: item.data_hora_agenda,
-      status: AgendaStatus.ACEITO,
+      status: item.avaliacao.status,
       titulo: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
       tipo: 'AVALIACAO_SKILL' as const,
       skill: item.avaliacao.candidatoSkill.candidatoSkill.skill.skill,
       autoavaliacao: item.avaliacao.candidatoSkill.candidatoSkill.peso,
 
-      plataforma: null,
-      link_reuniao: null,
-      data_envio_link: null,
+      plataforma: item.plataforma,
+      link_reuniao: item.link_reuniao,
+      data_envio_link: item.data_envio_link,
       empresa: null,
       vaga: null,
     }));
@@ -1708,6 +1715,9 @@ export class CandidatoService {
           id: true,
           data_hora_agenda: true,
           status: true,
+          plataforma: true,
+          link_reuniao: true,
+          data_envio_link: true,
 
           avaliacao: {
             select: {
@@ -2152,9 +2162,9 @@ export class CandidatoService {
           agenda_status: item.status,
           status: item.avaliacao.status,
 
-          plataforma: null,
-          link_reuniao: null,
-          data_envio_link: null,
+          plataforma: item.plataforma,
+          link_reuniao: item.link_reuniao,
+          data_envio_link: item.data_envio_link,
 
           empresa: null,
           vaga: null,

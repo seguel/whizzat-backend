@@ -32,6 +32,8 @@ import { CreateAvaliadorCertificadosDto } from './dto/create-avaliador-certifica
 import { CreateNovoCertificadoAvaliadorDto } from './dto/create-novo-certificado.dto';
 import { SalvarComentarioRespostaDto } from './dto/salvarComentarioResposta.dto';
 import { SendQuestionarioDto } from './dto/send-questionario.dto';
+import { EnviarLinkEntrevistaDto } from '../candidate-match/dto/enviar-link-entrevista.dto';
+
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { join, extname } from 'path';
@@ -908,5 +910,21 @@ export class AvaliadorController {
   buscarAgenda(@Req() req: Request & { user: JwtPayload }) {
     const userId = req.user?.sub;
     return this.avaliadorService.buscarAgendaAvaliador(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('avaliacoes/:avaliacaoId/link-entrevista')
+  enviarLinkEntrevista(
+    @Req() req: Request & { user: JwtPayload },
+    @Param('avaliacaoId', ParseIntPipe) avaliacaoId: number,
+    @Body() dto: EnviarLinkEntrevistaDto,
+  ) {
+    return this.avaliadorService.enviarLinkEntrevista({
+      usuarioId: req.user.sub,
+      avaliacaoId,
+      plataforma: dto.plataforma,
+      linkReuniao: dto.link_reuniao,
+      gerarAutomaticamente: dto.gerar_automaticamente ?? false,
+    });
   }
 }
