@@ -7,6 +7,8 @@ import { CertificacoesModule } from '../certificacoes/certificacoes.module';
 import { MailModule } from '../mail/mail.module';
 import { AuthModule } from '../auth/auth.module';
 import { JwtModule } from '@nestjs/jwt';
+import { GoogleModule } from '../google/google.module';
+import { ZoomModule } from '../zoom/zoom.module';
 
 import { JwtStrategy } from '../auth/jwt.strategy';
 
@@ -21,6 +23,8 @@ import { JwtStrategy } from '../auth/jwt.strategy';
     CertificacoesModule,
     UserModule,
     AuthModule,
+    GoogleModule,
+    ZoomModule,
   ],
   controllers: [AvaliadorController],
   providers: [AvaliadorService, JwtStrategy],

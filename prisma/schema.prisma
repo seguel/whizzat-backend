@@ -645,6 +645,11 @@ model AvaliadorAvaliacaoSkillAgenda {
   data_hora_agenda       DateTime
   status                 AgendaStatus            @default(PENDENTE)
   data_criacao           DateTime                @default(now())
+  plataforma             PlataformaEntrevista?
+  link_reuniao           String?
+  provider_meeting_id    String?
+  data_envio_link        DateTime?
+
   avaliacao              AvaliadorAvaliacaoSkill @relation(fields: [avaliador_avaliacao_id], references: [id], onDelete: Cascade)
 
   @@index([avaliador_avaliacao_id])
@@ -784,6 +789,7 @@ enum TipoNotificacao {
 
   RESPOSTA_CONVITE_RECRUTADOR
   RESPOSTA_AGENDA_RECRUTADOR
+  LINK_ENTREVISTA_AVALIADOR
 }
 
 enum TipoPergunta {
@@ -807,6 +813,7 @@ enum StatusAvaliacao {
   FINALIZADO
   AGENDA_ENVIADA
   AGENDADO
+  ENTREVISTA_CONFIRMADA
 }
 
 enum TipoConviteRecrutador {
