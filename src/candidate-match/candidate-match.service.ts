@@ -44,6 +44,12 @@ interface CriteriosMatch {
   publicos_afirmativos?: PublicoAfirmativo[];
   faixa: FaixaMatch;
   limite: number;
+  raio_km?: number | null;
+
+  coordenadas_vaga?: {
+    latitude: number | null;
+    longitude: number | null;
+  } | null;
 }
 
 @Injectable()
@@ -68,6 +74,7 @@ export class CandidateMatchService {
     lang,
     limite,
     faixa,
+    raio_km,
   }: {
     vagaId: number;
     empresaId: number;
@@ -75,6 +82,7 @@ export class CandidateMatchService {
     lang: string;
     limite: number;
     faixa: FaixaMatch;
+    raio_km?: number;
   }) {
     const recrutador = await this.validarAcessoRecrutador(usuarioId, empresaId);
 
@@ -89,6 +97,9 @@ export class CandidateMatchService {
         vaga.modalidade_trabalho.codigo.trim().toUpperCase() === 'REMOTO'
           ? null
           : vaga.cidade_id,
+
+      coordenadas_vaga: vaga.cidade,
+
       tipo_oportunidade: vaga.tipo_oportunidade,
       publicos_afirmativos: vaga.publicos_afirmativos.map(
         (item) => item.codigo,
@@ -96,6 +107,7 @@ export class CandidateMatchService {
 
       faixa,
       limite,
+      raio_km,
     };
 
     const candidatos = await this.executarMatch({
@@ -157,6 +169,7 @@ export class CandidateMatchService {
         limite,
         faixa,
         lang,
+        raio_km: raio_km ?? null,
       },
 
       candidatos: candidatosComConvite,
@@ -210,6 +223,12 @@ export class CandidateMatchService {
         empresa: {
           select: {
             linguagem: true,
+          },
+        },
+        cidade: {
+          select: {
+            latitude: true,
+            longitude: true,
           },
         },
       },
@@ -312,6 +331,8 @@ export class CandidateMatchService {
             cidade: {
               select: {
                 cidade: true,
+                latitude: true,
+                longitude: true,
 
                 estado: {
                   select: {
@@ -568,30 +589,63 @@ export class CandidateMatchService {
     modalidadeVaga: string,
     cidadeVagaId: number,
     cidadeCandidatoId: number,
+    raioKm?: number | null,
+    coordenadasVaga?: {
+      latitude: number | null;
+      longitude: number | null;
+    } | null,
+    coordenadasCandidato?: {
+      latitude: number | null;
+      longitude: number | null;
+    } | null,
   ): boolean {
     const modalidade = modalidadeVaga.trim().toUpperCase();
 
     /*
-     * Para trabalho remoto, localização não elimina candidato.
+     * Trabalho remoto:
+     * localização não elimina candidatos.
      */
     if (modalidade === 'REMOTO') {
       return true;
     }
 
     /*
-     * Para presencial e híbrido, nesta primeira versão
-     * exigimos que candidato e vaga estejam na mesma cidade.
+     * Segurança:
+     * modalidades desconhecidas continuam bloqueadas.
      */
-    if (modalidade === 'PRESENCIAL' || modalidade === 'HIBRIDO') {
-      return cidadeVagaId === cidadeCandidatoId;
+    if (modalidade !== 'PRESENCIAL' && modalidade !== 'HIBRIDO') {
+      return false;
     }
 
     /*
-     * Segurança:
-     * modalidade desconhecida não deve liberar candidato
-     * silenciosamente.
+     * Sem filtro de distância:
+     * não restringe candidatos pela cidade.
      */
-    return false;
+    if (raioKm == null) {
+      return true;
+    }
+
+    /*
+     * Com filtro de distância:
+     * coordenadas são obrigatórias.
+     */
+    if (
+      coordenadasVaga?.latitude == null ||
+      coordenadasVaga.longitude == null ||
+      coordenadasCandidato?.latitude == null ||
+      coordenadasCandidato.longitude == null
+    ) {
+      return false;
+    }
+
+    const distanciaKm = this.calcularDistanciaKm(
+      coordenadasVaga.latitude,
+      coordenadasVaga.longitude,
+      coordenadasCandidato.latitude,
+      coordenadasCandidato.longitude,
+    );
+
+    return distanciaKm <= raioKm;
   }
 
   async ignorarCandidato({
@@ -1058,6 +1112,7 @@ export class CandidateMatchService {
         skills: skillsMatch,
         faixa: criterios.faixa,
         limite: criterios.limite,
+        raio_km: 50,
       },
     });
 
@@ -1221,6 +1276,9 @@ export class CandidateMatchService {
           criterios.modalidade_codigo,
           criterios.cidade_id ?? 0,
           candidato.usuario.cidade_id,
+          criterios.raio_km,
+          criterios.coordenadas_vaga,
+          candidato.usuario.cidade,
         );
       })
       .filter((candidato) => {
@@ -1320,6 +1378,23 @@ export class CandidateMatchService {
 
     return candidatosLimitados.map((item) => {
       const candidato = item.candidato;
+      const cidadeCandidato = candidato.usuario.cidade;
+      const cidadeVaga = criterios.coordenadas_vaga;
+
+      const distanciaKm =
+        criterios.modalidade_codigo &&
+        criterios.modalidade_codigo.trim().toUpperCase() !== 'REMOTO' &&
+        cidadeVaga?.latitude != null &&
+        cidadeVaga.longitude != null &&
+        cidadeCandidato?.latitude != null &&
+        cidadeCandidato.longitude != null
+          ? this.calcularDistanciaKm(
+              cidadeVaga.latitude,
+              cidadeVaga.longitude,
+              cidadeCandidato.latitude,
+              cidadeCandidato.longitude,
+            )
+          : null;
 
       /*
        * Na busca manual não existe oportunidade,
@@ -1357,6 +1432,8 @@ export class CandidateMatchService {
         skills_avaliadas: item.resultadoSkills.skills_avaliadas,
         total_skills: item.resultadoSkills.total_skills,
         skills: item.resultadoSkills.detalhes,
+        distancia_km:
+          distanciaKm !== null ? Math.round(distanciaKm * 10) / 10 : null,
       };
     });
   }
@@ -3055,5 +3132,33 @@ export class CandidateMatchService {
 
       throw erro;
     }
+  }
+
+  private calcularDistanciaKm(
+    latitudeOrigem: number,
+    longitudeOrigem: number,
+    latitudeDestino: number,
+    longitudeDestino: number,
+  ): number {
+    const raioTerraKm = 6371;
+
+    const radianos = (graus: number) => (graus * Math.PI) / 180;
+
+    const diferencaLatitude = radianos(latitudeDestino - latitudeOrigem);
+    const diferencaLongitude = radianos(longitudeDestino - longitudeOrigem);
+
+    const a =
+      Math.sin(diferencaLatitude / 2) ** 2 +
+      Math.cos(radianos(latitudeOrigem)) *
+        Math.cos(radianos(latitudeDestino)) *
+        Math.sin(diferencaLongitude / 2) ** 2;
+
+    const aLimitado = Math.min(1, Math.max(0, a));
+
+    return (
+      2 *
+      raioTerraKm *
+      Math.atan2(Math.sqrt(aLimitado), Math.sqrt(1 - aLimitado))
+    );
   }
 }

@@ -47,6 +47,7 @@ export class CandidateMatchController {
       lang,
       limite: body.limite,
       faixa: body.faixa,
+      raio_km: body.raio_km,
     });
   }
 
