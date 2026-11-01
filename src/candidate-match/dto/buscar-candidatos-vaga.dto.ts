@@ -1,4 +1,4 @@
-import { IsEnum, IsIn, IsInt, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum FaixaMatch {
@@ -21,4 +21,10 @@ export class BuscarCandidatosVagaDto {
 
   @IsEnum(FaixaMatch)
   faixa!: FaixaMatch;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([50, 85, 100, 120])
+  raio_km?: number;
 }
