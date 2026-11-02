@@ -112,4 +112,9 @@ export class CreateCandidatoDto {
   @IsOptional()
   @IsString()
   modalidades_trabalho?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  @ToBoolean()
+  aceita_mudanca_cidade?: boolean;
 }
