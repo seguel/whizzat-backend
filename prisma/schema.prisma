@@ -157,6 +157,7 @@ model UsuarioPerfilCandidato {
   oportunidade_diversidade       Boolean                       @default(false)
   oportunidade_lgbtqia           Boolean                       @default(false)
   oportunidade_pcd               Boolean                       @default(false)
+  aceita_mudanca_cidade          Boolean @default(false)
   certificacoes                  CandidatoCertificacoes[]
   formacao                       CandidatoFormacaoAcademica[]
   candidatoModalidadeTrabalhos   CandidatoModalidadeTrabalho[]

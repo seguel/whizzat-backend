@@ -69,6 +69,7 @@ export interface CandidatoDto {
   certificacoes: CandidatoCertificacaoDto[];
   usuario: UsuarioDto;
   aberto_oportunidades: boolean;
+  aceita_mudanca_cidade: boolean;
 }
 
 type DashboardOportunidadeCandidato = {
@@ -313,6 +314,7 @@ export class CandidatoService {
     oportunidade_lgbtqia: boolean;
     oportunidade_50mais: boolean;
     oportunidade_diversidade: boolean;
+    aceita_mudanca_cidade: boolean;
   }) {
     const createData: Prisma.UsuarioPerfilCandidatoCreateInput = {
       usuario: {
@@ -333,6 +335,7 @@ export class CandidatoService {
       oportunidade_lgbtqia: data.oportunidade_lgbtqia,
       oportunidade_50mais: data.oportunidade_50mais,
       oportunidade_diversidade: data.oportunidade_diversidade,
+      aceita_mudanca_cidade: data.aceita_mudanca_cidade,
     };
 
     const candidato = await this.prisma.usuarioPerfilCandidato.create({
@@ -361,6 +364,7 @@ export class CandidatoService {
     oportunidade_lgbtqia: boolean;
     oportunidade_50mais: boolean;
     oportunidade_diversidade: boolean;
+    aceita_mudanca_cidade: boolean;
   }) {
     const updateData: Prisma.UsuarioPerfilCandidatoUpdateInput = {
       telefone: data.telefone,
@@ -375,6 +379,7 @@ export class CandidatoService {
       oportunidade_lgbtqia: data.oportunidade_lgbtqia,
       oportunidade_50mais: data.oportunidade_50mais,
       oportunidade_diversidade: data.oportunidade_diversidade,
+      aceita_mudanca_cidade: data.aceita_mudanca_cidade,
     };
 
     return this.prisma.usuarioPerfilCandidato.update({

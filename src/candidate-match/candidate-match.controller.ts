@@ -48,6 +48,7 @@ export class CandidateMatchController {
       limite: body.limite,
       faixa: body.faixa,
       raio_km: body.raio_km,
+      incluir_fora_raio: body.incluir_fora_raio ?? false,
     });
   }
 

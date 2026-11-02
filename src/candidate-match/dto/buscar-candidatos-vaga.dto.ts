@@ -1,5 +1,13 @@
-import { IsEnum, IsIn, IsInt, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsBoolean,
+  Min,
+} from 'class-validator';
+
+import { Transform, Type } from 'class-transformer';
 
 export enum FaixaMatch {
   ALTA = 'ALTA',
@@ -27,4 +35,13 @@ export class BuscarCandidatosVagaDto {
   @IsInt()
   @IsIn([50, 85, 100, 120])
   raio_km?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === true || value === 'true') return true;
+    if (value === false || value === 'false') return false;
+    return value;
+  })
+  incluir_fora_raio?: boolean;
 }

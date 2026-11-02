@@ -45,6 +45,7 @@ interface CriteriosMatch {
   faixa: FaixaMatch;
   limite: number;
   raio_km?: number | null;
+  incluir_fora_raio?: boolean;
 
   coordenadas_vaga?: {
     latitude: number | null;
@@ -75,6 +76,7 @@ export class CandidateMatchService {
     limite,
     faixa,
     raio_km,
+    incluir_fora_raio = false,
   }: {
     vagaId: number;
     empresaId: number;
@@ -83,6 +85,7 @@ export class CandidateMatchService {
     limite: number;
     faixa: FaixaMatch;
     raio_km?: number;
+    incluir_fora_raio?: boolean;
   }) {
     const recrutador = await this.validarAcessoRecrutador(usuarioId, empresaId);
 
@@ -108,6 +111,7 @@ export class CandidateMatchService {
       faixa,
       limite,
       raio_km,
+      incluir_fora_raio,
     };
 
     const candidatos = await this.executarMatch({
@@ -170,6 +174,7 @@ export class CandidateMatchService {
         faixa,
         lang,
         raio_km: raio_km ?? null,
+        incluir_fora_raio,
       },
 
       candidatos: candidatosComConvite,
@@ -312,6 +317,7 @@ export class CandidateMatchService {
         oportunidade_lgbtqia: true,
         oportunidade_50mais: true,
         oportunidade_diversidade: true,
+        aceita_mudanca_cidade: true,
 
         usuario: {
           select: {
@@ -598,37 +604,27 @@ export class CandidateMatchService {
       latitude: number | null;
       longitude: number | null;
     } | null,
+    incluirForaRaio: boolean = false,
+    aceitaMudancaCidade: boolean = false,
   ): boolean {
     const modalidade = modalidadeVaga.trim().toUpperCase();
 
-    /*
-     * Trabalho remoto:
-     * localização não elimina candidatos.
-     */
+    // Vaga remota: não aplica restrição geográfica.
     if (modalidade === 'REMOTO') {
       return true;
     }
 
-    /*
-     * Segurança:
-     * modalidades desconhecidas continuam bloqueadas.
-     */
+    // Apenas presencial e híbrido são modalidades válidas aqui.
     if (modalidade !== 'PRESENCIAL' && modalidade !== 'HIBRIDO') {
       return false;
     }
 
-    /*
-     * Sem filtro de distância:
-     * não restringe candidatos pela cidade.
-     */
+    // Mantém o comportamento atual quando não existe raio.
     if (raioKm == null) {
       return true;
     }
 
-    /*
-     * Com filtro de distância:
-     * coordenadas são obrigatórias.
-     */
+    // Não podemos calcular a distância sem coordenadas.
     if (
       coordenadasVaga?.latitude == null ||
       coordenadasVaga.longitude == null ||
@@ -645,7 +641,14 @@ export class CandidateMatchService {
       coordenadasCandidato.longitude,
     );
 
-    return distanciaKm <= raioKm;
+    // Candidato dentro do raio: permitido normalmente.
+    if (distanciaKm <= raioKm) {
+      return true;
+    }
+
+    // Candidato fora do raio: somente se o recrutador
+    // permitir e o candidato aceitar mudança de cidade.
+    return incluirForaRaio && aceitaMudancaCidade;
   }
 
   async ignorarCandidato({
@@ -1279,6 +1282,8 @@ export class CandidateMatchService {
           criterios.raio_km,
           criterios.coordenadas_vaga,
           candidato.usuario.cidade,
+          criterios.incluir_fora_raio ?? false,
+          candidato.aceita_mudanca_cidade ?? false,
         );
       })
       .filter((candidato) => {
@@ -1419,9 +1424,11 @@ export class CandidateMatchService {
         nome:
           candidato.usuario.nome_social?.trim() ||
           `${candidato.usuario.primeiro_nome} ${candidato.usuario.ultimo_nome}`.trim(),
+
         localizacao: candidato.usuario.cidade
           ? `${candidato.usuario.cidade.cidade}/${candidato.usuario.cidade.estado.sigla}`
           : null,
+
         score: item.resultadoSkills.score,
         hard_skills: item.resultadoSkills.hard_skills,
         soft_skills: item.resultadoSkills.soft_skills,
@@ -1432,8 +1439,18 @@ export class CandidateMatchService {
         skills_avaliadas: item.resultadoSkills.skills_avaliadas,
         total_skills: item.resultadoSkills.total_skills,
         skills: item.resultadoSkills.detalhes,
+
         distancia_km:
           distanciaKm !== null ? Math.round(distanciaKm * 10) / 10 : null,
+
+        // Indica se o candidato está fora do raio selecionado
+        fora_do_raio:
+          distanciaKm !== null &&
+          criterios.raio_km != null &&
+          distanciaKm > criterios.raio_km,
+
+        // Preferência informada no perfil do candidato
+        aceita_mudanca_cidade: candidato.aceita_mudanca_cidade ?? false,
       };
     });
   }

@@ -162,6 +162,7 @@ export class CandidatoController {
       oportunidade_lgbtqia: body.oportunidade_lgbtqia ?? false,
       oportunidade_50mais: body.oportunidade_50mais ?? false,
       oportunidade_diversidade: body.oportunidade_diversidade ?? false,
+      aceita_mudanca_cidade: body.aceita_mudanca_cidade ?? false,
     });
 
     const dataUser = {
@@ -405,6 +406,7 @@ export class CandidatoController {
       oportunidade_lgbtqia: body.oportunidade_lgbtqia ?? false,
       oportunidade_50mais: body.oportunidade_50mais ?? false,
       oportunidade_diversidade: body.oportunidade_diversidade ?? false,
+      aceita_mudanca_cidade: body.aceita_mudanca_cidade ?? false,
     });
 
     const dataUser = {
