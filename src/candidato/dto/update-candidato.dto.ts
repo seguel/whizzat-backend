@@ -124,4 +124,8 @@ export class UpdateCandidatoDto {
   @IsOptional()
   @IsString()
   modalidades_trabalho?: string;
+
+  @Transform(booleanTransform)
+  @IsBoolean()
+  aceita_mudanca_cidade: boolean = false;
 }
