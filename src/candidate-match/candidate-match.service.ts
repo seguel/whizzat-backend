@@ -1107,6 +1107,43 @@ export class CandidateMatchService {
       };
     });
 
+    const raioKm = criterios.raio_km ?? null;
+    const cidadeId = raioKm !== null ? criterios.cidade_id : null;
+
+    let coordenadasBusca: {
+      latitude: number;
+      longitude: number;
+    } | null = null;
+
+    if (raioKm !== null) {
+      if (!cidadeId) {
+        throw new BadRequestException(
+          'Selecione uma cidade para realizar a busca por raio.',
+        );
+      }
+
+      const cidade = await this.prisma.estadoCidade.findUnique({
+        where: {
+          id: cidadeId,
+        },
+        select: {
+          latitude: true,
+          longitude: true,
+        },
+      });
+
+      if (!cidade || cidade.latitude == null || cidade.longitude == null) {
+        throw new BadRequestException(
+          'A cidade selecionada não possui coordenadas válidas.',
+        );
+      }
+
+      coordenadasBusca = {
+        latitude: cidade.latitude,
+        longitude: cidade.longitude,
+      };
+    }
+
     const candidatos = await this.executarMatch({
       recrutadorId: recrutador.id,
       linguagem: recrutador.linguagem,
@@ -1115,7 +1152,9 @@ export class CandidateMatchService {
         skills: skillsMatch,
         faixa: criterios.faixa,
         limite: criterios.limite,
-        raio_km: 50,
+        raio_km: raioKm,
+        cidade_id: cidadeId ?? null,
+        coordenadas_vaga: coordenadasBusca,
       },
     });
 
@@ -1219,6 +1258,8 @@ export class CandidateMatchService {
       parametros: {
         limite: criterios.limite,
         faixa: criterios.faixa,
+        raio_km: criterios.raio_km ?? null,
+        cidade_id: criterios.raio_km != null ? criterios.cidade_id : null,
 
         skills: skillsMatch.map((item) => ({
           skill_id: item.skill_id,
@@ -1271,12 +1312,38 @@ export class CandidateMatchService {
         );
       })
       .filter((candidato) => {
-        if (!criterios.modalidade_codigo) {
+        // Busca manual sem raio: mantém o comportamento atual
+        if (!criterios.modalidade_codigo && criterios.raio_km == null) {
           return true;
         }
 
+        // Busca manual com raio: filtra pela cidade selecionada
+        if (!criterios.modalidade_codigo && criterios.raio_km != null) {
+          const origem = criterios.coordenadas_vaga;
+          const destino = candidato.usuario.cidade;
+
+          if (
+            origem?.latitude == null ||
+            origem.longitude == null ||
+            destino?.latitude == null ||
+            destino.longitude == null
+          ) {
+            return false;
+          }
+
+          const distanciaKm = this.calcularDistanciaKm(
+            origem.latitude,
+            origem.longitude,
+            destino.latitude,
+            destino.longitude,
+          );
+
+          return distanciaKm <= criterios.raio_km;
+        }
+
+        // Match de vaga: mantém exatamente a regra existente
         return this.isLocalizacaoCompativel(
-          criterios.modalidade_codigo,
+          criterios.modalidade_codigo!,
           criterios.cidade_id ?? 0,
           candidato.usuario.cidade_id,
           criterios.raio_km,
@@ -1386,9 +1453,12 @@ export class CandidateMatchService {
       const cidadeCandidato = candidato.usuario.cidade;
       const cidadeVaga = criterios.coordenadas_vaga;
 
+      const calcularDistancia = criterios.modalidade_codigo
+        ? criterios.modalidade_codigo.trim().toUpperCase() !== 'REMOTO'
+        : criterios.raio_km != null;
+
       const distanciaKm =
-        criterios.modalidade_codigo &&
-        criterios.modalidade_codigo.trim().toUpperCase() !== 'REMOTO' &&
+        calcularDistancia &&
         cidadeVaga?.latitude != null &&
         cidadeVaga.longitude != null &&
         cidadeCandidato?.latitude != null &&
