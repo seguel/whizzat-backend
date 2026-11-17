@@ -162,11 +162,13 @@ model UsuarioPerfilCandidato {
   formacao                       CandidatoFormacaoAcademica[]
   candidatoModalidadeTrabalhos   CandidatoModalidadeTrabalho[]
   skills                         CandidatoSkill[]
+  disc_aplicacoes                CandidatoDiscAplicacao[]
   perfil                         Perfil                        @relation(fields: [perfil_id], references: [id])
   usuario                        Usuario                       @relation(fields: [usuario_id], references: [id])
 
   exclusoes_recrutador RecrutadorCandidatoExclusao[]
   convites_recrutador RecrutadorConviteCandidato[]
+  
 
   @@unique([usuario_id, perfil_id])
   @@index([ativo, aberto_oportunidades])
@@ -744,6 +746,114 @@ model RecrutadorConviteAgenda {
   @@map("recrutador_convite_agenda")
 }
 
+model DiscQuestionario {
+  id          Int       @id @default(autoincrement())
+  titulo      String
+  descricao   String?   @db.Text
+  versao      Int       @default(1)
+  linguagem   String    @default("pt-BR")
+  ativo       Boolean   @default(true)
+  criado_em   DateTime  @default(now())
+
+  perguntas   DiscPergunta[]
+  aplicacoes  CandidatoDiscAplicacao[]
+
+  @@unique([versao, linguagem])
+  @@map("disc_questionario")
+}
+
+model DiscPergunta {
+  id              Int              @id @default(autoincrement())
+  questionario_id Int
+  numero_bloco    Int
+  ativo           Boolean          @default(true)
+
+  questionario    DiscQuestionario  @relation(fields: [questionario_id], references: [id])
+  alternativas    DiscAlternativa[]
+  respostas       CandidatoDiscResposta[]
+
+  @@unique([questionario_id, numero_bloco])
+  @@map("disc_pergunta")
+}
+
+model DiscAlternativa {
+  id          Int           @id @default(autoincrement())
+  pergunta_id Int
+  letra       String        @db.VarChar(1)
+  texto       String        @db.Text
+  dimensao    DiscDimensao
+  peso        Int           @default(1)
+  ativo       Boolean       @default(true)
+
+  pergunta    DiscPergunta  @relation(fields: [pergunta_id], references: [id])
+
+  respostas_mais  CandidatoDiscResposta[] @relation("DiscRespostaMais")
+  respostas_menos CandidatoDiscResposta[] @relation("DiscRespostaMenos")
+
+  @@unique([pergunta_id, letra])
+  @@map("disc_alternativa")
+}
+
+model CandidatoDiscAplicacao {
+  id                    Int                   @id @default(autoincrement())
+  candidato_id          Int
+  questionario_id       Int
+  status                DiscStatusAplicacao   @default(EM_ANDAMENTO)
+  consentimento         Boolean               @default(false)
+  consentimento_em      DateTime?
+  compartilhar_recrutador Boolean             @default(false)
+  iniciado_em           DateTime              @default(now())
+  finalizado_em         DateTime?
+  tempo_total_ms        Int                   @default(0)
+  tempo_medio_ms        Int?
+  bloco_mais_rapido      Int?
+  bloco_mais_lento       Int?
+  score_d               Int?
+  score_i               Int?
+  score_s               Int?
+  score_c               Int?
+
+  dimensao_dominante     DiscDimensao?
+  dimensao_secundaria    DiscDimensao?
+
+  blend_codigo           String?              @db.VarChar(2)
+  blend_titulo           String?              @db.VarChar(150)
+  alerta_tempo           String?              @db.VarChar(50)
+  algoritmo_versao       Int                  @default(1)
+
+  candidato              UsuarioPerfilCandidato @relation(fields: [candidato_id], references: [id])
+  questionario           DiscQuestionario       @relation(fields: [questionario_id], references: [id])
+  respostas              CandidatoDiscResposta[]
+
+  @@index([candidato_id, status])
+  @@index([questionario_id])
+  @@map("candidato_disc_aplicacao")
+}
+
+model CandidatoDiscResposta {
+  id                   Int                     @id @default(autoincrement())
+  aplicacao_id         Int
+  pergunta_id          Int
+
+  alternativa_mais_id  Int
+  alternativa_menos_id Int
+
+  tempo_ms             Int                     @default(0)
+
+  respondido_em        DateTime                @default(now())
+  atualizado_em        DateTime                @updatedAt
+
+  aplicacao            CandidatoDiscAplicacao  @relation(fields: [aplicacao_id], references: [id])
+  pergunta             DiscPergunta            @relation(fields: [pergunta_id], references: [id])
+
+  alternativa_mais     DiscAlternativa         @relation("DiscRespostaMais", fields: [alternativa_mais_id], references: [id])
+  alternativa_menos    DiscAlternativa         @relation("DiscRespostaMenos", fields: [alternativa_menos_id], references: [id])
+
+  @@unique([aplicacao_id, pergunta_id])
+  @@index([pergunta_id])
+  @@map("candidato_disc_resposta")
+}
+
 enum PlataformaEntrevista {
   GOOGLE_MEET
   MICROSOFT_TEAMS
@@ -840,4 +950,17 @@ enum StatusConviteRecrutador {
   ENTREVISTA_CONFIRMADA
   ENTREVISTA_REALIZADA
   FINALIZADO
+}
+
+enum DiscDimensao {
+  D
+  I
+  S
+  C
+}
+
+enum DiscStatusAplicacao {
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
 }
