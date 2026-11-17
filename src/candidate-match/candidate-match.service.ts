@@ -122,28 +122,51 @@ export class CandidateMatchService {
 
     const candidatoIds = candidatos.map((candidato) => candidato.candidato_id);
 
-    const convitesExistentes =
+    const [convitesExistentes, aplicacoesDisc] =
       candidatoIds.length > 0
-        ? await this.prisma.recrutadorConviteCandidato.findMany({
-            where: {
-              vaga_id: vaga.vaga_id,
-              candidato_id: {
-                in: candidatoIds,
+        ? await Promise.all([
+            this.prisma.recrutadorConviteCandidato.findMany({
+              where: {
+                vaga_id: vaga.vaga_id,
+                candidato_id: {
+                  in: candidatoIds,
+                },
               },
-            },
-            select: {
-              candidato_id: true,
-            },
-          })
-        : [];
+              select: {
+                candidato_id: true,
+              },
+            }),
+
+            this.prisma.candidatoDiscAplicacao.findMany({
+              where: {
+                candidato_id: {
+                  in: candidatoIds,
+                },
+                status: 'CONCLUIDO',
+                compartilhar_recrutador: true,
+              },
+              select: {
+                candidato_id: true,
+              },
+              distinct: ['candidato_id'],
+            }),
+          ])
+        : [[], []];
 
     const candidatoIdsConvidados = new Set(
       convitesExistentes.map((convite) => convite.candidato_id),
     );
 
+    const candidatoIdsDiscDisponivel = new Set(
+      aplicacoesDisc.map((aplicacao) => aplicacao.candidato_id),
+    );
+
     const candidatosComConvite = candidatos.map((candidato) => ({
       ...candidato,
+
       ja_convidado: candidatoIdsConvidados.has(candidato.candidato_id),
+
+      disc_disponivel: candidatoIdsDiscDisponivel.has(candidato.candidato_id),
     }));
 
     return {
@@ -1016,6 +1039,28 @@ export class CandidateMatchService {
       };
     });
 
+    const aplicacaoDisc = await this.prisma.candidatoDiscAplicacao.findFirst({
+      where: {
+        candidato_id: candidato.id,
+        status: 'CONCLUIDO',
+        compartilhar_recrutador: true,
+      },
+      orderBy: {
+        finalizado_em: 'desc',
+      },
+      select: {
+        dimensao_dominante: true,
+        dimensao_secundaria: true,
+        blend_codigo: true,
+        blend_titulo: true,
+        score_d: true,
+        score_i: true,
+        score_s: true,
+        score_c: true,
+        finalizado_em: true,
+      },
+    });
+
     return {
       candidato_id: candidato.id,
       nome,
@@ -1047,6 +1092,22 @@ export class CandidateMatchService {
         certificacao: item.certificacoes.certificado,
         certificado_file: item.certificado_file,
       })),
+
+      disc: aplicacaoDisc
+        ? {
+            dominante: aplicacaoDisc.dimensao_dominante,
+            secundaria: aplicacaoDisc.dimensao_secundaria,
+            blend_codigo: aplicacaoDisc.blend_codigo,
+            blend_titulo: aplicacaoDisc.blend_titulo,
+            scores: {
+              D: aplicacaoDisc.score_d,
+              I: aplicacaoDisc.score_i,
+              S: aplicacaoDisc.score_s,
+              C: aplicacaoDisc.score_c,
+            },
+            finalizado_em: aplicacaoDisc.finalizado_em,
+          }
+        : null,
     };
   }
 
